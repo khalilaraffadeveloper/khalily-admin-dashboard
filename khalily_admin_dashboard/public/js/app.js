@@ -138,47 +138,8 @@ document.querySelectorAll('.sidebar-link').forEach(item => {
 });
 
 // ============================================
-// DISPATCH PANEL
+// DISPATCH OFFCANVAS (Bootstrap handles show/hide)
 // ============================================
-document.getElementById('togglePanel').addEventListener('click', () => {
-    document.getElementById('dispatchPanel').classList.add('collapsed');
-    const toggleBtn = document.getElementById('dispatchToggleBtn');
-    if (toggleBtn) toggleBtn.classList.remove('panel-open');
-});
-
-const dispatchToggleBtn = document.getElementById('dispatchToggleBtn');
-if (dispatchToggleBtn) {
-    dispatchToggleBtn.addEventListener('click', () => {
-        document.getElementById('dispatchPanel').classList.remove('collapsed');
-        dispatchToggleBtn.classList.add('panel-open');
-    });
-}
-
-const dispatchFab = document.getElementById('dispatchFab');
-if (dispatchFab) {
-    dispatchFab.addEventListener('click', () => {
-        document.getElementById('dispatchPanel').classList.remove('collapsed');
-    });
-}
-
-// Hide FAB when panel is open, show when closed
-const panelObserver = new MutationObserver(() => {
-    const panel = document.getElementById('dispatchPanel');
-    const fab = document.getElementById('dispatchFab');
-    const toggleBtn = document.getElementById('dispatchToggleBtn');
-    if (panel) {
-        const isCollapsed = panel.classList.contains('collapsed');
-        if (fab) fab.style.display = isCollapsed ? '' : 'none';
-        if (toggleBtn) {
-            if (isCollapsed) toggleBtn.classList.remove('panel-open');
-            else toggleBtn.classList.add('panel-open');
-        }
-    }
-});
-const dispatchPanel = document.getElementById('dispatchPanel');
-if (dispatchPanel) {
-    panelObserver.observe(dispatchPanel, { attributes: true, attributeFilter: ['class'] });
-}
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
     document.getElementById('radiusValue').textContent = `${e.target.value} كم`;
