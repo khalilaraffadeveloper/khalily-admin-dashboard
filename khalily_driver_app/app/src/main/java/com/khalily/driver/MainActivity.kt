@@ -70,7 +70,15 @@ class MainActivity : ComponentActivity() {
                 ) {
                     when {
                         showSettings -> {
-                            SettingsScreen(onBack = { showSettings = false })
+                            SettingsScreen(
+                                onBack = { showSettings = false },
+                                onLogout = {
+                                    showSettings = false
+                                    isLoggedIn = false
+                                    SoundPlayer.stopSound()
+                                    rideListener?.remove()
+                                }
+                            )
                         }
                         showRideTracking -> {
                             RideTrackingScreen(

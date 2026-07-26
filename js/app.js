@@ -190,6 +190,11 @@ document.getElementById('togglePanel').addEventListener('click', () => {
     btn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
 });
 
+document.getElementById('mobileDispatchBtn').addEventListener('click', () => {
+    const panel = document.getElementById('dispatchPanel');
+    panel.classList.remove('collapsed');
+});
+
 document.getElementById('searchRadius').addEventListener('input', (e) => {
     document.getElementById('radiusValue').textContent = `${e.target.value} كم`;
     if (radiusCircle && pickupCoords) radiusCircle.setRadius(e.target.value * 1000);

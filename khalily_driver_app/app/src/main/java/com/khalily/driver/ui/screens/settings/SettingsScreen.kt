@@ -41,7 +41,8 @@ data class RideHistoryItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
@@ -129,6 +130,23 @@ fun SettingsScreen(
             1 -> ContactInfoTab(context)
             2 -> TopUpInfoTab(context)
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { onLogout() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+        ) {
+            Icon(Icons.Default.Logout, contentDescription = null, tint = Color.White)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("تسجيل الخروج", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -500,6 +518,8 @@ private fun TopUpInfoTab(context: android.content.Context) {
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
