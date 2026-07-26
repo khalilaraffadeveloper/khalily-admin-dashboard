@@ -1,5 +1,5 @@
 // ============================================
-// KHALILY ADMIN DASHBOARD - app.js
+// KHALILY ADMIN DASHBOARD - app.js (Bootstrap 5)
 // ============================================
 
 let db = null;
@@ -7,7 +7,7 @@ let firebaseReady = false;
 let commissionPercent = 10;
 
 // ============================================
-// AUTH CHECK - redirect to login if not logged in
+// AUTH CHECK
 // ============================================
 if (sessionStorage.getItem('khalily_admin_logged_in') !== 'true') {
     window.location.href = 'index.html';
@@ -35,7 +35,6 @@ try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
     firebaseReady = true;
-    console.log('✅ Khalily Dashboard connected to Firestore:', firebaseConfig.projectId);
 } catch (e) {
     console.error("Firebase init failed:", e);
 }
@@ -49,7 +48,7 @@ function requireDb(caller) {
 }
 
 // ============================================
-// MAP INITIALIZATION
+// STATE
 // ============================================
 let map = null;
 let driversMap = {};
@@ -71,37 +70,18 @@ function initMap() {
         if (radiusCircle) map.removeLayer(radiusCircle);
         const icon = L.divIcon({
             className: 'pickup-marker-wrapper',
-            html: '<div class="pickup-marker">📍</div>',
+            html: '<div style="background:#0B1849;border:3px solid white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:20px;">📍</div>',
             iconSize: [40, 40], iconAnchor: [20, 20]
         });
         pickupMarker = L.marker([lat, lng], { icon }).addTo(map);
         const radius = parseInt(document.getElementById('searchRadius').value) * 1000;
         radiusCircle = L.circle([lat, lng], {
-            radius, color: '#1565C0', fillColor: '#42A5F5',
+            radius, color: '#0B1849', fillColor: '#D4A843',
             fillOpacity: 0.15, weight: 2, dashArray: '8, 8'
         }).addTo(map);
         document.getElementById('pickupCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
         document.getElementById('dispatchBtn').disabled = false;
-        updateFareDisplay();
     });
-}
-
-// ============================================
-// FARE CALCULATION
-// ============================================
-function calculateDistanceKm(lat1, lng1, lat2, lng2) {
-    const R = 6371;
-    const toRad = x => x * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLng = toRad(lng2 - lng1);
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function updateFareDisplay() {
-    const radius = parseInt(document.getElementById('searchRadius').value) || 3;
-    const fare = Math.round(200 + (radius * 150));
-    document.getElementById('fareDisplay').value = `${fare} MRU (مسافة ~${radius} كم)`;
 }
 
 // ============================================
@@ -110,6 +90,43 @@ function updateFareDisplay() {
 let allDrivers = [];
 let allRides = [];
 let currentPage = 'map';
+
+// ============================================
+// SOUND NOTIFICATION
+// ============================================
+let audioCtx = null;
+
+function playNotificationSound() {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        [800, 1000, 1200, 1000, 800].forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.15 + 0.15);
+            osc.start(audioCtx.currentTime + i * 0.15);
+            osc.stop(audioCtx.currentTime + i * 0.15 + 0.15);
+        });
+    } catch (e) {}
+}
+
+function requestAudioPermission() {
+    if (audioCtx) return;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        gain.gain.value = 0;
+        osc.start(); osc.stop(audioCtx.currentTime + 0.01);
+    } catch (e) {}
+}
+document.addEventListener('click', requestAudioPermission, { once: true });
 
 // ============================================
 // CLOCK
@@ -123,18 +140,6 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // ============================================
-// MOBILE MENU
-// ============================================
-document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('sidebarOverlay').classList.toggle('active');
-});
-document.getElementById('sidebarOverlay').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebarOverlay').classList.remove('active');
-});
-
-// ============================================
 // NAVIGATION
 // ============================================
 const pageTitles = {
@@ -144,61 +149,53 @@ const pageTitles = {
     settings: 'الإعدادات'
 };
 
-document.querySelectorAll('.nav-item').forEach(item => {
+function navigateToPage(page) {
+    document.querySelectorAll('.sidebar-link').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll(`.sidebar-link[data-page="${page}"]`).forEach(n => n.classList.add('active'));
+    document.querySelectorAll('.page-content').forEach(p => p.classList.add('d-none'));
+    const el = document.getElementById('page-' + page);
+    if (el) el.classList.remove('d-none');
+    const titleEl = document.getElementById('pageTitle');
+    if (titleEl) titleEl.textContent = pageTitles[page] || '';
+    const titleMobile = document.getElementById('pageTitleMobile');
+    if (titleMobile) titleMobile.textContent = (pageTitles[page] || '').substring(0, 20);
+    const liveBadge = document.getElementById('liveBadge');
+    if (liveBadge) liveBadge.classList.toggle('d-none', page !== 'map');
+    currentPage = page;
+    if (page === 'drivers') loadDriversList();
+    if (page === 'rides') loadRidesList();
+    if (page === 'settings') loadCommission();
+}
+
+document.querySelectorAll('.sidebar-link').forEach(item => {
     item.addEventListener('click', (e) => {
         e.preventDefault();
-        const page = item.dataset.page;
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        item.classList.add('active');
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById('page-' + page).classList.add('active');
-        document.getElementById('pageTitle').textContent = pageTitles[page] || '';
-        document.getElementById('liveBadge').style.display = page === 'map' ? '' : 'none';
-        currentPage = page;
-        if (page === 'drivers') loadDriversList();
-        if (page === 'rides') loadRidesList();
-        if (page === 'settings') loadCommission();
-        document.getElementById('sidebar').classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.remove('active');
+        navigateToPage(item.dataset.page);
     });
 });
 
 // ============================================
-// EXPAND / COLLAPSE
+// DISPATCH PANEL (Custom RTL-safe)
 // ============================================
-document.querySelectorAll('.section-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const target = header.dataset.toggle;
-        if (!target) return;
-        const body = document.getElementById('body-' + target);
-        const icon = document.getElementById('toggle-' + target);
-        if (body && icon) {
-            body.classList.toggle('open');
-            icon.classList.toggle('open');
-            icon.textContent = body.classList.contains('open') ? '▲' : '▼';
-        }
-    });
-});
+let dispatchPanelOpen = false;
 
-// ============================================
-// DISPATCH PANEL TOGGLE
-// ============================================
-document.getElementById('togglePanel').addEventListener('click', () => {
-    const panel = document.getElementById('dispatchPanel');
-    const btn = document.getElementById('togglePanel');
-    panel.classList.toggle('collapsed');
-    btn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
-});
+window.toggleDispatchPanel = function () {
+    dispatchPanelOpen = !dispatchPanelOpen;
+    document.getElementById('dispatchPanel').classList.toggle('open', dispatchPanelOpen);
+    document.getElementById('dispatchOverlay').classList.toggle('show', dispatchPanelOpen);
+    document.getElementById('dispatchOverlay').classList.toggle('d-none', !dispatchPanelOpen);
+};
 
-document.getElementById('mobileDispatchBtn').addEventListener('click', () => {
-    const panel = document.getElementById('dispatchPanel');
-    panel.classList.remove('collapsed');
-});
+function closeDispatchPanel() {
+    dispatchPanelOpen = false;
+    document.getElementById('dispatchPanel').classList.remove('open');
+    document.getElementById('dispatchOverlay').classList.remove('show');
+    setTimeout(() => document.getElementById('dispatchOverlay').classList.add('d-none'), 300);
+}
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
     document.getElementById('radiusValue').textContent = `${e.target.value} كم`;
     if (radiusCircle && pickupCoords) radiusCircle.setRadius(e.target.value * 1000);
-    updateFareDisplay();
 });
 
 document.getElementById('clearPickup').addEventListener('click', () => {
@@ -207,7 +204,7 @@ document.getElementById('clearPickup').addEventListener('click', () => {
     pickupMarker = null; pickupCoords = null; radiusCircle = null;
     document.getElementById('pickupCoords').value = '';
     document.getElementById('dispatchBtn').disabled = true;
-    document.getElementById('fareDisplay').value = '';
+    document.getElementById('fareInput').value = 350;
 });
 
 // ============================================
@@ -221,17 +218,22 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     const pickupAddress = document.getElementById('pickupAddress').value.trim();
     const dropoffAddress = document.getElementById('dropoffAddress').value.trim();
     const radius = parseInt(document.getElementById('searchRadius').value);
+    const fare = parseFloat(document.getElementById('fareInput').value) || 0;
 
     if (!passengerName || !pickupCoords) {
         showStatus('dispatchStatus', 'يرجى إدخال اسم الزبون وتحديد نقطة الانطلاق', 'error');
         return;
     }
+    if (!fare || fare <= 0) {
+        showStatus('dispatchStatus', 'يرجى إدخال سعر صحيح للرحلة', 'error');
+        return;
+    }
 
     const btn = document.getElementById('dispatchBtn');
-    btn.disabled = true; btn.textContent = 'جاري الإرسال...';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>جاري الإرسال...';
 
     try {
-        const fare = Math.round(200 + (radius * 150));
         const rideData = {
             passengerName, passengerPhone: passengerPhone || '',
             pickupLat: pickupCoords.lat, pickupLng: pickupCoords.lng,
@@ -250,41 +252,32 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
         if (nearby.length === 0) {
             showStatus('dispatchStatus', 'لا يوجد سائقون متاحون في النطاق', 'error');
             await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
+            addNotifLog('dispatch', `فشل الإرسال: لا يوجد سائقون في نطاق ${radius} كم`);
         } else {
-            const resp = await fetch('/api/dispatch-ride', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rideId: docRef.id, ...rideData, driverIds: nearby.map(d => d.id) })
-            });
-            if (resp.ok) {
-                showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
-                clearForm();
-            } else {
-                const err = await resp.json();
-                showStatus('dispatchStatus', err.error || 'حدث خطأ أثناء الإرسال', 'error');
-            }
+            showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
+            addNotifLog('dispatch', `تم إرسال رحلة ${passengerName} — تم تنبيه ${nearby.length} سائق | ${fare} MRU`);
+            clearForm();
+            setTimeout(closeDispatchPanel, 1500);
         }
     } catch (err) {
-        console.error('Dispatch error:', err);
-        showStatus('dispatchStatus', 'حدث خطأ في الاتصال: ' + err.message, 'error');
+        showStatus('dispatchStatus', 'حدث خطأ: ' + err.message, 'error');
     }
-    btn.disabled = false; btn.textContent = '📡 إرسال تنبيه جغرافي للسائقين';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill me-1"></i>إرسال تنبيه للسائقين';
 });
 
 // ============================================
-// COMMISSION MANAGEMENT
+// COMMISSION
 // ============================================
 async function loadCommission() {
     if (!requireDb()) return;
     try {
         const doc = await db.collection('settings').doc('app_config').get();
-        if (doc.exists) {
-            commissionPercent = doc.data().commissionPercent || 10;
-        }
+        if (doc.exists) commissionPercent = doc.data().commissionPercent || 10;
         document.getElementById('currentCommission').textContent = `${commissionPercent}%`;
         document.getElementById('newCommission').value = commissionPercent;
     } catch (e) {
-        console.log('Commission load error, using default:', commissionPercent);
+        console.log('Commission load error');
     }
 }
 
@@ -296,54 +289,44 @@ window.saveCommission = async function () {
         return;
     }
     try {
-        await db.collection('settings').doc('app_config').set(
-            { commissionPercent: val },
-            { merge: true }
-        );
+        await db.collection('settings').doc('app_config').set({ commissionPercent: val }, { merge: true });
         commissionPercent = val;
         document.getElementById('currentCommission').textContent = `${val}%`;
         alert('تم حفظ النسبة بنجاح');
     } catch (e) {
-        alert('حدث خطأ: ' + e.message);
+        alert('خطأ: ' + e.message);
     }
 };
 
 // ============================================
-// DRIVER SEARCH BY PHONE
+// DRIVER SEARCH
 // ============================================
 window.searchDriverByPhone = async function () {
     if (!requireDb()) return;
     const phone = document.getElementById('searchDriverPhone').value.trim();
-    if (!phone) { alert('يرجى إدخال رقم الهاتف'); return; }
-
+    if (!phone) { alert('أدخل رقم الهاتف'); return; }
     const resultEl = document.getElementById('searchDriverResult');
-    resultEl.innerHTML = '<p style="color:var(--text-secondary);">جاري البحث...</p>';
+    resultEl.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> جاري البحث...</div>';
 
     try {
         const snapshot = await db.collection('drivers').where('phone', '==', phone).get();
         if (snapshot.empty) {
-            resultEl.innerHTML = '<p style="color:var(--error);font-weight:600;">لم يتم العثور على سائق بهذا الرقم</p>';
+            resultEl.innerHTML = '<div class="alert alert-danger py-2">لم يتم العثور على سائق</div>';
             return;
         }
         const doc = snapshot.docs[0];
         const d = doc.data();
         resultEl.innerHTML = `
-            <div style="background:var(--bg);padding:16px;border-radius:12px;">
-                <p style="font-weight:700;font-size:16px;">${d.name || '-'}</p>
-                <p style="font-size:13px;color:var(--text-secondary);">الهاتف: ${d.phone}</p>
-                <p style="font-size:13px;color:var(--text-secondary);">الرصيد الحالي: <strong style="color:var(--primary);">${d.credit || 0} MRU</strong></p>
-                <div style="margin-top:12px;display:flex;gap:8px;">
-                    <input type="number" id="quickCreditAmount" placeholder="المبلغ" min="1"
-                        style="flex:1;padding:8px 12px;border:2px solid #E8E8E8;border-radius:8px;font-family:Cairo;font-size:14px;">
-                    <button onclick="quickAddCredit('${doc.id}')"
-                        style="padding:8px 16px;background:var(--success);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:Cairo;">
-                        شحن الرصيد
-                    </button>
+            <div class="bg-light rounded-3 p-3">
+                <p class="fw-bold mb-1">${d.name || '-'}</p>
+                <p class="text-muted small mb-1">الهاتف: ${d.phone} | الرصيد: <strong class="text-gold">${d.credit || 0} MRU</strong></p>
+                <div class="input-group input-group-sm mt-2">
+                    <input type="number" class="form-control" id="quickCreditAmount" placeholder="المبلغ" min="1">
+                    <button class="btn btn-success text-white fw-bold" onclick="quickAddCredit('${doc.id}')">شحن</button>
                 </div>
-            </div>
-        `;
+            </div>`;
     } catch (e) {
-        resultEl.innerHTML = `<p style="color:var(--error);">خطأ: ${e.message}</p>`;
+        resultEl.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
     }
 };
 
@@ -355,7 +338,6 @@ window.quickAddCredit = async function (driverId) {
             credit: firebase.firestore.FieldValue.increment(amount)
         });
         alert(`تم شحن ${amount} MRU بنجاح`);
-        document.getElementById('quickCreditAmount').value = '';
         searchDriverByPhone();
         if (currentPage === 'drivers') loadDriversList();
     } catch (e) {
@@ -366,9 +348,68 @@ window.quickAddCredit = async function (driverId) {
 // ============================================
 // REAL-TIME LISTENERS
 // ============================================
+let activeRidesMap = {};
+let firstRidesSnapshot = true;
+
 function initRealtimeListeners() {
     if (!db) return;
 
+    // Active rides listener with sound
+    db.collection('rides').where('status', 'in', ['accepted', 'in_progress'])
+        .onSnapshot(snapshot => {
+            if (!firstRidesSnapshot && snapshot.docChanges().length > 0) {
+                const hasNew = snapshot.docChanges().some(c => c.type === 'added');
+                if (hasNew) playNotificationSound();
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const rd = change.doc.data();
+                        addNotifLog('new_ride', `رحلة جديدة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                    }
+                    if (change.type === 'modified') {
+                        const rd = change.doc.data();
+                        if (rd.status === 'accepted') addNotifLog('ride_accepted', `تم قبول الرحلة: ${rd.passengerName || 'زبون'}`);
+                        else if (rd.status === 'in_progress') addNotifLog('ride_in_progress', `بدء تنفيذ: ${rd.passengerName || 'زبون'}`);
+                        else if (rd.status === 'completed') addNotifLog('ride_completed', `اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                        else if (rd.status === 'cancelled') addNotifLog('ride_cancelled', `تم إلغاء: ${rd.passengerName || 'زبون'}`);
+                    }
+                });
+            }
+            firstRidesSnapshot = false;
+
+            document.getElementById('rideCount').textContent = snapshot.size;
+            document.getElementById('statActiveRides').textContent = snapshot.size;
+            const mobileCount = document.querySelector('.rideCount-mobile');
+            if (mobileCount) mobileCount.textContent = snapshot.size;
+
+            snapshot.forEach(doc => {
+                const r = doc.data();
+                const id = doc.id;
+                if (!r.pickupLat || !r.pickupLng) return;
+                if (activeRidesMap[id]) {
+                    activeRidesMap[id].marker.setLatLng([r.pickupLat, r.pickupLng]);
+                } else {
+                    const icon = L.divIcon({
+                        className: 'ride-marker-wrapper',
+                        html: `<div style="background:${r.status==='in_progress'?'#2E7D32':'#E65100'};border:3px solid white;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:18px;">🎫</div>`,
+                        iconSize: [38, 38], iconAnchor: [19, 19]
+                    });
+                    const statusLabel = r.status === 'in_progress' ? 'جارية' : 'مقبولة';
+                    const marker = L.marker([r.pickupLat, r.pickupLng], { icon })
+                        .bindPopup(`<div style="font-family:Cairo;text-align:center;direction:rtl;"><strong>${r.passengerName || 'زبون'}</strong><br><small>${r.pickupAddress || ''} → ${r.dropoffAddress || ''}</small><br><strong>${r.fare || 0} MRU</strong><br><span style="color:${r.status==='in_progress'?'#2E7D32':'#E65100'};">● ${statusLabel}</span></div>`)
+                        .addTo(map);
+                    activeRidesMap[id] = { marker, data: r };
+                }
+            });
+
+            Object.keys(activeRidesMap).forEach(id => {
+                if (!snapshot.docs.find(d => d.id === id)) {
+                    map.removeLayer(activeRidesMap[id].marker);
+                    delete activeRidesMap[id];
+                }
+            });
+        });
+
+    // Drivers online listener
     db.collection('drivers').where('isOnline', '==', true)
         .onSnapshot(snapshot => {
             const onlineIds = new Set();
@@ -382,55 +423,42 @@ function initRealtimeListeners() {
                 } else {
                     const icon = L.divIcon({
                         className: 'driver-marker-wrapper',
-                        html: '<div class="driver-marker">🛵</div>',
+                        html: '<div style="background:#0B1849;border:3px solid white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:18px;">🛵</div>',
                         iconSize: [36, 36], iconAnchor: [18, 18]
                     });
                     const marker = L.marker([data.lat, data.lng], { icon }).addTo(map)
-                        .bindPopup(`
-                            <div style="font-family:Cairo;text-align:center;direction:rtl;">
-                                <strong>${data.name || 'سائق'}</strong><br>
-                                <small>دراجة نارية | رصيد: ${data.credit || 0} MRU</small><br>
-                                <span style="color:#4CAF50;">● متاح</span>
-                            </div>
-                        `);
+                        .bindPopup(`<div style="font-family:Cairo;text-align:center;direction:rtl;"><strong>${data.name || 'سائق'}</strong><br><small>دراجة نارية | رصيد: ${data.credit || 0} MRU</small><br><span style="color:#2E7D32;">● متاح</span></div>`);
                     driversMap[id] = { marker, data };
                 }
             });
             Object.keys(driversMap).forEach(id => {
-                if (!onlineIds.has(id)) {
-                    map.removeLayer(driversMap[id].marker);
-                    delete driversMap[id];
-                }
+                if (!onlineIds.has(id)) { map.removeLayer(driversMap[id].marker); delete driversMap[id]; }
             });
             document.getElementById('onlineCount').textContent = onlineIds.size;
-        });
-
-    db.collection('rides').where('status', 'in', ['accepted', 'in_progress'])
-        .onSnapshot(snapshot => {
-            document.getElementById('rideCount').textContent = snapshot.size;
+            document.getElementById('statOnlineDrivers').textContent = onlineIds.size;
+            const mobileCount = document.querySelector('.onlineCount-mobile');
+            if (mobileCount) mobileCount.textContent = onlineIds.size;
         });
 }
 
 // ============================================
-// REGISTER NEW DRIVER
+// REGISTER DRIVER
 // ============================================
 document.getElementById('registerDriverBtn').addEventListener('click', async () => {
     const statusEl = 'registerDriverStatus';
     if (!requireDb(statusEl)) return;
-
     const name = document.getElementById('newDriverName').value.trim();
     const phone = document.getElementById('newDriverPhone').value.trim();
     const password = document.getElementById('newDriverPassword').value.trim();
-    const vehicle = document.getElementById('newDriverVehicle').value;
+    const vehicle = document.getElementById('newDriverVehicle')?.value || 'motorcycle';
     const credit = parseFloat(document.getElementById('newDriverCredit').value) || 0;
 
-    if (!name) { showStatus(statusEl, 'يرجى إدخال اسم السائق', 'error'); return; }
-    if (!phone) { showStatus(statusEl, 'يرجى إدخال رقم الهاتف', 'error'); return; }
-    if (!password) { showStatus(statusEl, 'يرجى إدخال كلمة السر', 'error'); return; }
+    if (!name) { showStatus(statusEl, 'أدخل اسم السائق', 'error'); return; }
+    if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
+    if (!password) { showStatus(statusEl, 'أدخل كلمة السر', 'error'); return; }
 
     const btn = document.getElementById('registerDriverBtn');
     btn.disabled = true; btn.textContent = 'جاري التسجيل...';
-
     try {
         await db.collection('drivers').add({
             name, phone, password, vehicleType: vehicle, credit,
@@ -440,8 +468,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
             lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
-        showStatus(statusEl, `تم التسجيل بنجاح!`, 'success');
+        showStatus(statusEl, 'تم التسجيل بنجاح!', 'success');
         document.getElementById('newDriverName').value = '';
         document.getElementById('newDriverPhone').value = '';
         document.getElementById('newDriverPassword').value = '';
@@ -454,49 +481,46 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
 });
 
 // ============================================
-// LOAD DRIVERS LIST
+// DRIVERS LIST
 // ============================================
 async function loadDriversList() {
-    if (!requireDb('registerDriverStatus')) return;
+    if (!requireDb()) return;
+    const tbody = document.getElementById('driversTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
     try {
         const snapshot = await db.collection('drivers').get();
         allDrivers = [];
-        snapshot.forEach(doc => {
-            allDrivers.push({ id: doc.id, ...doc.data() });
-        });
+        snapshot.forEach(doc => allDrivers.push({ id: doc.id, ...doc.data() }));
         renderDriversList(allDrivers);
     } catch (err) {
         console.error('Load drivers error:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
 function renderDriversList(drivers) {
     const tbody = document.getElementById('driversTableBody');
     document.getElementById('totalDriversCount').textContent = drivers.length;
-
     if (drivers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">لا يوجد سائقون مسجلون</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا يوجد سائقون</td></tr>';
         return;
     }
-
     tbody.innerHTML = drivers.map(d => {
         const status = d.disabled ? 'disabled' : (d.isOnline ? 'online' : 'offline');
-        const statusLabel = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
-        const badgeClass = `badge badge-${status}`;
+        const label = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
+        const badgeClass = `badge bg-${status === 'online' ? 'success' : status === 'disabled' ? 'danger' : 'secondary'}`;
         const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        return `
-        <tr>
+        return `<tr>
             <td><strong>${d.name || '-'}</strong></td>
             <td>${d.phone || '-'}</td>
-            <td>🛵</td>
             <td><strong>${d.credit || 0}</strong> MRU</td>
-            <td><span class="${badgeClass}">${statusLabel}</span></td>
+            <td><span class="${badgeClass}">${label}</span></td>
             <td>
-                <div class="action-btns">
-                    <button class="action-btn action-btn-edit" onclick="openEditModal('${d.id}','${safeName}','${d.phone||''}','${d.disabled?"disabled":"active"}')">تعديل</button>
-                    <button class="action-btn action-btn-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>
-                    <button class="action-btn action-btn-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>
-                    <button class="action-btn action-btn-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>
+                <div class="d-flex gap-1 flex-wrap">
+                    <button class="btn-action btn-action-edit" onclick="openEditModal('${d.id}','${safeName}','${d.phone||''}','${d.disabled?"disabled":"active"}')">تعديل</button>
+                    <button class="btn-action btn-action-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>
+                    <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>
+                    <button class="btn-action btn-action-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>
                 </div>
             </td>
         </tr>`;
@@ -507,36 +531,35 @@ document.getElementById('searchDrivers').addEventListener('input', filterDrivers
 document.getElementById('filterDriverStatus').addEventListener('change', filterDrivers);
 
 function filterDrivers() {
-    const query = document.getElementById('searchDrivers').value.toLowerCase();
+    const query = document.getElementById('searchDrivers').value;
     const status = document.getElementById('filterDriverStatus').value;
-    let filtered = allDrivers.filter(d => {
-        const matchQuery = !query || (d.name||'').toLowerCase().includes(query) || (d.phone||'').includes(query);
-        let matchStatus = true;
-        if (status === 'online') matchStatus = d.isOnline && !d.disabled;
-        else if (status === 'offline') matchStatus = !d.isOnline && !d.disabled;
-        else if (status === 'disabled') matchStatus = d.disabled;
-        return matchQuery && matchStatus;
-    });
-    renderDriversList(filtered);
+    renderDriversList(allDrivers.filter(d => {
+        const name = (d.name || '');
+        const phone = (d.phone || '');
+        const matchQ = !query || name.includes(query) || phone.includes(query) ||
+            name.localeCompare(query, 'ar', { sensitivity: 'base' }) === 0;
+        let matchS = true;
+        if (status === 'online') matchS = d.isOnline && !d.disabled;
+        else if (status === 'offline') matchS = !d.isOnline && !d.disabled;
+        else if (status === 'disabled') matchS = d.disabled;
+        return matchQ && matchS;
+    }));
 }
 
 // ============================================
-// EDIT DRIVER MODAL
+// BOOTSTRAP MODALS
 // ============================================
+const editModal = new bootstrap.Modal(document.getElementById('editDriverModal'));
+const creditModal = new bootstrap.Modal(document.getElementById('creditModal'));
+const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
 window.openEditModal = function(id, name, phone, status) {
     document.getElementById('editDriverId').value = id;
     document.getElementById('editDriverName').value = name;
     document.getElementById('editDriverPhone').value = phone;
     document.getElementById('editDriverStatus').value = status;
-    document.getElementById('editDriverModal').classList.add('active');
+    editModal.show();
 };
-
-document.getElementById('closeEditModal').addEventListener('click', () => {
-    document.getElementById('editDriverModal').classList.remove('active');
-});
-document.getElementById('cancelEditBtn').addEventListener('click', () => {
-    document.getElementById('editDriverModal').classList.remove('active');
-});
 
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
@@ -546,33 +569,19 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const status = document.getElementById('editDriverStatus').value;
     if (!name) return;
     try {
-        await db.collection('drivers').doc(id).update({
-            name, phone, disabled: status === 'disabled'
-        });
-        document.getElementById('editDriverModal').classList.remove('active');
+        await db.collection('drivers').doc(id).update({ name, phone, disabled: status === 'disabled' });
+        editModal.hide();
         loadDriversList();
-    } catch (err) {
-        console.error('Edit error:', err);
-    }
+    } catch (err) { console.error('Edit error:', err); }
 });
 
-// ============================================
-// CREDIT TOP-UP MODAL
-// ============================================
 window.openCreditModal = function(id, name, current) {
     document.getElementById('creditDriverId').value = id;
     document.getElementById('creditDriverName').textContent = name;
     document.getElementById('creditDriverCurrent').textContent = current;
     document.getElementById('creditAmount').value = '';
-    document.getElementById('creditModal').classList.add('active');
+    creditModal.show();
 };
-
-document.getElementById('closeCreditModal').addEventListener('click', () => {
-    document.getElementById('creditModal').classList.remove('active');
-});
-document.getElementById('cancelCreditBtn').addEventListener('click', () => {
-    document.getElementById('creditModal').classList.remove('active');
-});
 
 document.getElementById('confirmCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
@@ -580,119 +589,225 @@ document.getElementById('confirmCreditBtn').addEventListener('click', async () =
     const amount = parseFloat(document.getElementById('creditAmount').value);
     if (!amount || amount <= 0) return;
     try {
-        await db.collection('drivers').doc(id).update({
-            credit: firebase.firestore.FieldValue.increment(amount)
-        });
-        document.getElementById('creditModal').classList.remove('active');
+        await db.collection('drivers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
+        creditModal.hide();
         loadDriversList();
-    } catch (err) {
-        console.error('Credit error:', err);
-    }
+    } catch (err) { console.error('Credit error:', err); }
 });
 
-// ============================================
-// TOGGLE / DELETE DRIVER
-// ============================================
 window.toggleDriverStatus = async function(id, currentlyDisabled) {
     if (!requireDb()) return;
     try {
-        await db.collection('drivers').doc(id).update({
-            disabled: !currentlyDisabled,
-            isOnline: false
-        });
+        await db.collection('drivers').doc(id).update({ disabled: !currentlyDisabled, isOnline: false });
         loadDriversList();
-    } catch (err) {
-        console.error('Toggle error:', err);
-    }
+    } catch (err) { console.error('Toggle error:', err); }
 };
 
 window.openDeleteModal = function(id, name) {
     document.getElementById('deleteDriverId').value = id;
     document.getElementById('deleteDriverName').textContent = name;
-    document.getElementById('deleteModal').classList.add('active');
+    deleteModal.show();
 };
-
-document.getElementById('closeDeleteModal').addEventListener('click', () => {
-    document.getElementById('deleteModal').classList.remove('active');
-});
-document.getElementById('cancelDeleteBtn').addEventListener('click', () => {
-    document.getElementById('deleteModal').classList.remove('active');
-});
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('deleteDriverId').value;
     try {
         await db.collection('drivers').doc(id).delete();
-        document.getElementById('deleteModal').classList.remove('active');
+        deleteModal.hide();
         loadDriversList();
-    } catch (err) {
-        console.error('Delete error:', err);
-    }
+    } catch (err) { console.error('Delete error:', err); }
 });
 
 // ============================================
-// LOAD RIDES LIST
+// RIDES LIST
 // ============================================
 async function loadRidesList() {
     if (!requireDb()) return;
+    const tbody = document.getElementById('ridesTableBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
         const snapshot = await db.collection('rides').orderBy('createdAt', 'desc').limit(100).get();
         allRides = [];
-        snapshot.forEach(doc => {
-            allRides.push({ id: doc.id, ...doc.data() });
-        });
+        snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
         renderRidesList(allRides);
     } catch (err) {
         console.error('Load rides error:', err);
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">لا توجد رحلات مسجلة</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
-    const statusLabels = {
-        pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية',
-        completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق', expired: 'منتهية'
-    };
+    const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
+    const colors = { pending: 'warning', accepted: 'primary', in_progress: 'success', completed: 'purple', cancelled: 'danger', no_drivers: 'secondary' };
+    const canCancel = ['pending', 'accepted', 'in_progress'];
     tbody.innerHTML = rides.map(r => {
-        const created = r.createdAt && r.createdAt.toDate
-            ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA')
-            : (r.createdAt ? new Date(r.createdAt).toLocaleString('ar-MA') : '-');
-        const dist = r.distanceKm || r.searchRadiusKm || '-';
+        const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '-';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
-        return `
-        <tr>
-            <td>${r.passengerName || '-'}</td>
-            <td>${r.pickupAddress || '-'}</td>
-            <td>${r.dropoffAddress || '-'}</td>
-            <td>${dist} كم</td>
+        const cancelBtn = canCancel.includes(r.status)
+            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>` : '';
+        return `<tr>
+            <td><strong>${r.passengerName || '-'}</strong></td>
+            <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
+            <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
             <td><strong>${fare}</strong> MRU</td>
-            <td><strong style="color:var(--error);">${comm}</strong> MRU</td>
-            <td><span class="badge badge-${r.status}">${statusLabels[r.status] || r.status}</span></td>
-            <td>${created}</td>
+            <td><strong class="text-danger">${comm}</strong> MRU</td>
+            <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
+            <td class="d-none d-lg-table-cell"><small>${created}</small></td>
+            <td>${cancelBtn}</td>
         </tr>`;
     }).join('');
 }
 
+window.cancelRide = async function (rideId) {
+    if (!confirm('هل أنت متأكد من إلغاء هذه الرحلة؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
+        if (currentPage === 'rides') loadRidesList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
 document.getElementById('filterRideStatus').addEventListener('change', () => {
-    const status = document.getElementById('filterRideStatus').value;
-    if (status === 'all') renderRidesList(allRides);
-    else renderRidesList(allRides.filter(r => r.status === status));
+    const s = document.getElementById('filterRideStatus').value;
+    renderRidesList(s === 'all' ? allRides : allRides.filter(r => r.status === s));
 });
+
+// ============================================
+// STATISTICS
+// ============================================
+async function loadStats() {
+    if (!requireDb()) return;
+    try {
+        const driversSnap = await db.collection('drivers').get();
+        const allDrivs = [];
+        driversSnap.forEach(d => allDrivs.push(d.data()));
+        const onlineCount = allDrivs.filter(d => d.isOnline && !d.disabled).length;
+        document.getElementById('statOnlineDrivers').textContent = onlineCount;
+        document.getElementById('statTotalDrivers').textContent = allDrivs.length;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTs = firebase.firestore.Timestamp.fromDate(today);
+
+        const todayRidesSnap = await db.collection('rides')
+            .where('createdAt', '>=', todayTs).get();
+        document.getElementById('statTodayRides').textContent = todayRidesSnap.size;
+
+        let totalComm = 0;
+        let totalRidesCount = 0;
+        let activeCount = 0;
+        const allRidesSnap = await db.collection('rides').get();
+        allRidesSnap.forEach(doc => {
+            const r = doc.data();
+            totalRidesCount++;
+            const fare = r.fare || 0;
+            totalComm += r.commissionAmount || Math.round(fare * commissionPercent / 100);
+            if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
+        });
+        document.getElementById('statTotalRides').textContent = totalRidesCount;
+        document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>`;
+        document.getElementById('statActiveRides').textContent = activeCount;
+    } catch (e) {
+        console.error('Stats load error:', e);
+    }
+}
+
+// ============================================
+// EXPORT CSV
+// ============================================
+window.exportDriversCSV = function () {
+    if (allDrivers.length === 0) { alert('لا يوجد سائقون للتصدير'); return; }
+    let csv = '\uFEFF' + 'الاسم,الهاتف,الرصيد,الحالة,المجموعات\n';
+    allDrivers.forEach(d => {
+        const status = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
+        csv += `${d.name||''},${d.phone||''},${d.credit||0},${status},${d.totalRides||0}\n`;
+    });
+    downloadCSV(csv, 'khalily_drivers.csv');
+};
+
+window.exportRidesCSV = function () {
+    if (allRides.length === 0) { alert('لا توجد رحلات للتصدير'); return; }
+    let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,السعر,العمولة,الحالة,التاريخ\n';
+    allRides.forEach(r => {
+        const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '';
+        const fare = r.fare || 0;
+        const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
+        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${fare},${comm},${r.status||''},${created}\n`;
+    });
+    downloadCSV(csv, 'khalily_rides.csv');
+};
+
+function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
 
 // ============================================
 // HELPERS
 // ============================================
+
+// ============================================
+// NOTIFICATION LOG
+// ============================================
+let notifLog = [];
+
+function addNotifLog(type, message) {
+    const now = new Date();
+    const time = now.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const date = now.toLocaleDateString('ar-MA', { month: 'short', day: 'numeric' });
+    notifLog.unshift({ type, message, time, date });
+    if (notifLog.length > 100) notifLog = notifLog.slice(0, 100);
+    renderNotifLog();
+}
+
+function renderNotifLog() {
+    const container = document.getElementById('notifLogContainer');
+    const countEl = document.getElementById('notifLogCount');
+    if (!container) return;
+    if (countEl) countEl.textContent = notifLog.length;
+    if (notifLog.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4 small">لا توجد إشعارات بعد</div>';
+        return;
+    }
+    const badgeMap = {
+        'new_ride': { cls: 'log-badge-warning', label: 'رحلة جديدة' },
+        'ride_accepted': { cls: 'log-badge-success', label: 'تم القبول' },
+        'ride_completed': { cls: 'log-badge-info', label: 'اكتملت' },
+        'ride_cancelled': { cls: 'log-badge-danger', label: 'ملغاة' },
+        'ride_in_progress': { cls: 'log-badge-success', label: 'جارية' },
+        'dispatch': { cls: 'log-badge-info', label: 'إرسال' },
+        'system': { cls: 'log-badge-info', label: 'نظام' },
+    };
+    container.innerHTML = notifLog.map(n => {
+        const badge = badgeMap[n.type] || { cls: 'log-badge-info', label: n.type };
+        return `<div class="log-entry d-flex align-items-center gap-2">
+            <span class="log-time">${n.date} ${n.time}</span>
+            <span class="log-badge ${badge.cls}">${badge.label}</span>
+            <span class="flex-grow-1">${n.message}</span>
+        </div>`;
+    }).join('');
+}
+
+window.clearNotifLog = function () {
+    notifLog = [];
+    renderNotifLog();
+};
 function findNearbyDrivers(lat, lng, radiusKm) {
     return new Promise(resolve => {
-        const drivers = [];
         db.collection('drivers').where('isOnline', '==', true).get()
             .then(snapshot => {
+                const drivers = [];
                 snapshot.forEach(doc => {
                     const d = doc.data();
                     if (d.lat && d.lng) {
@@ -717,12 +832,12 @@ function showStatus(elId, msg, type) {
     const el = document.getElementById(elId);
     if (!el) return;
     el.textContent = msg;
-    el.className = `dispatch-status ${type}`;
-    setTimeout(() => { el.textContent = ''; el.className = 'dispatch-status'; }, 6000);
+    el.className = type === 'error' ? 'text-danger fw-semibold mt-2' : 'text-success fw-semibold mt-2';
+    setTimeout(() => { el.textContent = ''; el.className = ''; }, 6000);
 }
 
 function clearForm() {
-    ['passengerName','passengerPhone','pickupAddress','dropoffAddress','pickupCoords','fareDisplay'].forEach(id => {
+    ['passengerName','passengerPhone','pickupAddress','dropoffAddress','pickupCoords'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -732,24 +847,19 @@ function clearForm() {
     document.getElementById('searchRadius').value = 3;
     document.getElementById('radiusValue').textContent = '3 كم';
     document.getElementById('dispatchBtn').disabled = true;
+    document.getElementById('fareInput').value = 350;
 }
 
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.classList.remove('active');
-    });
-});
+// ============================================
+// INIT
+// ============================================
+initDashboard();
 
-// ============================================
-// INIT DASHBOARD
-// ============================================
 function initDashboard() {
     initMap();
     loadCommission();
+    loadStats();
     initRealtimeListeners();
-    updateFareDisplay();
+    setInterval(loadStats, 60000);
+    addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }
-
-// Auto-init (auth check already passed above)
-initDashboard();
