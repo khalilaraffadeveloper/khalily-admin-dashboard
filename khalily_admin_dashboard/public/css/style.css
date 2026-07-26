@@ -50,6 +50,9 @@
 .offcanvas-body .sidebar-link:hover,
 .offcanvas-body .sidebar-link.active { background: rgba(212,168,67,0.15); color: var(--k-gold); }
 
+/* Dispatch offcanvas - always on right side even in RTL */
+#dispatchOffcanvas.offcanvas-start { left: auto !important; right: 0 !important; }
+
 /* ============ MAIN WRAPPER ============ */
 .main-wrapper {
     margin-right: 260px;
