@@ -104,6 +104,18 @@ fun RideRequestDialog(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         RideInfoRow(
+                            icon = Icons.Default.Person,
+                            label = "اسم الزبون",
+                            value = rideData["passengerName"]?.toString() ?: "زبون"
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        RideInfoRow(
+                            icon = Icons.Default.Phone,
+                            label = "رقم الزبون",
+                            value = rideData["passengerPhone"]?.toString() ?: "-"
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        RideInfoRow(
                             icon = Icons.Default.PlayArrow,
                             label = "نقطة الانطلاق",
                             value = rideData["pickupAddress"]?.toString() ?: "موقع الزبون"
@@ -117,8 +129,8 @@ fun RideRequestDialog(
                         Spacer(modifier = Modifier.height(12.dp))
                         RideInfoRow(
                             icon = Icons.Default.Straighten,
-                            label = "المسافة",
-                            value = "${rideData["distanceKm"] ?: "0"} كم"
+                            label = "المسافة الفعلية",
+                            value = "${rideData["realDistanceKm"] ?: rideData["distanceKm"] ?: "0"} كم"
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         RideInfoRow(

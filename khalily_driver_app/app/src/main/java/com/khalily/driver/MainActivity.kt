@@ -198,8 +198,11 @@ class MainActivity : ComponentActivity() {
                     "pickupLat" to (doc.getDouble("pickupLat") ?: 0.0),
                     "pickupLng" to (doc.getDouble("pickupLng") ?: 0.0),
                     "pickupAddress" to (doc.getString("pickupAddress") ?: ""),
+                    "dropoffLat" to (doc.getDouble("dropoffLat") ?: 0.0),
+                    "dropoffLng" to (doc.getDouble("dropoffLng") ?: 0.0),
                     "dropoffAddress" to (doc.getString("dropoffAddress") ?: ""),
-                    "distanceKm" to (doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
+                    "realDistanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: "0"),
+                    "distanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
                     "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
                     "commissionPercent" to commissionPercent.toString()
                 )
@@ -219,8 +222,11 @@ class MainActivity : ComponentActivity() {
                 "pickupLat" to (intent.getDoubleExtra("pickupLat", 0.0)),
                 "pickupLng" to (intent.getDoubleExtra("pickupLng", 0.0)),
                 "pickupAddress" to (intent.getStringExtra("pickupAddress") ?: ""),
+                "dropoffLat" to (intent.getDoubleExtra("dropoffLat", 0.0)),
+                "dropoffLng" to (intent.getDoubleExtra("dropoffLng", 0.0)),
                 "dropoffAddress" to (intent.getStringExtra("dropoffAddress") ?: ""),
-                "distanceKm" to (intent.getStringExtra("distanceKm") ?: "0"),
+                "realDistanceKm" to (intent.getStringExtra("realDistanceKm") ?: "0"),
+                "distanceKm" to (intent.getStringExtra("realDistanceKm") ?: intent.getStringExtra("distanceKm") ?: "0"),
                 "fare" to (intent.getStringExtra("fare") ?: "0"),
                 "commissionPercent" to commissionPercent.toString()
             )

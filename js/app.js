@@ -1,5 +1,6 @@
 // ============================================
 // KHALILY ADMIN DASHBOARD - app.js (Bootstrap 5)
+// Two-click map: pickup + dropoff, auto-fare
 // ============================================
 
 let db = null;
@@ -53,9 +54,29 @@ function requireDb(caller) {
 let map = null;
 let driversMap = {};
 let pickupMarker = null;
+let dropoffMarker = null;
 let pickupCoords = null;
+let dropoffCoords = null;
 let radiusCircle = null;
+let mapClickMode = 'pickup'; // 'pickup' or 'dropoff'
+let allDrivers = [];
+let allRides = [];
+let currentPage = 'map';
 
+// ============================================
+// PRICING CONFIG
+// ============================================
+const BASE_FARE = 100;   // 100 MRU always
+const PER_KM = 50;       // 50 MRU per km
+
+function calculateFare(distanceKm) {
+    if (!distanceKm || distanceKm <= 0) return BASE_FARE;
+    return Math.round(BASE_FARE + (distanceKm * PER_KM));
+}
+
+// ============================================
+// MAP INIT
+// ============================================
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([18.0735, -15.9582], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -65,31 +86,87 @@ function initMap() {
 
     map.on('click', (e) => {
         const { lat, lng } = e.latlng;
-        pickupCoords = { lat, lng };
-        if (pickupMarker) map.removeLayer(pickupMarker);
-        if (radiusCircle) map.removeLayer(radiusCircle);
-        const icon = L.divIcon({
-            className: 'pickup-marker-wrapper',
-            html: '<div style="background:#0B1849;border:3px solid white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:20px;">📍</div>',
-            iconSize: [40, 40], iconAnchor: [20, 20]
-        });
-        pickupMarker = L.marker([lat, lng], { icon }).addTo(map);
-        const radius = parseInt(document.getElementById('searchRadius').value) * 1000;
-        radiusCircle = L.circle([lat, lng], {
-            radius, color: '#0B1849', fillColor: '#D4A843',
-            fillOpacity: 0.15, weight: 2, dashArray: '8, 8'
-        }).addTo(map);
-        document.getElementById('pickupCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        document.getElementById('dispatchBtn').disabled = false;
+        if (mapClickMode === 'pickup') {
+            setPickupPoint(lat, lng);
+            mapClickMode = 'dropoff';
+            document.getElementById('pickupCoords').placeholder = '✓ تم تحديد الانطلاق';
+            document.getElementById('dropoffCoords').placeholder = 'نقرة ثانية = الوجهة';
+            document.getElementById('pickupCoords').closest('.mb-3').querySelector('label').innerHTML =
+                '<span class="text-success fw-bold">✓ نقطة الانطلاق</span>';
+            document.getElementById('dropoffCoords').closest('.mb-3').querySelector('label').innerHTML =
+                '<span class="text-danger fw-bold">نقطة الوجهة (انقر على الخريطة)</span>';
+        } else {
+            setDropoffPoint(lat, lng);
+            mapClickMode = 'pickup';
+            document.getElementById('dropoffCoords').closest('.mb-3').querySelector('label').innerHTML =
+                '<span class="text-success fw-bold">✓ نقطة الوجهة</span>';
+            document.getElementById('pickupCoords').closest('.mb-3').querySelector('label').innerHTML =
+                '<span class="text-muted fw-bold">نقطة الانلاق (انقر على الخريطة)</span>';
+        }
+        updateDispatchBtn();
     });
 }
 
-// ============================================
-// STATE
-// ============================================
-let allDrivers = [];
-let allRides = [];
-let currentPage = 'map';
+function setPickupPoint(lat, lng) {
+    pickupCoords = { lat, lng };
+    if (pickupMarker) map.removeLayer(pickupMarker);
+    const icon = L.divIcon({
+        className: 'pickup-marker-wrapper',
+        html: '<div style="background:#124D1C;border:3px solid white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:18px;font-weight:bold;">A</div>',
+        iconSize: [40, 40], iconAnchor: [20, 20]
+    });
+    pickupMarker = L.marker([lat, lng], { icon }).addTo(map);
+    document.getElementById('pickupCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    updateRadiusCircle();
+    updateDistanceInfo();
+}
+
+function setDropoffPoint(lat, lng) {
+    dropoffCoords = { lat, lng };
+    if (dropoffMarker) map.removeLayer(dropoffMarker);
+    const icon = L.divIcon({
+        className: 'dropoff-marker-wrapper',
+        html: '<div style="background:#B71C1C;border:3px solid white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:18px;font-weight:bold;">B</div>',
+        iconSize: [40, 40], iconAnchor: [20, 20]
+    });
+    dropoffMarker = L.marker([lat, lng], { icon }).addTo(map);
+    document.getElementById('dropoffCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    updateDistanceInfo();
+}
+
+function updateRadiusCircle() {
+    if (!pickupCoords) return;
+    if (radiusCircle) map.removeLayer(radiusCircle);
+    const radius = parseInt(document.getElementById('searchRadius').value) * 1000;
+    radiusCircle = L.circle([pickupCoords.lat, pickupCoords.lng], {
+        radius, color: '#0B1849', fillColor: '#D4A843',
+        fillOpacity: 0.15, weight: 2, dashArray: '8, 8'
+    }).addTo(map);
+}
+
+function updateDistanceInfo() {
+    const infoDiv = document.getElementById('distanceInfo');
+    if (pickupCoords && dropoffCoords) {
+        const dist = haversine(pickupCoords.lat, pickupCoords.lng, dropoffCoords.lat, dropoffCoords.lng);
+        const fare = calculateFare(dist);
+        document.getElementById('realDistance').textContent = `${dist.toFixed(2)} كم`;
+        document.getElementById('autoFare').textContent = `${fare} MRU`;
+        document.getElementById('fareInput').value = fare;
+        infoDiv.style.display = 'block';
+    } else {
+        infoDiv.style.display = 'none';
+        document.getElementById('fareInput').value = BASE_FARE;
+    }
+}
+
+function updateDispatchBtn() {
+    const hasAll = pickupCoords && dropoffCoords &&
+        document.getElementById('passengerName').value.trim() &&
+        document.getElementById('passengerPhone').value.trim() &&
+        document.getElementById('pickupAddress').value.trim() &&
+        document.getElementById('dropoffAddress').value.trim();
+    document.getElementById('dispatchBtn').disabled = !hasAll;
+}
 
 // ============================================
 // SOUND NOTIFICATION
@@ -195,17 +272,52 @@ function closeDispatchPanel() {
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
     document.getElementById('radiusValue').textContent = `${e.target.value} كم`;
-    if (radiusCircle && pickupCoords) radiusCircle.setRadius(e.target.value * 1000);
+    updateRadiusCircle();
 });
 
 document.getElementById('clearPickup').addEventListener('click', () => {
-    if (pickupMarker) map.removeLayer(pickupMarker);
-    if (radiusCircle) map.removeLayer(radiusCircle);
-    pickupMarker = null; pickupCoords = null; radiusCircle = null;
-    document.getElementById('pickupCoords').value = '';
-    document.getElementById('dispatchBtn').disabled = true;
-    document.getElementById('fareInput').value = 350;
+    resetDispatchForm();
 });
+
+document.getElementById('clearDropoff').addEventListener('click', () => {
+    if (dropoffMarker) map.removeLayer(dropoffMarker);
+    dropoffMarker = null; dropoffCoords = null;
+    document.getElementById('dropoffCoords').value = '';
+    document.getElementById('dropoffCoords').placeholder = 'نقرة ثانية = الوجهة';
+    document.getElementById('dropoffCoords').closest('.mb-3').querySelector('label').innerHTML =
+        '<span class="text-muted fw-bold">نقطة الوجهة (انقر مرة ثانية على الخريطة)</span>';
+    mapClickMode = 'dropoff';
+    updateDistanceInfo();
+    updateDispatchBtn();
+});
+
+['passengerName', 'passengerPhone', 'pickupAddress', 'dropoffAddress'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateDispatchBtn);
+});
+
+function resetDispatchForm() {
+    if (pickupMarker) map.removeLayer(pickupMarker);
+    if (dropoffMarker) map.removeLayer(dropoffMarker);
+    if (radiusCircle) map.removeLayer(radiusCircle);
+    pickupMarker = null; dropoffMarker = null; pickupCoords = null; dropoffCoords = null; radiusCircle = null;
+    mapClickMode = 'pickup';
+    ['passengerName', 'passengerPhone', 'pickupAddress', 'dropoffAddress', 'pickupCoords', 'dropoffCoords'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('pickupCoords').placeholder = 'نقرة أولى = الانطلاق';
+    document.getElementById('dropoffCoords').placeholder = 'نقرة ثانية = الوجهة';
+    document.getElementById('pickupCoords').closest('.mb-3').querySelector('label').innerHTML =
+        '<span class="text-muted fw-bold">نقطة الانطلاق (انقر على الخريطة)</span>';
+    document.getElementById('dropoffCoords').closest('.mb-3').querySelector('label').innerHTML =
+        '<span class="text-muted fw-bold">نقطة الوجهة (انقر مرة ثانية على الخريطة)</span>';
+    document.getElementById('searchRadius').value = 3;
+    document.getElementById('radiusValue').textContent = '3 كم';
+    document.getElementById('fareInput').value = BASE_FARE;
+    document.getElementById('distanceInfo').style.display = 'none';
+    document.getElementById('dispatchBtn').disabled = true;
+    document.getElementById('dispatchStatus').textContent = '';
+}
 
 // ============================================
 // DISPATCH RIDE
@@ -218,14 +330,22 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     const pickupAddress = document.getElementById('pickupAddress').value.trim();
     const dropoffAddress = document.getElementById('dropoffAddress').value.trim();
     const radius = parseInt(document.getElementById('searchRadius').value);
-    const fare = parseFloat(document.getElementById('fareInput').value) || 0;
+    const fare = parseFloat(document.getElementById('fareInput').value) || BASE_FARE;
 
-    if (!passengerName || !pickupCoords) {
-        showStatus('dispatchStatus', 'يرجى إدخال اسم الزبون وتحديد نقطة الانطلاق', 'error');
+    if (!passengerName || !passengerPhone) {
+        showStatus('dispatchStatus', 'يرجى إدخال اسم الزبون ورقم هاتفه', 'error');
         return;
     }
-    if (!fare || fare <= 0) {
-        showStatus('dispatchStatus', 'يرجى إدخال سعر صحيح للرحلة', 'error');
+    if (!pickupCoords) {
+        showStatus('dispatchStatus', 'يرجى تحديد نقطة الانطلاق على الخريطة', 'error');
+        return;
+    }
+    if (!dropoffCoords) {
+        showStatus('dispatchStatus', 'يرجى تحديد نقطة الوجهة على الخريطة', 'error');
+        return;
+    }
+    if (!pickupAddress || !dropoffAddress) {
+        showStatus('dispatchStatus', 'يرجى إدخال عنوان الانطلاق وعنوان الوجهة', 'error');
         return;
     }
 
@@ -233,14 +353,21 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>جاري الإرسال...';
 
+    const realDistance = haversine(pickupCoords.lat, pickupCoords.lng, dropoffCoords.lat, dropoffCoords.lng);
+
     try {
         const rideData = {
-            passengerName, passengerPhone: passengerPhone || '',
-            pickupLat: pickupCoords.lat, pickupLng: pickupCoords.lng,
-            pickupAddress: pickupAddress || 'موقع على الخريطة',
-            dropoffAddress: dropoffAddress || '',
-            distanceKm: radius,
-            searchRadiusKm: radius, fare,
+            passengerName,
+            passengerPhone,
+            pickupLat: pickupCoords.lat,
+            pickupLng: pickupCoords.lng,
+            dropoffLat: dropoffCoords.lat,
+            dropoffLng: dropoffCoords.lng,
+            pickupAddress,
+            dropoffAddress,
+            realDistanceKm: Math.round(realDistance * 100) / 100,
+            searchRadiusKm: radius,
+            fare,
             commissionPercent,
             status: 'pending',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -266,9 +393,9 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
                 sendFCMNotifications(tokens, docRef.id, passengerName, fare, pickupCoords.lat, pickupCoords.lng, pickupAddress, dropoffAddress, radius);
             }
 
-            showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
-            addNotifLog('dispatch', `تم إرسال رحلة ${passengerName} — تم تنبيه ${nearby.length} سائق | ${fare} MRU`);
-            clearForm();
+            showStatus('dispatchStatus', `تم الإرسال! ${nearby.length} سائق تم تنبيههم | ${realDistance.toFixed(1)} كم | ${fare} MRU`, 'success');
+            addNotifLog('dispatch', `رحلة ${passengerName}: ${pickupAddress} → ${dropoffAddress} | ${realDistance.toFixed(1)} كم | ${fare} MRU | تنبيه ${nearby.length} سائق`);
+            resetDispatchForm();
             setTimeout(closeDispatchPanel, 1500);
         }
     } catch (err) {
@@ -366,7 +493,6 @@ let firstRidesSnapshot = true;
 function initRealtimeListeners() {
     if (!db) return;
 
-    // Active rides listener with sound
     db.collection('rides').where('status', 'in', ['accepted', 'in_progress'])
         .onSnapshot(snapshot => {
             if (!firstRidesSnapshot && snapshot.docChanges().length > 0) {
@@ -421,7 +547,6 @@ function initRealtimeListeners() {
             });
         });
 
-    // Drivers online listener
     db.collection('drivers').where('isOnline', '==', true)
         .onSnapshot(snapshot => {
             const onlineIds = new Set();
@@ -662,12 +787,14 @@ function renderRidesList(rides) {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '-';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
+        const dist = r.realDistanceKm ? `${r.realDistanceKm} كم` : '-';
         const cancelBtn = canCancel.includes(r.status)
             ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>` : '';
         return `<tr>
             <td><strong>${r.passengerName || '-'}</strong></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
+            <td><small>${dist}</small></td>
             <td><strong>${fare}</strong> MRU</td>
             <td><strong class="text-danger">${comm}</strong> MRU</td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
@@ -746,12 +873,12 @@ window.exportDriversCSV = function () {
 
 window.exportRidesCSV = function () {
     if (allRides.length === 0) { alert('لا توجد رحلات للتصدير'); return; }
-    let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,السعر,العمولة,الحالة,التاريخ\n';
+    let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,الحالة,التاريخ\n';
     allRides.forEach(r => {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
-        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${fare},${comm},${r.status||''},${created}\n`;
+        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${r.status||''},${created}\n`;
     });
     downloadCSV(csv, 'khalily_rides.csv');
 };
@@ -766,16 +893,12 @@ function downloadCSV(csv, filename) {
 }
 
 // ============================================
-// FCM NOTIFICATIONS (stub - Firestore listener is primary)
+// FCM NOTIFICATIONS (stub)
 // ============================================
 async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius) {
     console.log(`FCM: ${tokens.length} tokens, ride ${rideId}`);
     addNotifLog('system', `FCM: تم تنبيه ${tokens.length} سائق عبر الإشعارات`);
 }
-
-// ============================================
-// HELPERS
-// ============================================
 
 // ============================================
 // NOTIFICATION LOG
@@ -823,6 +946,10 @@ window.clearNotifLog = function () {
     notifLog = [];
     renderNotifLog();
 };
+
+// ============================================
+// FIND NEARBY DRIVERS
+// ============================================
 function findNearbyDrivers(lat, lng, radiusKm) {
     return new Promise(resolve => {
         db.collection('drivers').where('isOnline', '==', true).get()
@@ -856,25 +983,9 @@ function showStatus(elId, msg, type) {
     setTimeout(() => { el.textContent = ''; el.className = ''; }, 6000);
 }
 
-function clearForm() {
-    ['passengerName','passengerPhone','pickupAddress','dropoffAddress','pickupCoords'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    if (pickupMarker) map.removeLayer(pickupMarker);
-    if (radiusCircle) map.removeLayer(radiusCircle);
-    pickupMarker = null; pickupCoords = null; radiusCircle = null;
-    document.getElementById('searchRadius').value = 3;
-    document.getElementById('radiusValue').textContent = '3 كم';
-    document.getElementById('dispatchBtn').disabled = true;
-    document.getElementById('fareInput').value = 350;
-}
-
 // ============================================
 // INIT
 // ============================================
-initDashboard();
-
 function initDashboard() {
     initMap();
     loadCommission();
@@ -883,3 +994,5 @@ function initDashboard() {
     setInterval(loadStats, 60000);
     addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }
+
+initDashboard();
