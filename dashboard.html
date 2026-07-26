@@ -456,32 +456,50 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">رقم هاتف الزبون</label>
-                <input type="tel" class="form-control" id="passengerPhone" placeholder="رقم الهاتف (اختياري)">
+                <input type="tel" class="form-control" id="passengerPhone" placeholder="رقم الهاتف">
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">نقطة الانطلاق</label>
+                <label class="form-label fw-bold">نقطة الانطلاق (انقر على الخريطة)</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="pickupCoords" placeholder="انقر على الخريطة" readonly>
+                    <input type="text" class="form-control" id="pickupCoords" placeholder="نقرة أولى = الانطلاق" readonly>
                     <button class="btn btn-outline-danger" id="clearPickup"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">عنوان الانطلاق</label>
-                <input type="text" class="form-control" id="pickupAddress" placeholder="أدخل العنوان">
+                <input type="text" class="form-control" id="pickupAddress" placeholder="أدخل عنوان الانطلاق">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">نقطة الوجهة (انقر مرة ثانية على الخريطة)</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="dropoffCoords" placeholder="نقرة ثانية = الوجهة" readonly>
+                    <button class="btn btn-outline-danger" id="clearDropoff"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">عنوان الوجهة</label>
+                <input type="text" class="form-control" id="dropoffAddress" placeholder="أدخل عنوان الوجهة">
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">نصف قطر البحث: <span class="text-gold fw-bold" id="radiusValue">3 كم</span></label>
                 <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3">
-                <small class="text-muted">تحديد نطاق السائقين القريبين فقط</small>
+                <small class="text-muted">نطاق البحث عن السائقين القريبين فقط</small>
             </div>
-            <div class="mb-3">
-                <label class="form-label fw-bold">الوجهة</label>
-                <input type="text" class="form-control" id="dropoffAddress" placeholder="أدخل عنوان الوجهة">
+            <div class="mb-3 bg-light rounded-3 p-3" id="distanceInfo" style="display:none;">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">المسافة الحقيقية:</span>
+                    <strong class="text-dark-blue" id="realDistance">0 كم</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">السعر التلقائي:</span>
+                    <strong class="text-success" id="autoFare">0 MRU</strong>
+                </div>
+                <small class="text-muted">يمكنك تعديل السعر يدوياً</small>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">سعر الرحلة (MRU)</label>
-                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="أدخل السعر">
-                <small class="text-muted">يُحدد يدوياً من قِبل المشرف</small>
+                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="100" min="0" step="10" placeholder="100">
+                <small class="text-muted">يُحسب تلقائياً — يمكن تعديله يدوياً</small>
             </div>
             <button class="btn btn-gold text-white fw-bold w-100 py-3" id="dispatchBtn" disabled>
                 <i class="bi bi-send-fill me-2"></i>إرسال تنبيه للسائقين
