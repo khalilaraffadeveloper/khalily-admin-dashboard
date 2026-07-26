@@ -154,11 +154,24 @@ document.getElementById('togglePanel').addEventListener('click', () => {
     document.getElementById('dispatchPanel').classList.add('collapsed');
 });
 
-const mobileDispatchBtn = document.getElementById('mobileDispatchBtn');
-if (mobileDispatchBtn) {
-    mobileDispatchBtn.addEventListener('click', () => {
+const dispatchFab = document.getElementById('dispatchFab');
+if (dispatchFab) {
+    dispatchFab.addEventListener('click', () => {
         document.getElementById('dispatchPanel').classList.remove('collapsed');
     });
+}
+
+// Hide FAB when panel is open, show when closed
+const panelObserver = new MutationObserver(() => {
+    const panel = document.getElementById('dispatchPanel');
+    const fab = document.getElementById('dispatchFab');
+    if (panel && fab) {
+        fab.style.display = panel.classList.contains('collapsed') ? '' : 'none';
+    }
+});
+const dispatchPanel = document.getElementById('dispatchPanel');
+if (dispatchPanel) {
+    panelObserver.observe(dispatchPanel, { attributes: true, attributeFilter: ['class'] });
 }
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
