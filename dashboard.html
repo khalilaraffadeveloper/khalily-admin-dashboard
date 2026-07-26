@@ -166,18 +166,18 @@
                             </div>
                             <div class="collapse show" id="registerForm">
                                 <div class="card-body">
-                                    <div class="row g-3">
+                                    <div class="row g-3" autocomplete="off">
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الاسم</label>
-                                            <input type="text" class="form-control" id="newDriverName" placeholder="اسم السائق">
+                                            <input type="text" class="form-control" id="newDriverName" placeholder="اسم السائق" autocomplete="off">
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الهاتف</label>
-                                            <input type="tel" class="form-control" id="newDriverPhone" placeholder="رقم الهاتف">
+                                            <input type="tel" class="form-control" id="newDriverPhone" placeholder="رقم الهاتف" autocomplete="off">
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">كلمة السر</label>
-                                            <input type="password" class="form-control" id="newDriverPassword" placeholder="كلمة السر">
+                                            <input type="password" class="form-control" id="newDriverPassword" placeholder="كلمة السر" autocomplete="new-password">
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">نوع المركبة</label>
@@ -187,7 +187,7 @@
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الرصيد (MRU)</label>
-                                            <input type="number" class="form-control" id="newDriverCredit" value="0" min="0">
+                                            <input type="number" class="form-control" id="newDriverCredit" value="" min="0" placeholder="0" autocomplete="off">
                                         </div>
                                     </div>
                                     <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerDriverBtn">
