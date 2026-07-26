@@ -351,6 +351,7 @@ function initRealtimeListeners() {
             firstRidesSnapshot = false;
 
             document.getElementById('rideCount').textContent = snapshot.size;
+            document.getElementById('statActiveRides').textContent = snapshot.size;
             const mobileCount = document.querySelector('.rideCount-mobile');
             if (mobileCount) mobileCount.textContent = snapshot.size;
 
@@ -408,6 +409,7 @@ function initRealtimeListeners() {
                 if (!onlineIds.has(id)) { map.removeLayer(driversMap[id].marker); delete driversMap[id]; }
             });
             document.getElementById('onlineCount').textContent = onlineIds.size;
+            document.getElementById('statOnlineDrivers').textContent = onlineIds.size;
             const mobileCount = document.querySelector('.onlineCount-mobile');
             if (mobileCount) mobileCount.textContent = onlineIds.size;
         });
@@ -500,10 +502,13 @@ document.getElementById('searchDrivers').addEventListener('input', filterDrivers
 document.getElementById('filterDriverStatus').addEventListener('change', filterDrivers);
 
 function filterDrivers() {
-    const query = document.getElementById('searchDrivers').value.toLowerCase();
+    const query = document.getElementById('searchDrivers').value;
     const status = document.getElementById('filterDriverStatus').value;
     renderDriversList(allDrivers.filter(d => {
-        const matchQ = !query || (d.name||'').toLowerCase().includes(query) || (d.phone||'').includes(query);
+        const name = (d.name || '');
+        const phone = (d.phone || '');
+        const matchQ = !query || name.includes(query) || phone.includes(query) ||
+            name.localeCompare(query, 'ar', { sensitivity: 'base' }) === 0;
         let matchS = true;
         if (status === 'online') matchS = d.isOnline && !d.disabled;
         else if (status === 'offline') matchS = !d.isOnline && !d.disabled;
@@ -641,6 +646,80 @@ document.getElementById('filterRideStatus').addEventListener('change', () => {
 });
 
 // ============================================
+// STATISTICS
+// ============================================
+async function loadStats() {
+    if (!requireDb()) return;
+    try {
+        const driversSnap = await db.collection('drivers').get();
+        const allDrivs = [];
+        driversSnap.forEach(d => allDrivs.push(d.data()));
+        const onlineCount = allDrivs.filter(d => d.isOnline && !d.disabled).length;
+        document.getElementById('statOnlineDrivers').textContent = onlineCount;
+        document.getElementById('statTotalDrivers').textContent = allDrivs.length;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTs = firebase.firestore.Timestamp.fromDate(today);
+
+        const todayRidesSnap = await db.collection('rides')
+            .where('createdAt', '>=', todayTs).get();
+        document.getElementById('statTodayRides').textContent = todayRidesSnap.size;
+
+        let totalComm = 0;
+        let totalRidesCount = 0;
+        let activeCount = 0;
+        const allRidesSnap = await db.collection('rides').get();
+        allRidesSnap.forEach(doc => {
+            const r = doc.data();
+            totalRidesCount++;
+            const fare = r.fare || 0;
+            totalComm += r.commissionAmount || Math.round(fare * commissionPercent / 100);
+            if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
+        });
+        document.getElementById('statTotalRides').textContent = totalRidesCount;
+        document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>`;
+        document.getElementById('statActiveRides').textContent = activeCount;
+    } catch (e) {
+        console.error('Stats load error:', e);
+    }
+}
+
+// ============================================
+// EXPORT CSV
+// ============================================
+window.exportDriversCSV = function () {
+    if (allDrivers.length === 0) { alert('لا يوجد سائقون للتصدير'); return; }
+    let csv = '\uFEFF' + 'الاسم,الهاتف,الرصيد,الحالة,المجموعات\n';
+    allDrivers.forEach(d => {
+        const status = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
+        csv += `${d.name||''},${d.phone||''},${d.credit||0},${status},${d.totalRides||0}\n`;
+    });
+    downloadCSV(csv, 'khalily_drivers.csv');
+};
+
+window.exportRidesCSV = function () {
+    if (allRides.length === 0) { alert('لا توجد رحلات للتصدير'); return; }
+    let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,السعر,العمولة,الحالة,التاريخ\n';
+    allRides.forEach(r => {
+        const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '';
+        const fare = r.fare || 0;
+        const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
+        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${fare},${comm},${r.status||''},${created}\n`;
+    });
+    downloadCSV(csv, 'khalily_rides.csv');
+};
+
+function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+// ============================================
 // HELPERS
 // ============================================
 function findNearbyDrivers(lat, lng, radiusKm) {
@@ -698,5 +777,7 @@ initDashboard();
 function initDashboard() {
     initMap();
     loadCommission();
+    loadStats();
     initRealtimeListeners();
+    setInterval(loadStats, 60000);
 }

@@ -117,6 +117,38 @@
 
         <!-- MAP PAGE -->
         <div class="page-content" id="page-map">
+            <!-- STATS BAR -->
+            <div class="bg-white border-bottom px-3 py-2">
+                <div class="container-fluid">
+                    <div class="row g-2 text-center">
+                        <div class="col-4 col-md-2">
+                            <small class="text-muted d-block" style="font-size:11px;">سائقون متاحون</small>
+                            <strong class="text-gold fs-5" id="statOnlineDrivers">0</strong>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <small class="text-muted d-block" style="font-size:11px;">رحلات نشطة</small>
+                            <strong class="text-success fs-5" id="statActiveRides">0</strong>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <small class="text-muted d-block" style="font-size:11px;">رحلات اليوم</small>
+                            <strong class="text-primary fs-5" id="statTodayRides">0</strong>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <small class="text-muted d-block" style="font-size:11px;">إجمالي العمولات</small>
+                            <strong class="text-danger fs-5" id="statTotalComm">0 <small>MRU</small></strong>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <small class="text-muted d-block" style="font-size:11px;">إجمالي الرحلات</small>
+                            <strong class="text-dark-blue fs-5" id="statTotalRides">0</strong>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <small class="text-muted d-block" style="font-size:11px;">إجمالي السائقين</small>
+                            <strong class="fs-5" style="color:var(--k-purple);" id="statTotalDrivers">0</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="map-wrapper position-relative">
                 <div id="map" class="w-100 h-100"></div>
 
@@ -177,6 +209,7 @@
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                                 <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-people-fill me-2 text-gold"></i>قائمة السائقين (<span id="totalDriversCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-dark-blue" onclick="exportDriversCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
                             </div>
                             <div class="card-body">
                                 <div class="row g-2 mb-3">
@@ -221,14 +254,17 @@
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                         <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-journal-text me-2 text-gold"></i>سجل الرحلات</h6>
-                        <select class="form-select form-select-sm w-auto" id="filterRideStatus">
-                            <option value="all">جميع الحالات</option>
-                            <option value="pending">قيد الانتظار</option>
-                            <option value="accepted">مقبولة</option>
-                            <option value="in_progress">جارية</option>
-                            <option value="completed">مكتملة</option>
-                            <option value="cancelled">ملغاة</option>
-                        </select>
+                        <div class="d-flex gap-2 align-items-center">
+                            <select class="form-select form-select-sm w-auto" id="filterRideStatus">
+                                <option value="all">جميع الحالات</option>
+                                <option value="pending">قيد الانتظار</option>
+                                <option value="accepted">مقبولة</option>
+                                <option value="in_progress">جارية</option>
+                                <option value="completed">مكتملة</option>
+                                <option value="cancelled">ملغاة</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-dark-blue" onclick="exportRidesCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">

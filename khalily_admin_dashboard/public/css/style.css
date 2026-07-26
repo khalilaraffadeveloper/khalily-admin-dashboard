@@ -100,6 +100,8 @@
 
 .btn-dark-blue { background: var(--k-blue); border-color: var(--k-blue); }
 .btn-dark-blue:hover { background: var(--k-blue-light); border-color: var(--k-blue-light); color: #fff; }
+.btn-outline-dark-blue { color: var(--k-blue); border-color: var(--k-blue); }
+.btn-outline-dark-blue:hover { background: var(--k-blue); color: #fff; }
 .btn-gold { background: var(--k-gold); border-color: var(--k-gold); color: #fff; }
 .btn-gold:hover { background: var(--k-gold-light); border-color: var(--k-gold-light); color: #fff; }
 
