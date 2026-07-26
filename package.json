@@ -1,0 +1,26 @@
+{
+  "name": "khalily-admin-dashboard",
+  "version": "1.0.0",
+  "description": "Khalily Admin Dashboard - Backend Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "dev:emulator": "node -e \"process.env.EMULATOR_MODE='true'; require('./server.js')\"",
+    "emulator": "firebase emulators:start --project=khalily-demo",
+    "emulator:all": "concurrently \"npm run emulator\" \"sleep 3 && npm run dev:emulator\"",
+    "seed": "node scripts/seed-emulator.js",
+    "test:firestore": "node scripts/test-firestore.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "firebase": "^12.16.0",
+    "firebase-admin": "^12.4.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.4"
+  }
+}
