@@ -81,21 +81,11 @@ function initMap() {
         }).addTo(map);
         document.getElementById('pickupCoords').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
         document.getElementById('dispatchBtn').disabled = false;
-        updateFareDisplay();
     });
 }
 
 // ============================================
-// FARE
-// ============================================
-function updateFareDisplay() {
-    const radius = parseInt(document.getElementById('searchRadius').value) || 3;
-    const fare = Math.round(200 + (radius * 150));
-    document.getElementById('fareDisplay').textContent = `${fare} MRU (مسافة ~${radius} كم)`;
-}
-
-// ============================================
-// STATE
+// MAP
 // ============================================
 let allDrivers = [];
 let allRides = [];
@@ -177,7 +167,6 @@ if (dispatchPanel) {
 document.getElementById('searchRadius').addEventListener('input', (e) => {
     document.getElementById('radiusValue').textContent = `${e.target.value} كم`;
     if (radiusCircle && pickupCoords) radiusCircle.setRadius(e.target.value * 1000);
-    updateFareDisplay();
 });
 
 document.getElementById('clearPickup').addEventListener('click', () => {
@@ -186,7 +175,7 @@ document.getElementById('clearPickup').addEventListener('click', () => {
     pickupMarker = null; pickupCoords = null; radiusCircle = null;
     document.getElementById('pickupCoords').value = '';
     document.getElementById('dispatchBtn').disabled = true;
-    document.getElementById('fareDisplay').textContent = '—';
+    document.getElementById('fareInput').value = 350;
 });
 
 // ============================================
@@ -200,9 +189,14 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     const pickupAddress = document.getElementById('pickupAddress').value.trim();
     const dropoffAddress = document.getElementById('dropoffAddress').value.trim();
     const radius = parseInt(document.getElementById('searchRadius').value);
+    const fare = parseFloat(document.getElementById('fareInput').value) || 0;
 
     if (!passengerName || !pickupCoords) {
         showStatus('dispatchStatus', 'يرجى إدخال اسم الزبون وتحديد نقطة الانطلاق', 'error');
+        return;
+    }
+    if (!fare || fare <= 0) {
+        showStatus('dispatchStatus', 'يرجى إدخال سعر صحيح للرحلة', 'error');
         return;
     }
 
@@ -211,7 +205,6 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>جاري الإرسال...';
 
     try {
-        const fare = Math.round(200 + (radius * 150));
         const rideData = {
             passengerName, passengerPhone: passengerPhone || '',
             pickupLat: pickupCoords.lat, pickupLng: pickupCoords.lng,
@@ -623,7 +616,7 @@ function clearForm() {
     document.getElementById('searchRadius').value = 3;
     document.getElementById('radiusValue').textContent = '3 كم';
     document.getElementById('dispatchBtn').disabled = true;
-    document.getElementById('fareDisplay').textContent = '—';
+    document.getElementById('fareInput').value = 350;
 }
 
 // ============================================
@@ -635,5 +628,4 @@ function initDashboard() {
     initMap();
     loadCommission();
     initRealtimeListeners();
-    updateFareDisplay();
 }

@@ -154,14 +154,16 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">نصف قطر البحث: <span class="text-gold fw-bold" id="radiusValue">3 كم</span></label>
                             <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3">
+                            <small class="text-muted">تحديد نطاق السائقين القريبين فقط</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">الوجهة</label>
                             <input type="text" class="form-control" id="dropoffAddress" placeholder="أدخل عنوان الوجهة">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">السعر</label>
-                            <div class="alert alert-primary text-center fw-bold mb-0 py-2" id="fareDisplay" style="font-size:18px;">—</div>
+                            <label class="form-label fw-bold">سعر الرحلة (MRU)</label>
+                            <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="أدخل السعر">
+                            <small class="text-muted">يُحدد يدوياً من قِبل المشرف</small>
                         </div>
                         <button class="btn btn-gold text-white fw-bold w-100 py-3" id="dispatchBtn" disabled>
                             <i class="bi bi-send-fill me-2"></i>إرسال تنبيه للسائقين
