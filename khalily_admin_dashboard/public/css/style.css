@@ -64,7 +64,7 @@
 .top-bar { border-bottom: 2px solid #F0F0F0; }
 
 /* ============ MAP ============ */
-.map-wrapper { height: calc(100vh - 56px); position: relative; }
+.map-wrapper { height: calc(100vh - 110px); position: relative; }
 #map { z-index: 1; }
 
 /* ============ BADGES ============ */
@@ -116,3 +116,22 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CCC; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* ============ LOADING SPINNERS ============ */
+.khalily-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #eee; border-top-color: var(--k-gold); border-radius: 50%; animation: khalily-spin 0.7s linear infinite; }
+.khalily-spinner-sm { width: 18px; height: 18px; border-width: 2px; }
+.khalily-spinner-lg { width: 48px; height: 48px; border-width: 4px; }
+@keyframes khalily-spin { to { transform: rotate(360deg); } }
+.khalily-loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; border-radius: 12px; }
+.khalily-loading-overlay .khalily-spinner { width: 40px; height: 40px; border-width: 4px; }
+
+/* ============ NOTIFICATION LOG ============ */
+.log-entry { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; transition: background 0.2s; }
+.log-entry:hover { background: #f8f9fa; }
+.log-entry:last-child { border-bottom: none; }
+.log-time { font-size: 11px; color: #999; white-space: nowrap; }
+.log-badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+.log-badge-success { background: #E8F5E9; color: #2E7D32; }
+.log-badge-warning { background: #FFF3E0; color: #E65100; }
+.log-badge-danger { background: #FFEBEE; color: #C62828; }
+.log-badge-info { background: #E3F2FD; color: #1565C0; }

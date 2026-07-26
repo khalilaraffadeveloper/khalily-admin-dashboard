@@ -237,8 +237,10 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
         if (nearby.length === 0) {
             showStatus('dispatchStatus', 'لا يوجد سائقون متاحون في النطاق', 'error');
             await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
+            addNotifLog('dispatch', `فشل الإرسال: لا يوجد سائقون في نطاق ${radius} كم`);
         } else {
             showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
+            addNotifLog('dispatch', `تم إرسال رحلة ${passengerName} — تم تنبيه ${nearby.length} سائق | ${fare} MRU`);
             clearForm();
             setTimeout(() => {
                 const offcanvasEl = document.getElementById('dispatchOffcanvas');
@@ -347,6 +349,19 @@ function initRealtimeListeners() {
             if (!firstRidesSnapshot && snapshot.docChanges().length > 0) {
                 const hasNew = snapshot.docChanges().some(c => c.type === 'added');
                 if (hasNew) playNotificationSound();
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const rd = change.doc.data();
+                        addNotifLog('new_ride', `رحلة جديدة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                    }
+                    if (change.type === 'modified') {
+                        const rd = change.doc.data();
+                        if (rd.status === 'accepted') addNotifLog('ride_accepted', `تم قبول الرحلة: ${rd.passengerName || 'زبون'}`);
+                        else if (rd.status === 'in_progress') addNotifLog('ride_in_progress', `بدء تنفيذ: ${rd.passengerName || 'زبون'}`);
+                        else if (rd.status === 'completed') addNotifLog('ride_completed', `اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                        else if (rd.status === 'cancelled') addNotifLog('ride_cancelled', `تم إلغاء: ${rd.passengerName || 'زبون'}`);
+                    }
+                });
             }
             firstRidesSnapshot = false;
 
@@ -459,6 +474,8 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
 // ============================================
 async function loadDriversList() {
     if (!requireDb()) return;
+    const tbody = document.getElementById('driversTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
     try {
         const snapshot = await db.collection('drivers').get();
         allDrivers = [];
@@ -466,6 +483,7 @@ async function loadDriversList() {
         renderDriversList(allDrivers);
     } catch (err) {
         console.error('Load drivers error:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
@@ -595,12 +613,17 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
 // ============================================
 async function loadRidesList() {
     if (!requireDb()) return;
+    const tbody = document.getElementById('ridesTableBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
         const snapshot = await db.collection('rides').orderBy('createdAt', 'desc').limit(100).get();
         allRides = [];
         snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
         renderRidesList(allRides);
-    } catch (err) { console.error('Load rides error:', err); }
+    } catch (err) {
+        console.error('Load rides error:', err);
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
 }
 
 function renderRidesList(rides) {
@@ -722,6 +745,53 @@ function downloadCSV(csv, filename) {
 // ============================================
 // HELPERS
 // ============================================
+
+// ============================================
+// NOTIFICATION LOG
+// ============================================
+let notifLog = [];
+
+function addNotifLog(type, message) {
+    const now = new Date();
+    const time = now.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const date = now.toLocaleDateString('ar-MA', { month: 'short', day: 'numeric' });
+    notifLog.unshift({ type, message, time, date });
+    if (notifLog.length > 100) notifLog = notifLog.slice(0, 100);
+    renderNotifLog();
+}
+
+function renderNotifLog() {
+    const container = document.getElementById('notifLogContainer');
+    const countEl = document.getElementById('notifLogCount');
+    if (!container) return;
+    if (countEl) countEl.textContent = notifLog.length;
+    if (notifLog.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4 small">لا توجد إشعارات بعد</div>';
+        return;
+    }
+    const badgeMap = {
+        'new_ride': { cls: 'log-badge-warning', label: 'رحلة جديدة' },
+        'ride_accepted': { cls: 'log-badge-success', label: 'تم القبول' },
+        'ride_completed': { cls: 'log-badge-info', label: 'اكتملت' },
+        'ride_cancelled': { cls: 'log-badge-danger', label: 'ملغاة' },
+        'ride_in_progress': { cls: 'log-badge-success', label: 'جارية' },
+        'dispatch': { cls: 'log-badge-info', label: 'إرسال' },
+        'system': { cls: 'log-badge-info', label: 'نظام' },
+    };
+    container.innerHTML = notifLog.map(n => {
+        const badge = badgeMap[n.type] || { cls: 'log-badge-info', label: n.type };
+        return `<div class="log-entry d-flex align-items-center gap-2">
+            <span class="log-time">${n.date} ${n.time}</span>
+            <span class="log-badge ${badge.cls}">${badge.label}</span>
+            <span class="flex-grow-1">${n.message}</span>
+        </div>`;
+    }).join('');
+}
+
+window.clearNotifLog = function () {
+    notifLog = [];
+    renderNotifLog();
+};
 function findNearbyDrivers(lat, lng, radiusKm) {
     return new Promise(resolve => {
         db.collection('drivers').where('isOnline', '==', true).get()
@@ -780,4 +850,5 @@ function initDashboard() {
     loadStats();
     initRealtimeListeners();
     setInterval(loadStats, 60000);
+    addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }

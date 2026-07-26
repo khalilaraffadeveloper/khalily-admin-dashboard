@@ -120,8 +120,14 @@ fun SettingsScreen(
             Tab(
                 selected = selectedTab == 2,
                 onClick = { selectedTab = 2 },
-                text = { Text("تزويد الرصيد", fontWeight = FontWeight.Bold) },
+                text = { Text("الرصيد", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) }
+            )
+            Tab(
+                selected = selectedTab == 3,
+                onClick = { selectedTab = 3 },
+                text = { Text("حول", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Info, contentDescription = null) }
             )
         }
 
@@ -129,6 +135,7 @@ fun SettingsScreen(
             0 -> RideHistoryTab(rideHistory, isLoading)
             1 -> ContactInfoTab(context)
             2 -> TopUpInfoTab(context)
+            3 -> AboutTab()
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -585,5 +592,154 @@ private fun PaymentMethodChip(method: String) {
                 color = KhalilyTextPrimary
             )
         }
+    }
+}
+
+@Composable
+private fun AboutTab() {
+    val context = LocalContext.current
+    val versionName = try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
+    } catch (_: Exception) { "1.0.0" }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = KhalilyPrimary),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Motorcycle,
+                        contentDescription = null,
+                        tint = KhalilyGold,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Khalily",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "تطبيق نقل الدراجات النارية",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Text(
+                            text = "الإصدار $versionName",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 12.sp,
+                            color = KhalilyGold
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "معلومات التطبيق",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = KhalilyPrimaryDark
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AboutInfoRow(icon = Icons.Default.Business, label = "الشركة", value = "Khalily")
+                    AboutInfoRow(icon = Icons.Default.LocationOn, label = "المدينة", value = "نواكشط، موريتانيا")
+                    AboutInfoRow(icon = Icons.Default.Phone, label = "التواصل", value = "47717983")
+                    AboutInfoRow(icon = Icons.Default.Code, label = "الإصدار", value = versionName)
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "الشروط والأحكام",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = KhalilyTextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "باستخدامك لهذا التطبيق فإنك توافق على جميع الشروط والأحكام الخاصة بخدمة النقل. يحق للإدارة تعطيل أو حذف أي حساب يخالف الشروط.",
+                        fontSize = 12.sp,
+                        color = KhalilyTextSecondary,
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "© 2026 Khalily. جميع الحقوق محفوظة.",
+                        fontSize = 12.sp,
+                        color = KhalilyTextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutInfoRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = KhalilyPrimary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = KhalilyTextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = KhalilyTextPrimary
+        )
     }
 }
