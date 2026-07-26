@@ -126,6 +126,52 @@
     }
 }
 
+/* DESKTOP TOGGLE BUTTON */
+.dispatch-toggle-btn {
+    display: none;
+}
+@media (min-width: 768px) {
+    .dispatch-toggle-btn {
+        display: flex;
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        z-index: 1090;
+        background: var(--k-blue);
+        color: #fff;
+        border: none;
+        border-radius: 0 12px 12px 0;
+        padding: 14px 10px;
+        font-size: 13px;
+        font-weight: 700;
+        font-family: 'Cairo', sans-serif;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.2);
+        transition: all 0.3s;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+    }
+    .dispatch-toggle-btn i {
+        font-size: 18px;
+        writing-mode: horizontal-tb;
+        transition: transform 0.3s;
+    }
+    .dispatch-toggle-btn:hover {
+        background: var(--k-blue-light);
+        padding-left: 14px;
+    }
+    .dispatch-toggle-btn.panel-open {
+        left: 380px;
+    }
+    .dispatch-toggle-btn.panel-open i {
+        transform: rotate(180deg);
+    }
+}
+
 /* ============ BADGES ============ */
 .badge-online { background: #E8F5E9; color: #2E7D32; }
 .badge-offline { background: #F5F5F5; color: #757575; }
