@@ -36,9 +36,9 @@ document.getElementById('loginUser').addEventListener('keydown', (e) => {
 loginBtn.addEventListener('click', doLogin);
 
 const ADMIN_ACCOUNTS = [
-    { username: 'admin', password: 'khalily2024', name: 'المدير' },
-    { username: 'khalily', password: 'khalily2024', name: 'Khalily Admin' },
-    { username: '26067036', password: '5926', name: 'محمد سالم' },
+    { username: 'admin', password: 'khalily2024', name: 'المدير', role: 'admin' },
+    { username: 'khalily', password: 'khalily2024', name: 'Khalily Admin', role: 'admin' },
+    { username: '26067036', password: '5926', name: 'محمد سالم', role: 'admin' },
 ];
 
 async function doLogin() {
@@ -65,7 +65,8 @@ async function doLogin() {
                 .get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
-                matched = { username: user, password: pass, name: doc.data().name || user };
+                const data = doc.data();
+                matched = { username: user, password: pass, name: data.name || user, role: data.role || 'supervisor' };
             }
         } catch (err) {
             console.warn('Firestore admin check failed, using local accounts:', err.message);
@@ -75,6 +76,7 @@ async function doLogin() {
     if (matched) {
         sessionStorage.setItem('khalily_admin_logged_in', 'true');
         sessionStorage.setItem('khalily_admin_name', matched.name);
+        sessionStorage.setItem('khalily_admin_role', matched.role || 'admin');
         window.location.href = 'dashboard.html';
     } else {
         loginError.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';

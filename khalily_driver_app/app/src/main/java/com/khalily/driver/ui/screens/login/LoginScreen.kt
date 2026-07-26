@@ -1,27 +1,33 @@
 package com.khalily.driver.ui.screens.login
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -29,8 +35,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
+import com.khalily.driver.R
 import com.khalily.driver.ui.theme.*
 import com.khalily.driver.util.PrefsManager
 
@@ -44,23 +50,11 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.6f, targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "alpha"
+    val iconScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f, targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(tween(1500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "iconScale"
     )
-
-    fun getDevicePhoneNumber(): String {
-        return try {
-            val tm = context.getSystemService(android.content.Context.TELEPHONY_SERVICE) as TelephonyManager
-            val number = tm.line1Number
-            if (!number.isNullOrBlank()) {
-                number.replace("[^0-9]".toRegex(), "")
-            } else ""
-        } catch (e: Exception) {
-            ""
-        }
-    }
 
     fun getDeviceId(): String {
         return try {
@@ -79,69 +73,81 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(KhalilyPrimary)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(KhalilyNavy, Color(0xFF1A2D5E))
+                )
+            )
+            .verticalScroll(rememberScrollState())
+            .imePadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Card(
+            Spacer(modifier = Modifier.height(60.dp))
+
+            Box(
                 modifier = Modifier
-                    .size(90.dp)
-                    .alpha(alpha),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f))
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .border(4.dp, KhalilyGold, CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        imageVector = Icons.Default.TwoWheeler,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(50.dp)
-                    )
-                }
+                Image(
+                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    contentDescription = "Khalily",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Khalily",
-                fontSize = 36.sp,
+                fontSize = 40.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "تطبيق السائقين",
+                text = "خدمة التوصيل عبر الدراجات",
                 fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                color = Color.White.copy(alpha = 0.6f)
             )
+
             Spacer(modifier = Modifier.height(48.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Column(modifier = Modifier.padding(24.dp)) {
+                Column(modifier = Modifier.padding(28.dp)) {
                     OutlinedTextField(
                         value = phone,
                         onValueChange = { phone = it; errorMsg = null },
                         label = { Text("رقم الهاتف") },
                         placeholder = { Text("مثال: 22111111", fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(Icons.Default.Phone, contentDescription = null, tint = KhalilyPrimary)
+                            Icon(Icons.Default.Phone, contentDescription = null, tint = KhalilyNavy)
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = KhalilyPrimary,
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedContainerColor = Color(0xFFF8F9FF),
-                            unfocusedContainerColor = Color(0xFFF5F5F5)
+                            focusedBorderColor = KhalilyNavy,
+                            unfocusedBorderColor = Color(0xFFDEE2E6),
+                            focusedContainerColor = Color(0xFFF8F9FA),
+                            unfocusedContainerColor = Color(0xFFF8F9FA),
+                            focusedLabelColor = KhalilyNavy,
+                            cursorColor = KhalilyNavy
                         )
                     )
 
@@ -153,27 +159,29 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         label = { Text("كلمة السر") },
                         placeholder = { Text("أدخل كلمة السر", fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = KhalilyPrimary)
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = KhalilyNavy)
                         },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = null,
-                                    tint = KhalilyPrimary
+                                    tint = KhalilyTextSecondary
                                 )
                             }
                         },
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = KhalilyPrimary,
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedContainerColor = Color(0xFFF8F9FF),
-                            unfocusedContainerColor = Color(0xFFF5F5F5)
+                            focusedBorderColor = KhalilyNavy,
+                            unfocusedBorderColor = Color(0xFFDEE2E6),
+                            focusedContainerColor = Color(0xFFF8F9FA),
+                            unfocusedContainerColor = Color(0xFFF8F9FA),
+                            focusedLabelColor = KhalilyNavy,
+                            cursorColor = KhalilyNavy
                         )
                     )
 
@@ -181,8 +189,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = KhalilyError.copy(alpha = 0.08f))
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = KhalilyErrorSurface)
                         ) {
                             Text(
                                 text = errorMsg!!,
@@ -195,7 +203,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
                     Button(
                         onClick = {
@@ -223,14 +231,13 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                     val doc = docs.documents[0]
                                     val driverId = doc.id
                                     val driverName = doc.getString("name") ?: "سائق"
-                                    val registeredPhone = doc.getString("phone") ?: ""
 
                                     val storedDeviceId = doc.getString("deviceId") ?: ""
                                     val currentDeviceId = getDeviceId()
 
                                     if (storedDeviceId.isNotEmpty() && storedDeviceId != currentDeviceId) {
                                         isLoading = false
-                                        errorMsg = "هذا الحساب مسجل على جهاز آخر. يرجى الاتصال بالإدارة."
+                                        errorMsg = "هذا الحساب مسجل على جهاز آخر"
                                         return@addOnSuccessListener
                                     }
 
@@ -244,7 +251,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                     PrefsManager.setPhone(context, phone.trim())
                                     PrefsManager.setLoggedIn(context, true)
                                     isLoading = false
-                                    android.util.Log.d("Login", "Logged in as $driverName (ID: $driverId)")
                                     onLoginSuccess()
                                 }
                                 .addOnFailureListener { e ->
@@ -256,11 +262,11 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = KhalilyGold,
-                            contentColor = KhalilyPrimary
-                        )
+                            containerColor = KhalilyTurquoise
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -272,18 +278,19 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             Text(
                                 text = "تسجيل الدخول",
                                 fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             Text(
-                text = "© 2026 Khalily — تطبيق نقل الدراجات النارية",
+                text = "© 2026 Khalily",
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.5f)
+                color = Color.White.copy(alpha = 0.4f)
             )
         }
     }

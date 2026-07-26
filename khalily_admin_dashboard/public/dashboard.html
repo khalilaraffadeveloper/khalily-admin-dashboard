@@ -32,6 +32,9 @@
             <a href="#" class="sidebar-link" data-page="settings">
                 <i class="bi bi-gear-fill"></i> الإعدادات
             </a>
+            <a href="#" class="sidebar-link admin-only" data-page="admins">
+                <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
+            </a>
         </div>
         <div class="sidebar-stats px-3 pb-3">
             <div class="row g-2">
@@ -71,6 +74,9 @@
                     </a>
                     <a href="#" class="sidebar-link" data-page="settings" data-bs-dismiss="offcanvas">
                         <i class="bi bi-gear-fill"></i> الإعدادات
+                    </a>
+                    <a href="#" class="sidebar-link admin-only" data-page="admins" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
                     </a>
                 </div>
                 <div class="px-3 pb-3 mt-auto">
@@ -360,8 +366,74 @@
                     </div>
                 </div>
             </div>
+            </div>
         </div>
-    </div>
+
+        <!-- ADMINS PAGE -->
+        <div class="page-content d-none" id="page-admins">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-plus-fill me-2 text-gold"></i>إضافة مشرف جديد</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-3 col-6">
+                                        <label class="form-label fw-bold">اسم المستخدم</label>
+                                        <input type="text" class="form-control" id="newAdminUsername" placeholder="اسم المستخدم">
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <label class="form-label fw-bold">الاسم الكامل</label>
+                                        <input type="text" class="form-control" id="newAdminName" placeholder="الاسم الكامل">
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <label class="form-label fw-bold">كلمة المرور</label>
+                                        <input type="password" class="form-control" id="newAdminPassword" placeholder="كلمة المرور">
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <label class="form-label fw-bold">الدور</label>
+                                        <select class="form-select" id="newAdminRole">
+                                            <option value="supervisor">مشرف</option>
+                                            <option value="admin">مدير عام</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button class="btn btn-dark-blue text-white fw-bold mt-3" onclick="addAdmin()">
+                                    <i class="bi bi-check-circle me-1"></i>إضافة المشرف
+                                </button>
+                                <div class="mt-2 fw-semibold" id="addAdminStatus"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-shield-lock-fill me-2 text-gold"></i>قائمة المشرفين (<span id="totalAdminsCount">0</span>)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-dark-blue text-white">
+                                            <tr>
+                                                <th>الاسم</th>
+                                                <th>اسم المستخدم</th>
+                                                <th>الدور</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adminsTableBody">
+                                            <tr><td colspan="4" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل المشرفين...</div></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <!-- EDIT DRIVER MODAL -->
     <div class="modal fade" id="editDriverModal" tabindex="-1">

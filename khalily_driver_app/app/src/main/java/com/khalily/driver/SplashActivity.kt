@@ -106,7 +106,7 @@ private fun SplashScreenContent() {
 
             // Tagline - white
             Text(
-                text = "تطبيق نقل الدراجات النارية",
+                text = "خدمة التوصيل عبر الدراجات",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.9f),

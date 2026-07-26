@@ -3,11 +3,12 @@ package com.khalily.driver.ui.screens.home
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,22 +18,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.LocationServices
+import com.khalily.driver.R
 import com.khalily.driver.service.DriverLocationService
 import com.khalily.driver.ui.theme.*
+import com.khalily.driver.util.NumberFormatter
 import com.khalily.driver.util.PrefsManager
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 
 private val NOUAKCHOTT_CENTER = GeoPoint(18.0735, -15.9582)
 private val NOUAKCHOTT_BOUNDS = BoundingBox(
@@ -56,7 +61,6 @@ fun DriverHomeScreen(
         )
     }
 
-    // Fetch driver credit from Firebase on load
     LaunchedEffect(Unit) {
         val driverId = PrefsManager.getDriverId(context) ?: ""
         if (driverId.isNotEmpty()) {
@@ -91,12 +95,11 @@ fun DriverHomeScreen(
     }
 
     val onlineColor by animateColorAsState(
-        targetValue = if (isOnline) KhalilyOnline else KhalilyOffline,
+        targetValue = if (isOnline) Color(0xFF00C853) else Color(0xFFB0BEC5),
         label = "onlineColor"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Map - centered on Nouakchott
         AndroidView(
             factory = { ctx ->
                 Configuration.getInstance().userAgentValue = ctx.packageName
@@ -111,89 +114,116 @@ fun DriverHomeScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Top status card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                .shadow(8.dp, RoundedCornerShape(20.dp)),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            colors = CardDefaults.cardColors(containerColor = KhalilyNavy)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, KhalilyGold, CircleShape)
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.mipmap.ic_launcher),
+                            contentDescription = "Khalily",
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "مرحباً، ${PrefsManager.getDriverName(context)}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = KhalilyGold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
-                        Text(
-                            text = "مرحباً، ${PrefsManager.getDriverName(context)}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = KhalilyGold,
+                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .background(onlineColor, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isOnline) "متاح للرحلات" else "غير متاح",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = onlineColor
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "الرصيد: ",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            text = "${NumberFormatter.format(driverCredit)} MRU",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (driverCredit > 0) Color(0xFF81C784) else Color(0xFFEF9A9A)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.SignalCellularAlt,
+                            contentDescription = null,
+                            tint = if (isOnline) Color(0xFF81C784) else Color(0xFFEF9A9A),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isOnline) "متصل — جاهز للرحلات" else "غير متصل",
+                            fontSize = 14.sp,
+                            color = if (isOnline) Color(0xFF81C784) else Color(0xFFEF9A9A),
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Settings button
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "الإعدادات",
-                                tint = KhalilyTextSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        // Credit display
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (driverCredit > 0) KhalilySuccess.copy(alpha = 0.1f)
-                                else KhalilyError.copy(alpha = 0.1f)
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AccountBalanceWallet,
-                                    contentDescription = null,
-                                    tint = if (driverCredit > 0) KhalilySuccess else KhalilyError,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "${String.format("%.0f", driverCredit)} MRU",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (driverCredit > 0) KhalilySuccess else KhalilyError
-                                )
-                            }
-                        }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "الإعدادات",
+                            tint = KhalilyGold,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
         }
 
-        // Bottom toggle button
         Button(
             onClick = {
                 if (!isOnline && driverCredit <= 0) {
@@ -203,7 +233,6 @@ fun DriverHomeScreen(
                 isOnline = !isOnline
                 PrefsManager.setOnlineStatus(context, isOnline)
 
-                // Update isOnline in Firestore
                 val driverId = PrefsManager.getDriverId(context)
                 if (!driverId.isNullOrEmpty()) {
                     com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -220,48 +249,51 @@ fun DriverHomeScreen(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(24.dp),
+                .padding(24.dp)
+                .shadow(8.dp, RoundedCornerShape(28.dp)),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isOnline) KhalilyError else KhalilySuccess
+                containerColor = if (isOnline) KhalilyError else KhalilyNavy
             ),
             shape = RoundedCornerShape(28.dp),
-            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+            contentPadding = PaddingValues(horizontal = 36.dp, vertical = 18.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.PowerSettingsNew,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.surface,
+                tint = if (isOnline) Color.White else KhalilyGold,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = if (isOnline) "إيقاف الخدمة" else "تشغيل الخدمة",
-                color = MaterialTheme.colorScheme.surface,
+                color = if (isOnline) Color.White else KhalilyGold,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         }
     }
 
-    // Credit insufficient alert
     if (showCreditAlert) {
         AlertDialog(
             onDismissRequest = { showCreditAlert = false },
             title = {
                 Text(
                     text = "رصيد غير كافٍ",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = KhalilyTextPrimary
                 )
             },
             text = {
                 Text(
-                    text = "رصيدك غير كافٍ لاستلام الطلبات، يرجى مراجعة الإدارة لشحن الرصيد."
+                    text = "رصيدك غير كافٍ لاستلام الطلبات. يرجى مراجعة الإدارة لشحن الرصيد.",
+                    color = KhalilyTextSecondary
                 )
             },
             confirmButton = {
                 Button(
                     onClick = { showCreditAlert = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = KhalilyGold)
+                    colors = ButtonDefaults.buttonColors(containerColor = KhalilyTurquoise),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("حسناً")
                 }

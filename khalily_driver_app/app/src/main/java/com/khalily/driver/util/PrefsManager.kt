@@ -63,4 +63,28 @@ object PrefsManager {
     fun isLoggedIn(context: Context): Boolean {
         return prefs(context).getBoolean(KEY_LOGGED_IN, false)
     }
+
+    fun markCancellationSeen(context: Context, rideId: String) {
+        val seen = getSeenCancellations(context).toMutableSet()
+        seen.add(rideId)
+        prefs(context).edit().putStringSet("seen_cancellations", seen).apply()
+    }
+
+    fun getSeenCancellations(context: Context): Set<String> {
+        return prefs(context).getStringSet("seen_cancellations", emptySet()) ?: emptySet()
+    }
+
+    fun clearSeenCancellations(context: Context) {
+        prefs(context).edit().remove("seen_cancellations").apply()
+    }
+
+    fun markAutoCompleteSeen(context: Context, rideId: String) {
+        val seen = getSeenAutoCompletes(context).toMutableSet()
+        seen.add(rideId)
+        prefs(context).edit().putStringSet("seen_autocompletes", seen).apply()
+    }
+
+    fun getSeenAutoCompletes(context: Context): Set<String> {
+        return prefs(context).getStringSet("seen_autocompletes", emptySet()) ?: emptySet()
+    }
 }

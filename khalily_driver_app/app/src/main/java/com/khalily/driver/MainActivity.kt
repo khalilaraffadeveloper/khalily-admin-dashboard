@@ -7,10 +7,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -31,6 +46,9 @@ class MainActivity : ComponentActivity() {
     private var showRideDetail by mutableStateOf(false)
     private var showRideTracking by mutableStateOf(false)
     private var showSettings by mutableStateOf(false)
+    private var showCancelledMsg by mutableStateOf(false)
+    private var cancelledRideId by mutableStateOf("")
+    private var cancelledMsgText by mutableStateOf("")
     private var currentRideData by mutableStateOf<Map<String, Any>>(emptyMap())
     private var driverCredit by mutableDoubleStateOf(0.0)
     private var isLoggedIn by mutableStateOf(false)
@@ -38,6 +56,7 @@ class MainActivity : ComponentActivity() {
 
     private val db = FirebaseFirestore.getInstance()
     private var rideListener: ListenerRegistration? = null
+    private var cancelListener: ListenerRegistration? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -77,6 +96,18 @@ class MainActivity : ComponentActivity() {
                                     isLoggedIn = false
                                     SoundPlayer.stopSound()
                                     rideListener?.remove()
+                                    cancelListener?.remove()
+                                    val driverId = PrefsManager.getDriverId(this@MainActivity)
+                                    if (!driverId.isNullOrEmpty()) {
+                                        FirebaseFirestore.getInstance()
+                                            .collection("drivers").document(driverId)
+                                            .update("isOnline", false)
+                                    }
+                                    PrefsManager.setLoggedIn(this@MainActivity, false)
+                                    PrefsManager.setOnlineStatus(this@MainActivity, false)
+                                    PrefsManager.saveDriverId(this@MainActivity, "")
+                                    PrefsManager.saveDriverName(this@MainActivity, "")
+                                    stopService(android.content.Intent(this@MainActivity, com.khalily.driver.service.DriverLocationService::class.java))
                                 }
                             )
                         }
@@ -116,8 +147,49 @@ class MainActivity : ComponentActivity() {
                                     rideData = currentRideData,
                                     onDismiss = {
                                         showRideDetail = false
+                                    },
+                                    onStarted = {
+                                        showRideDetail = false
                                         showRideTracking = true
                                     }
+                                )
+                            }
+
+                            if (showCancelledMsg) {
+                                AlertDialog(
+                                    onDismissRequest = { showCancelledMsg = false },
+                                    icon = {
+                                        Icon(
+                                            Icons.Filled.Warning,
+                                            contentDescription = null,
+                                            tint = Color(0xFFE57373),
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                    },
+                                    title = {
+                                        Text("تم إلغاء الرحلة", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                                    },
+                                    text = {
+                                        Text(
+                                            cancelledMsgText,
+                                            textAlign = TextAlign.Center,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            lineHeight = 28.sp
+                                        )
+                                    },
+                                    confirmButton = {
+                                        Button(
+                                            onClick = { showCancelledMsg = false },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF006A5E)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                                        ) {
+                                            Text("حسناً", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    },
+                                    containerColor = Color.White
                                 )
                             }
                         }
@@ -142,6 +214,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         rideListener?.remove()
+        cancelListener?.remove()
     }
 
     private fun loadCommission() {
@@ -158,6 +231,7 @@ class MainActivity : ComponentActivity() {
         val driverId = PrefsManager.getDriverId(this) ?: return
         fetchDriverCredit(driverId)
         listenForRideRequests(driverId)
+        listenForCancellations(driverId)
     }
 
     private fun fetchDriverCredit(driverId: String) {
@@ -198,8 +272,11 @@ class MainActivity : ComponentActivity() {
                     "pickupLat" to (doc.getDouble("pickupLat") ?: 0.0),
                     "pickupLng" to (doc.getDouble("pickupLng") ?: 0.0),
                     "pickupAddress" to (doc.getString("pickupAddress") ?: ""),
+                    "dropoffLat" to (doc.getDouble("dropoffLat") ?: 0.0),
+                    "dropoffLng" to (doc.getDouble("dropoffLng") ?: 0.0),
                     "dropoffAddress" to (doc.getString("dropoffAddress") ?: ""),
-                    "distanceKm" to (doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
+                    "realDistanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: "0"),
+                    "distanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
                     "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
                     "commissionPercent" to commissionPercent.toString()
                 )
@@ -207,6 +284,46 @@ class MainActivity : ComponentActivity() {
                 SoundPlayer.playRideRequestSound(this)
                 currentRideData = rideData
                 showRideDialog = true
+            }
+    }
+
+    private fun listenForCancellations(driverId: String) {
+        cancelListener?.remove()
+        cancelListener = db.collection("rides")
+            .whereArrayContains("notifiedDrivers", driverId)
+            .whereEqualTo("status", "cancelled")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null || snapshot.isEmpty) return@addSnapshotListener
+
+                val seen = PrefsManager.getSeenCancellations(this@MainActivity)
+
+                for (doc in snapshot.documentChanges) {
+                    if (doc.type == com.google.firebase.firestore.DocumentChange.Type.MODIFIED || doc.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                        val rideId = doc.document.id
+
+                        if (seen.contains(rideId)) continue
+
+                        val currentRideId = currentRideData["rideId"]?.toString()
+                        if (currentRideId == rideId) {
+                            showRideDialog = false
+                            showRideDetail = false
+                            showRideTracking = false
+                            SoundPlayer.stopSound()
+                        }
+
+                        val driverIdCurrent = PrefsManager.getDriverId(this@MainActivity)
+                        val assignedDriver = doc.document.getString("assignedDriverId")
+                        if (assignedDriver == driverIdCurrent) {
+                            cancelledMsgText = "تم إلغاء رحلتك من قبل الإدارة. لن يُخصم أي مبلغ من رصيدك."
+                        } else {
+                            cancelledMsgText = "تم إلغاء إحدى الرحلات القريبة منك."
+                        }
+                        cancelledRideId = rideId
+                        PrefsManager.markCancellationSeen(this@MainActivity, rideId)
+                        showCancelledMsg = true
+                        SoundPlayer.stopSound()
+                    }
+                }
             }
     }
 
@@ -219,8 +336,11 @@ class MainActivity : ComponentActivity() {
                 "pickupLat" to (intent.getDoubleExtra("pickupLat", 0.0)),
                 "pickupLng" to (intent.getDoubleExtra("pickupLng", 0.0)),
                 "pickupAddress" to (intent.getStringExtra("pickupAddress") ?: ""),
+                "dropoffLat" to (intent.getDoubleExtra("dropoffLat", 0.0)),
+                "dropoffLng" to (intent.getDoubleExtra("dropoffLng", 0.0)),
                 "dropoffAddress" to (intent.getStringExtra("dropoffAddress") ?: ""),
-                "distanceKm" to (intent.getStringExtra("distanceKm") ?: "0"),
+                "realDistanceKm" to (intent.getStringExtra("realDistanceKm") ?: "0"),
+                "distanceKm" to (intent.getStringExtra("realDistanceKm") ?: intent.getStringExtra("distanceKm") ?: "0"),
                 "fare" to (intent.getStringExtra("fare") ?: "0"),
                 "commissionPercent" to commissionPercent.toString()
             )

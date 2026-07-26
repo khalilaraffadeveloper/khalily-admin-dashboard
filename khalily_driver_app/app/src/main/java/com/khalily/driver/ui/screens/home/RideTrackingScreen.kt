@@ -1,18 +1,21 @@
 package com.khalily.driver.ui.screens.home
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.graphics.Color as AndroidColor
+import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -20,9 +23,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
+import com.google.firebase.firestore.FirebaseFirestore
+import com.khalily.driver.R
 import com.khalily.driver.ui.theme.*
+import com.khalily.driver.util.PrefsManager
+import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -37,6 +43,13 @@ enum class RidePhase {
     COMPLETED
 }
 
+private const val TIMER_PICKUP_ARRIVAL_SEC = 25 * 60
+private const val TIMER_RIDE_START_SEC = 10 * 60
+private const val TIMER_RIDE_COMPLETE_SEC = 15 * 60
+private const val REMINDER_WARN_SEC = 5 * 60
+private const val REMINDER_URGENT_SEC = 2 * 60
+private const val PENALTY_AMOUNT = 10.0
+
 @Composable
 fun RideTrackingScreen(
     rideData: Map<String, Any>,
@@ -45,7 +58,6 @@ fun RideTrackingScreen(
 ) {
     val context = LocalContext.current
     var ridePhase by remember { mutableStateOf(RidePhase.NAVIGATING_TO_PICKUP) }
-    var showCallDialog by remember { mutableStateOf(false) }
 
     val pickupLat = rideData["pickupLat"]?.toString()?.toDoubleOrNull() ?: 18.0735
     val pickupLng = rideData["pickupLng"]?.toString()?.toDoubleOrNull() ?: -15.9582
@@ -58,17 +70,123 @@ fun RideTrackingScreen(
     val passengerName = rideData["passengerName"]?.toString() ?: "الزبون"
     val pickupAddress = rideData["pickupAddress"]?.toString() ?: ""
     val dropoffAddress = rideData["dropoffAddress"]?.toString() ?: ""
+    val rideId = rideData["rideId"]?.toString() ?: ""
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Top info bar
+    val maxTimeSeconds = when (ridePhase) {
+        RidePhase.NAVIGATING_TO_PICKUP -> TIMER_PICKUP_ARRIVAL_SEC
+        RidePhase.AT_PICKUP -> TIMER_RIDE_START_SEC
+        RidePhase.NAVIGATING_TO_DROPOFF -> TIMER_RIDE_COMPLETE_SEC
+        RidePhase.COMPLETED -> 0
+    }
+
+    var timeRemaining by remember { mutableIntStateOf(maxTimeSeconds) }
+    var reminderPlayed by remember { mutableStateOf(false) }
+    var urgentPlayed by remember { mutableStateOf(false) }
+    var showTimeoutDialog by remember { mutableStateOf(false) }
+    var showAutoCompleteDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(ridePhase) {
+        if (ridePhase == RidePhase.COMPLETED) return@LaunchedEffect
+        timeRemaining = maxTimeSeconds
+        reminderPlayed = false
+        urgentPlayed = false
+
+        val db = FirebaseFirestore.getInstance()
+        val driverId = PrefsManager.getDriverId(context) ?: ""
+        if (rideId.isNotEmpty() && driverId.isNotEmpty()) {
+            val phaseName = when (ridePhase) {
+                RidePhase.NAVIGATING_TO_PICKUP -> "navigating_to_pickup"
+                RidePhase.AT_PICKUP -> "at_pickup"
+                RidePhase.NAVIGATING_TO_DROPOFF -> "navigating_to_dropoff"
+                else -> "completed"
+            }
+            db.collection("rides").document(rideId)
+                .update(
+                    mapOf(
+                        "timerPhase" to phaseName,
+                        "timerStartedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                        "timerMaxSeconds" to maxTimeSeconds
+                    )
+                )
+        }
+
+        while (timeRemaining > 0 && ridePhase != RidePhase.COMPLETED) {
+            delay(1000)
+            timeRemaining--
+
+            if (timeRemaining == REMINDER_WARN_SEC && !reminderPlayed) {
+                reminderPlayed = true
+                try {
+                    val mp = MediaPlayer.create(context, R.raw.soundreality_notification_tone)
+                    mp?.setOnCompletionListener { player -> player.release() }
+                    mp?.start()
+                } catch (_: Exception) {}
+            }
+
+            if (timeRemaining == REMINDER_URGENT_SEC && !urgentPlayed) {
+                urgentPlayed = true
+                try {
+                    val mp = MediaPlayer.create(context, R.raw.soundreality_notification_tone)
+                    mp?.setOnCompletionListener { player -> player.release() }
+                    mp?.start()
+                } catch (_: Exception) {}
+            }
+
+            if (timeRemaining <= 0) {
+                if (ridePhase == RidePhase.NAVIGATING_TO_DROPOFF) {
+                    showAutoCompleteDialog = true
+                    if (rideId.isNotEmpty()) {
+                        db.collection("rides").document(rideId)
+                            .update(
+                                mapOf(
+                                    "status" to "completed",
+                                    "completedBy" to "auto_timeout",
+                                    "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                )
+                            )
+                    }
+                } else {
+                    showTimeoutDialog = true
+                    if (rideId.isNotEmpty()) {
+                        db.collection("rides").document(rideId)
+                            .update(
+                                mapOf(
+                                    "status" to "cancelled",
+                                    "cancelledBy" to "auto_timeout",
+                                    "penalty" to PENALTY_AMOUNT,
+                                    "cancelledAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                )
+                            )
+                        val driverIdCurrent = PrefsManager.getDriverId(context) ?: ""
+                        if (driverIdCurrent.isNotEmpty()) {
+                            db.collection("drivers").document(driverIdCurrent)
+                                .get()
+                                .addOnSuccessListener { doc ->
+                                    val currentCredit = doc.getDouble("credit") ?: 0.0
+                                    val newCredit = (currentCredit - PENALTY_AMOUNT).coerceAtLeast(0.0)
+                                    db.collection("drivers").document(driverIdCurrent)
+                                        .update("credit", newCredit)
+                                }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val timerColor = when {
+        timeRemaining > maxTimeSeconds * 0.5 -> KhalilyGreen
+        timeRemaining > maxTimeSeconds * 0.2 -> KhalilyGold
+        else -> KhalilyError
+    }
+
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-            ),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -77,7 +195,7 @@ fun RideTrackingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = when (ridePhase) {
                                 RidePhase.NAVIGATING_TO_PICKUP -> "الوصول للزبون"
@@ -85,115 +203,78 @@ fun RideTrackingScreen(
                                 RidePhase.NAVIGATING_TO_DROPOFF -> "الوجهة النهائية"
                                 RidePhase.COMPLETED -> "اكتملت الرحلة"
                             },
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = KhalilyPrimaryDark
+                            color = KhalilyNavy
                         )
                         Text(
                             text = passengerName,
-                            fontSize = 14.sp,
-                            color = KhalilyTextSecondary
-                        )
-                    }
-                    Card(
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = when (ridePhase) {
-                                RidePhase.NAVIGATING_TO_PICKUP -> Color(0xFFE3F2FD)
-                                RidePhase.AT_PICKUP -> Color(0xFFFFF8E1)
-                                RidePhase.NAVIGATING_TO_DROPOFF -> Color(0xFFE8F5E9)
-                                RidePhase.COMPLETED -> Color(0xFFF3E5F5)
-                            }
-                        )
-                    ) {
-                        Text(
-                            text = when (ridePhase) {
-                                RidePhase.NAVIGATING_TO_PICKUP -> "١/٢"
-                                RidePhase.AT_PICKUP -> "٢/٢"
-                                RidePhase.NAVIGATING_TO_DROPOFF -> "٢/٢"
-                                RidePhase.COMPLETED -> "✓"
-                            },
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = when (ridePhase) {
-                                RidePhase.NAVIGATING_TO_PICKUP -> KhalilyPrimary
-                                RidePhase.AT_PICKUP -> Color(0xFFF57F17)
-                                RidePhase.NAVIGATING_TO_DROPOFF -> KhalilySuccess
-                                RidePhase.COMPLETED -> Color(0xFF7B1FA2)
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Address info
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = KhalilyGold,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = pickupAddress.ifEmpty { "نقطة الانطلاق" },
-                        fontSize = 13.sp,
-                        color = KhalilyTextSecondary
-                    )
-                }
-                if (dropoffAddress.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = null,
-                            tint = KhalilyError,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = dropoffAddress,
                             fontSize = 13.sp,
                             color = KhalilyTextSecondary
                         )
                     }
+
+                    if (ridePhase != RidePhase.COMPLETED) {
+                        val minutes = timeRemaining / 60
+                        val seconds = timeRemaining % 60
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = timerColor.copy(alpha = 0.12f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "%d:%02d".format(minutes, seconds),
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = timerColor
+                                )
+                                Text(
+                                    text = "المتبقي",
+                                    fontSize = 10.sp,
+                                    color = timerColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = KhalilyTurquoise, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(pickupAddress.ifEmpty { "نقطة الانطلاق" }, fontSize = 12.sp, color = KhalilyTextSecondary)
+                }
+                if (dropoffAddress.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Place, contentDescription = null, tint = KhalilyError, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(dropoffAddress, fontSize = 12.sp, color = KhalilyTextSecondary)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Fare info
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "السعر: $fare MRU",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = KhalilyPrimary
-                    )
-                    Text(
-                        text = "العمولة: $commission MRU",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = KhalilyError
-                    )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("السعر: $fare MRU", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KhalilyGreen)
+                    Text("العمولة: $commission MRU", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KhalilyError)
                 }
             }
         }
 
-        // Map
         Box(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
+                .height(300.dp)
+                .padding(horizontal = 12.dp)
         ) {
             AndroidView(
                 factory = { ctx ->
@@ -212,7 +293,6 @@ fun RideTrackingScreen(
                         }
                         controller.setCenter(targetPoint)
 
-                        // Pickup marker
                         val pickupIcon = Marker(this).apply {
                             position = GeoPoint(pickupLat, pickupLng)
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -221,7 +301,6 @@ fun RideTrackingScreen(
                         }
                         overlays.add(pickupIcon)
 
-                        // Dropoff marker
                         if (dropoffLat != pickupLat || dropoffLng != pickupLng) {
                             val dropoffIcon = Marker(this).apply {
                                 position = GeoPoint(dropoffLat, dropoffLng)
@@ -232,7 +311,6 @@ fun RideTrackingScreen(
                             overlays.add(dropoffIcon)
                         }
 
-                        // Draw route line
                         val points = when (ridePhase) {
                             RidePhase.NAVIGATING_TO_PICKUP, RidePhase.AT_PICKUP -> {
                                 val currentLoc = getLastKnownLocation(ctx)
@@ -257,7 +335,7 @@ fun RideTrackingScreen(
                         if (points.size >= 2) {
                             val polyline = Polyline().apply {
                                 setPoints(points)
-                                outlinePaint.color = AndroidColor.parseColor("#1565C0")
+                                outlinePaint.color = AndroidColor.parseColor("#00838F")
                                 outlinePaint.strokeWidth = 8f
                                 outlinePaint.isAntiAlias = true
                             }
@@ -279,21 +357,68 @@ fun RideTrackingScreen(
             )
         }
 
-        // Bottom action buttons
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
+                if (ridePhase != RidePhase.COMPLETED && timeRemaining <= REMINDER_WARN_SEC) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF6C00), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "الوقت ينفد! ${
+                                    if (timeRemaining <= REMINDER_URGENT_SEC) "بضع دقائق متبقية فقط"
+                                    else "باقي ${timeRemaining / 60} دقائق"
+                                }",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFEF6C00)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
                 when (ridePhase) {
                     RidePhase.NAVIGATING_TO_PICKUP -> {
-                        // Call passenger button
+                        Button(
+                            onClick = {
+                                val uri = android.net.Uri.parse("google.navigation:q=$pickupLat,$pickupLng&mode=d")
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                intent.setPackage("com.google.android.apps.maps")
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    val webIntent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$pickupLat,$pickupLng")
+                                    )
+                                    context.startActivity(webIntent)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                        ) {
+                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("الملاحة لنقطة الانطلاق", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         if (passengerPhone.isNotEmpty()) {
                             OutlinedButton(
                                 onClick = {
@@ -303,41 +428,35 @@ fun RideTrackingScreen(
                                     )
                                     context.startActivity(intent)
                                 },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = KhalilyPrimary
-                                )
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = KhalilyTurquoise)
                             ) {
-                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("اتصل بالزبون", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("اتصل بالزبون", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
                         Button(
                             onClick = { ridePhase = RidePhase.AT_PICKUP },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = KhalilyGold)
                         ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("وصلت للزبون", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("وصلت للزبون", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
                     RidePhase.AT_PICKUP -> {
                         Text(
                             text = "مرحباً بالزبون $passengerName",
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = KhalilyPrimaryDark,
+                            color = KhalilyTextPrimary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -345,22 +464,20 @@ fun RideTrackingScreen(
 
                         Button(
                             onClick = { ridePhase = RidePhase.NAVIGATING_TO_DROPOFF },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = KhalilySuccess)
+                            colors = ButtonDefaults.buttonColors(containerColor = KhalilyGreen)
                         ) {
-                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("ابدأ الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("ابدأ الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
                     RidePhase.NAVIGATING_TO_DROPOFF -> {
                         Text(
                             text = "الوصول إلى: $dropoffAddress",
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             color = KhalilyTextSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
@@ -369,18 +486,52 @@ fun RideTrackingScreen(
 
                         Button(
                             onClick = {
+                                val uri = android.net.Uri.parse("google.navigation:q=$dropoffLat,$dropoffLng&mode=d")
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                intent.setPackage("com.google.android.apps.maps")
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    val webIntent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$dropoffLat,$dropoffLng")
+                                    )
+                                    context.startActivity(webIntent)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                        ) {
+                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("الملاحة للوجهة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
                                 ridePhase = RidePhase.COMPLETED
                                 onRideCompleted(fare, commission)
+                                if (rideId.isNotEmpty()) {
+                                    val db = FirebaseFirestore.getInstance()
+                                    db.collection("rides").document(rideId)
+                                        .update(
+                                            mapOf(
+                                                "status" to "completed",
+                                                "completedBy" to "driver",
+                                                "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                            )
+                                        )
+                                }
                             },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B1FA2))
+                            colors = ButtonDefaults.buttonColors(containerColor = KhalilyGreenLight)
                         ) {
-                            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("إنهاء الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("إنهاء الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
@@ -389,41 +540,99 @@ fun RideTrackingScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = KhalilySuccess,
-                                modifier = Modifier.size(48.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(KhalilyGreenSurface, RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KhalilyGreen, modifier = Modifier.size(36.dp))
+                            }
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "تم إنهاء الرحلة بنجاح!",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = KhalilySuccess
-                            )
+                            Text("تم إنهاء الرحلة بنجاح!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = KhalilyGreen)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "السعر: $fare MRU | العمولة: $commission MRU",
-                                fontSize = 14.sp,
-                                color = KhalilyTextSecondary
-                            )
+                            Text("السعر: $fare MRU | العمولة: $commission MRU", fontSize = 13.sp, color = KhalilyTextSecondary)
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = onDismiss,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = KhalilyPrimary)
+                                colors = ButtonDefaults.buttonColors(containerColor = KhalilyTurquoise)
                             ) {
-                                Text("العودة للخريطة", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("العودة للخريطة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showTimeoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showTimeoutDialog = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = KhalilyError, modifier = Modifier.size(40.dp)) },
+            title = {
+                Text("انتهى الوقت!", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            },
+            text = {
+                Text(
+                    text = "لم يتم إكمال الإجراء في الوقت المحدد. تم إلغاء الرحلة تلقائياً وخصم $PENALTY_AMOUNT MRU من رصيدك كغرامة.",
+                    textAlign = TextAlign.Center,
+                    fontSize = 15.sp,
+                    lineHeight = 24.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (rideId.isNotEmpty()) PrefsManager.markCancellationSeen(context, rideId)
+                        showTimeoutDialog = false
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = KhalilyError)
+                ) {
+                    Text("حسناً", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            containerColor = Color.White
+        )
+    }
+
+    if (showAutoCompleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showAutoCompleteDialog = false },
+            icon = { Icon(Icons.Default.Info, contentDescription = null, tint = KhalilyGold, modifier = Modifier.size(40.dp)) },
+            title = {
+                Text("تم إنهاء الرحلة آلياً", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            },
+            text = {
+                Text(
+                    text = "تم إنهاء إجراءات الرحلة تلقائياً بسبب تأخرك في إكمالها. تم احتساب السعر والعمولة بناءً على الرحلة الفعلية.",
+                    textAlign = TextAlign.Center,
+                    fontSize = 15.sp,
+                    lineHeight = 24.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (rideId.isNotEmpty()) PrefsManager.markAutoCompleteSeen(context, rideId)
+                        showAutoCompleteDialog = false
+                        ridePhase = RidePhase.COMPLETED
+                        onRideCompleted(fare, commission)
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = KhalilyGold)
+                ) {
+                    Text("حسناً", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            containerColor = Color.White
+        )
     }
 }
 
