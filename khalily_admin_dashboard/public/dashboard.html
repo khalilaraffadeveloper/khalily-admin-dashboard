@@ -151,11 +151,6 @@
 
             <div class="map-wrapper position-relative">
                 <div id="map" class="w-100 h-100"></div>
-
-                <!-- FLOATING DISPATCH BUTTON (all screens) -->
-                <button class="btn btn-gold text-white fw-bold shadow-lg position-absolute bottom-0 start-0 end-0 m-3 rounded-3 py-3 d-flex align-items-center justify-content-center gap-2" style="z-index:1050;font-size:16px;" data-bs-toggle="offcanvas" data-bs-target="#dispatchOffcanvas">
-                    <i class="bi bi-send-fill"></i> إرسال رحلة جديدة
-                </button>
             </div>
         </div>
 
@@ -447,13 +442,14 @@
         </div>
     </div>
 
-    <!-- DISPATCH OFFCANVAS (Bootstrap 5) -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="dispatchOffcanvas" style="width:400px;max-width:100%;">
-        <div class="offcanvas-header bg-dark-blue text-white">
+    <!-- DISPATCH PANEL (Custom - RTL safe) -->
+    <div class="dispatch-panel-overlay d-none" id="dispatchOverlay" onclick="toggleDispatchPanel()"></div>
+    <div class="dispatch-panel" id="dispatchPanel">
+        <div class="dispatch-panel-header bg-dark-blue text-white d-flex align-items-center justify-content-between p-3">
             <h5 class="fw-bold mb-0"><i class="bi bi-motorcycle me-2"></i>إرسال طلب رحلة</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            <button type="button" class="btn-close btn-close-white" onclick="toggleDispatchPanel()"></button>
         </div>
-        <div class="offcanvas-body p-3">
+        <div class="dispatch-panel-body p-3">
             <div class="mb-3">
                 <label class="form-label fw-bold">اسم الزبون</label>
                 <input type="text" class="form-control" id="passengerName" placeholder="أدخل اسم الزبون">
@@ -493,6 +489,12 @@
             <div class="text-center mt-2 fw-semibold" id="dispatchStatus"></div>
         </div>
     </div>
+
+    <!-- FLOATING DISPATCH TOGGLE BUTTON (always visible) -->
+    <button class="dispatch-fab" id="dispatchFab" onclick="toggleDispatchPanel()">
+        <i class="bi bi-send-fill"></i>
+        <span class="d-none d-sm-inline ms-2">إرسال رحلة</span>
+    </button>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>

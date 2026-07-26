@@ -175,8 +175,23 @@ document.querySelectorAll('.sidebar-link').forEach(item => {
 });
 
 // ============================================
-// DISPATCH OFFCANVAS (Bootstrap handles show/hide)
+// DISPATCH PANEL (Custom RTL-safe)
 // ============================================
+let dispatchPanelOpen = false;
+
+window.toggleDispatchPanel = function () {
+    dispatchPanelOpen = !dispatchPanelOpen;
+    document.getElementById('dispatchPanel').classList.toggle('open', dispatchPanelOpen);
+    document.getElementById('dispatchOverlay').classList.toggle('show', dispatchPanelOpen);
+    document.getElementById('dispatchOverlay').classList.toggle('d-none', !dispatchPanelOpen);
+};
+
+function closeDispatchPanel() {
+    dispatchPanelOpen = false;
+    document.getElementById('dispatchPanel').classList.remove('open');
+    document.getElementById('dispatchOverlay').classList.remove('show');
+    setTimeout(() => document.getElementById('dispatchOverlay').classList.add('d-none'), 300);
+}
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
     document.getElementById('radiusValue').textContent = `${e.target.value} كم`;
@@ -242,11 +257,7 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
             showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
             addNotifLog('dispatch', `تم إرسال رحلة ${passengerName} — تم تنبيه ${nearby.length} سائق | ${fare} MRU`);
             clearForm();
-            setTimeout(() => {
-                const offcanvasEl = document.getElementById('dispatchOffcanvas');
-                const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
-                if (offcanvas) offcanvas.hide();
-            }, 1500);
+            setTimeout(closeDispatchPanel, 1500);
         }
     } catch (err) {
         showStatus('dispatchStatus', 'حدث خطأ: ' + err.message, 'error');

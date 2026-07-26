@@ -50,8 +50,71 @@
 .offcanvas-body .sidebar-link:hover,
 .offcanvas-body .sidebar-link.active { background: rgba(212,168,67,0.15); color: var(--k-gold); }
 
-/* Dispatch offcanvas - always on right side even in RTL */
-#dispatchOffcanvas.offcanvas-start { left: auto !important; right: 0 !important; }
+/* ============ DISPATCH PANEL (Custom RTL-safe) ============ */
+.dispatch-panel {
+    position: fixed;
+    top: 0; bottom: 0;
+    left: 0;
+    width: 400px;
+    max-width: 100vw;
+    background: #fff;
+    z-index: 1100;
+    box-shadow: 4px 0 30px rgba(0,0,0,0.25);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+}
+.dispatch-panel.open {
+    transform: translateX(0);
+}
+.dispatch-panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1090;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.dispatch-panel-overlay.show {
+    opacity: 1;
+}
+
+/* Floating dispatch FAB button */
+.dispatch-fab {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 1080;
+    background: var(--k-gold);
+    color: #fff;
+    border: none;
+    border-radius: 60px;
+    padding: 16px 28px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Cairo', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(212,168,67,0.45);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.dispatch-fab:hover {
+    background: var(--k-gold-light);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(212,168,67,0.55);
+}
+.dispatch-fab:active {
+    transform: translateY(0);
+}
+.dispatch-fab i {
+    font-size: 20px;
+}
+
+@media (max-width: 767.98px) {
+    .dispatch-panel { width: 100vw; }
+}
 
 /* ============ MAIN WRAPPER ============ */
 .main-wrapper {
