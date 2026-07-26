@@ -45,7 +45,7 @@
 .sidebar-link i { font-size: 18px; width: 22px; text-align: center; }
 
 /* Offcanvas sidebar mobile */
-.offcanvas-end { width: 280px; background: var(--k-blue) !important; }
+#sidebarOffcanvas.offcanvas-end { width: 280px; background: var(--k-blue) !important; }
 .offcanvas-body .sidebar-link { color: rgba(255,255,255,0.7); }
 .offcanvas-body .sidebar-link:hover,
 .offcanvas-body .sidebar-link.active { background: rgba(212,168,67,0.15); color: var(--k-gold); }
