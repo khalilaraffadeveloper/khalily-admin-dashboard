@@ -58,28 +58,46 @@ fun SettingsScreen(
     var rideHistory by remember { mutableStateOf<List<RideHistoryItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedTab by remember { mutableIntStateOf(0) }
+    var commissionPercent by remember { mutableDoubleStateOf(10.0) }
 
     LaunchedEffect(Unit) {
-        if (driverId.isNotEmpty()) {
+        fun doQuery(defaultCommPct: Double) {
+            if (driverId.isEmpty()) { isLoading = false; return }
             db.collection("rides")
                 .whereEqualTo("assignedDriverId", driverId)
-                .limit(50)
                 .get()
                 .addOnSuccessListener { snapshot ->
                     val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US)
                     rideHistory = snapshot.documents.mapNotNull { doc ->
-                        val fare = doc.getDouble("fare") ?: 0.0
-                        val commPct = doc.getDouble("commissionPercent") ?: 10.0
+                        val finalFare = doc.getDouble("finalFare")
+                        val fareLong = doc.getLong("fare")
+                        val fareDouble = doc.getDouble("fare")
+                        val fare = finalFare ?: fareDouble ?: fareLong?.toDouble() ?: 0.0
+
+                        val savedCommission = doc.getDouble("commissionAmount")
+                        val commPct = doc.getDouble("commissionPercent") ?: defaultCommPct
+                        val commission = savedCommission ?: Math.round(fare * commPct / 100).toDouble()
+
+                        val distDouble = doc.getDouble("realDistanceKm")
+                        val distLong = doc.getLong("realDistanceKm")
+                        val distFallbackDouble = doc.getDouble("distanceKm")
+                        val distFallbackLong = doc.getLong("distanceKm")
+                        val distanceKm = distDouble ?: distLong?.toDouble() ?: distFallbackDouble ?: distFallbackLong?.toDouble() ?: 0.0
+
                         val created = doc.getTimestamp("createdAt")?.toDate()
+                        val status = doc.getString("status") ?: ""
+
+                        if (status.isEmpty()) return@mapNotNull null
+
                         RideHistoryItem(
                             rideId = doc.id,
                             passengerName = doc.getString("passengerName") ?: "",
                             pickupAddress = doc.getString("pickupAddress") ?: "",
                             dropoffAddress = doc.getString("dropoffAddress") ?: "",
                             fare = fare,
-                            commission = Math.round(fare * commPct / 100).toDouble(),
-                            distanceKm = doc.getDouble("distanceKm") ?: 0.0,
-                            status = doc.getString("status") ?: "",
+                            commission = commission,
+                            distanceKm = distanceKm,
+                            status = status,
                             createdAt = if (created != null) sdf.format(created) else "",
                             createdAtDate = created
                         )
@@ -91,6 +109,17 @@ fun SettingsScreen(
                     isLoading = false
                 }
         }
+
+        db.collection("settings").document("app_config")
+            .get()
+            .addOnSuccessListener { doc ->
+                val pct = if (doc.exists()) (doc.getDouble("commissionPercent") ?: 10.0) else 10.0
+                commissionPercent = pct
+                doQuery(pct)
+            }
+            .addOnFailureListener {
+                doQuery(commissionPercent)
+            }
     }
 
     Column(

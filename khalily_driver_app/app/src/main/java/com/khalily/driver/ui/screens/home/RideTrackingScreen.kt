@@ -135,16 +135,6 @@ fun RideTrackingScreen(
             if (timeRemaining <= 0) {
                 if (ridePhase == RidePhase.NAVIGATING_TO_DROPOFF) {
                     showAutoCompleteDialog = true
-                    if (rideId.isNotEmpty()) {
-                        db.collection("rides").document(rideId)
-                            .update(
-                                mapOf(
-                                    "status" to "completed",
-                                    "completedBy" to "auto_timeout",
-                                    "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-                                )
-                            )
-                    }
                 } else {
                     showTimeoutDialog = true
                     if (rideId.isNotEmpty()) {
@@ -513,17 +503,6 @@ fun RideTrackingScreen(
                             onClick = {
                                 ridePhase = RidePhase.COMPLETED
                                 onRideCompleted(fare, commission)
-                                if (rideId.isNotEmpty()) {
-                                    val db = FirebaseFirestore.getInstance()
-                                    db.collection("rides").document(rideId)
-                                        .update(
-                                            mapOf(
-                                                "status" to "completed",
-                                                "completedBy" to "driver",
-                                                "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-                                            )
-                                        )
-                                }
                             },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(14.dp),
@@ -603,7 +582,12 @@ fun RideTrackingScreen(
 
     if (showAutoCompleteDialog) {
         AlertDialog(
-            onDismissRequest = { showAutoCompleteDialog = false },
+            onDismissRequest = {
+                if (rideId.isNotEmpty()) PrefsManager.markAutoCompleteSeen(context, rideId)
+                showAutoCompleteDialog = false
+                ridePhase = RidePhase.COMPLETED
+                onRideCompleted(fare, commission)
+            },
             icon = { Icon(Icons.Default.Info, contentDescription = null, tint = KhalilyGold, modifier = Modifier.size(40.dp)) },
             title = {
                 Text("تم إنهاء الرحلة آلياً", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)

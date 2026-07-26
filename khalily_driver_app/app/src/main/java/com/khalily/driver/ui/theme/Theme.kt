@@ -10,16 +10,16 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val KhalilyColorScheme = lightColorScheme(
-    primary = KhalilyPrimary,
+    primary = KhalilyNavy,
     onPrimary = KhalilySurface,
-    primaryContainer = KhalilyPrimaryLight,
+    primaryContainer = KhalilyNavyLight,
     onPrimaryContainer = KhalilySurface,
-    secondary = KhalilyAccent,
+    secondary = KhalilyTurquoise,
     onSecondary = KhalilySurface,
-    secondaryContainer = KhalilyAccentLight,
+    secondaryContainer = KhalilyTurquoiseLight,
     tertiary = KhalilyGold,
-    onTertiary = KhalilyPrimary,
-    background = KhalilyBackground,
+    onTertiary = KhalilyNavy,
+    background = KhalilySand,
     onBackground = KhalilyTextPrimary,
     surface = KhalilySurface,
     onSurface = KhalilyTextPrimary,
@@ -33,7 +33,7 @@ fun KhalilyTheme(content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = KhalilyPrimary.toArgb()
+            window.statusBarColor = KhalilyNavy.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }

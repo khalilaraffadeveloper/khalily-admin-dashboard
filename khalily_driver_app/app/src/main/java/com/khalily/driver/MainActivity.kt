@@ -411,19 +411,19 @@ class MainActivity : ComponentActivity() {
 
             transition.update(rideRef,
                 "status", "completed",
+                "completedBy", "driver",
                 "completedAt", com.google.firebase.firestore.FieldValue.serverTimestamp(),
                 "commissionAmount", commission,
                 "finalFare", fare
             )
 
-            // Deduct commission from driver's balance
             transition.update(driverRef,
                 "currentRideId", null,
                 "totalRides", com.google.firebase.firestore.FieldValue.increment(1),
                 "credit", com.google.firebase.firestore.FieldValue.increment(-commission)
             )
         }.addOnSuccessListener {
-            android.util.Log.d("MainActivity", "Ride completed: $rideId, commission: $commission")
+            android.util.Log.d("MainActivity", "Ride completed: $rideId, commission: $commission, fare: $fare")
         }.addOnFailureListener { e ->
             android.util.Log.e("MainActivity", "Complete ride error: ${e.message}")
         }
