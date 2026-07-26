@@ -10,12 +10,15 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,17 +71,22 @@ private fun SplashScreenContent() {
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
-            // Large app icon
+            // Large app icon with gold circle
             Box(
                 modifier = Modifier
-                    .size(240.dp)
+                    .size(220.dp)
+                    .clip(CircleShape)
+                    .border(6.dp, Color(0xFFE4B028), CircleShape)
+                    .background(Color.White)
                     .alpha(alpha),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     painter = painterResource(id = R.mipmap.ic_launcher),
                     contentDescription = "Khalily",
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .size(180.dp)
+                        .clip(CircleShape)
                 )
             }
 

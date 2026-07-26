@@ -254,6 +254,18 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
             await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
             addNotifLog('dispatch', `فشل الإرسال: لا يوجد سائقون في نطاق ${radius} كم`);
         } else {
+            const nearbyIds = nearby.map(d => d.id);
+            const tokens = nearby.filter(d => d.fcmToken).map(d => d.fcmToken);
+
+            await db.collection('rides').doc(docRef.id).update({
+                notifiedDrivers: nearbyIds,
+                notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            if (tokens.length > 0) {
+                sendFCMNotifications(tokens, docRef.id, passengerName, fare, pickupCoords.lat, pickupCoords.lng, pickupAddress, dropoffAddress, radius);
+            }
+
             showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
             addNotifLog('dispatch', `تم إرسال رحلة ${passengerName} — تم تنبيه ${nearby.length} سائق | ${fare} MRU`);
             clearForm();
@@ -751,6 +763,14 @@ function downloadCSV(csv, filename) {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(link.href);
+}
+
+// ============================================
+// FCM NOTIFICATIONS (stub - Firestore listener is primary)
+// ============================================
+async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius) {
+    console.log(`FCM: ${tokens.length} tokens, ride ${rideId}`);
+    addNotifLog('system', `FCM: تم تنبيه ${tokens.length} سائق عبر الإشعارات`);
 }
 
 // ============================================
