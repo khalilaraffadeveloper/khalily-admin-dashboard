@@ -48,7 +48,7 @@ function requireDb(caller) {
 }
 
 // ============================================
-// MAP
+// STATE
 // ============================================
 let map = null;
 let driversMap = {};
@@ -85,11 +85,48 @@ function initMap() {
 }
 
 // ============================================
-// MAP
+// STATE
 // ============================================
 let allDrivers = [];
 let allRides = [];
 let currentPage = 'map';
+
+// ============================================
+// SOUND NOTIFICATION
+// ============================================
+let audioCtx = null;
+
+function playNotificationSound() {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        [800, 1000, 1200, 1000, 800].forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.15 + 0.15);
+            osc.start(audioCtx.currentTime + i * 0.15);
+            osc.stop(audioCtx.currentTime + i * 0.15 + 0.15);
+        });
+    } catch (e) {}
+}
+
+function requestAudioPermission() {
+    if (audioCtx) return;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        gain.gain.value = 0;
+        osc.start(); osc.stop(audioCtx.currentTime + 0.01);
+    } catch (e) {}
+}
+document.addEventListener('click', requestAudioPermission, { once: true });
 
 // ============================================
 // CLOCK
@@ -203,6 +240,11 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
         } else {
             showStatus('dispatchStatus', `تم الإرسال! تم تنبيه ${nearby.length} سائق | السعر: ${fare} MRU`, 'success');
             clearForm();
+            setTimeout(() => {
+                const offcanvasEl = document.getElementById('dispatchOffcanvas');
+                const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (offcanvas) offcanvas.hide();
+            }, 1500);
         }
     } catch (err) {
         showStatus('dispatchStatus', 'حدث خطأ: ' + err.message, 'error');
@@ -293,8 +335,54 @@ window.quickAddCredit = async function (driverId) {
 // ============================================
 // REAL-TIME LISTENERS
 // ============================================
+let activeRidesMap = {};
+let firstRidesSnapshot = true;
+
 function initRealtimeListeners() {
     if (!db) return;
+
+    // Active rides listener with sound
+    db.collection('rides').where('status', 'in', ['accepted', 'in_progress'])
+        .onSnapshot(snapshot => {
+            if (!firstRidesSnapshot && snapshot.docChanges().length > 0) {
+                const hasNew = snapshot.docChanges().some(c => c.type === 'added');
+                if (hasNew) playNotificationSound();
+            }
+            firstRidesSnapshot = false;
+
+            document.getElementById('rideCount').textContent = snapshot.size;
+            const mobileCount = document.querySelector('.rideCount-mobile');
+            if (mobileCount) mobileCount.textContent = snapshot.size;
+
+            snapshot.forEach(doc => {
+                const r = doc.data();
+                const id = doc.id;
+                if (!r.pickupLat || !r.pickupLng) return;
+                if (activeRidesMap[id]) {
+                    activeRidesMap[id].marker.setLatLng([r.pickupLat, r.pickupLng]);
+                } else {
+                    const icon = L.divIcon({
+                        className: 'ride-marker-wrapper',
+                        html: `<div style="background:${r.status==='in_progress'?'#2E7D32':'#E65100'};border:3px solid white;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.3);color:white;font-size:18px;">🎫</div>`,
+                        iconSize: [38, 38], iconAnchor: [19, 19]
+                    });
+                    const statusLabel = r.status === 'in_progress' ? 'جارية' : 'مقبولة';
+                    const marker = L.marker([r.pickupLat, r.pickupLng], { icon })
+                        .bindPopup(`<div style="font-family:Cairo;text-align:center;direction:rtl;"><strong>${r.passengerName || 'زبون'}</strong><br><small>${r.pickupAddress || ''} → ${r.dropoffAddress || ''}</small><br><strong>${r.fare || 0} MRU</strong><br><span style="color:${r.status==='in_progress'?'#2E7D32':'#E65100'};">● ${statusLabel}</span></div>`)
+                        .addTo(map);
+                    activeRidesMap[id] = { marker, data: r };
+                }
+            });
+
+            Object.keys(activeRidesMap).forEach(id => {
+                if (!snapshot.docs.find(d => d.id === id)) {
+                    map.removeLayer(activeRidesMap[id].marker);
+                    delete activeRidesMap[id];
+                }
+            });
+        });
+
+    // Drivers online listener
     db.collection('drivers').where('isOnline', '==', true)
         .onSnapshot(snapshot => {
             const onlineIds = new Set();
@@ -322,13 +410,6 @@ function initRealtimeListeners() {
             document.getElementById('onlineCount').textContent = onlineIds.size;
             const mobileCount = document.querySelector('.onlineCount-mobile');
             if (mobileCount) mobileCount.textContent = onlineIds.size;
-        });
-
-    db.collection('rides').where('status', 'in', ['accepted', 'in_progress'])
-        .onSnapshot(snapshot => {
-            document.getElementById('rideCount').textContent = snapshot.size;
-            const mobileCount = document.querySelector('.rideCount-mobile');
-            if (mobileCount) mobileCount.textContent = snapshot.size;
         });
 }
 
@@ -520,26 +601,39 @@ async function loadRidesList() {
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
-    const colors = { pending: 'warning', accepted: 'primary', in_progress: 'success', completed: 'purple', cancelled: 'danger' };
+    const colors = { pending: 'warning', accepted: 'primary', in_progress: 'success', completed: 'purple', cancelled: 'danger', no_drivers: 'secondary' };
+    const canCancel = ['pending', 'accepted', 'in_progress'];
     tbody.innerHTML = rides.map(r => {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '-';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
+        const cancelBtn = canCancel.includes(r.status)
+            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>` : '';
         return `<tr>
-            <td>${r.passengerName || '-'}</td>
+            <td><strong>${r.passengerName || '-'}</strong></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
             <td><strong>${fare}</strong> MRU</td>
             <td><strong class="text-danger">${comm}</strong> MRU</td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
+            <td>${cancelBtn}</td>
         </tr>`;
     }).join('');
 }
+
+window.cancelRide = async function (rideId) {
+    if (!confirm('هل أنت متأكد من إلغاء هذه الرحلة؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
+        if (currentPage === 'rides') loadRidesList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
 
 document.getElementById('filterRideStatus').addEventListener('change', () => {
     const s = document.getElementById('filterRideStatus').value;
