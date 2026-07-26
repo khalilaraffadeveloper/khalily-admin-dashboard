@@ -66,9 +66,9 @@ let currentPage = 'map';
 // ============================================
 // PRICING CONFIG
 // ============================================
-const BASE_FARE = 100;   // 100 MRU base
-const PER_KM = 110;       // 110 MRU per km
-const MIN_FARE = 1000;    // minimum 1000 MRU
+const BASE_FARE = 10;   // 10 MRU base
+const PER_KM = 11;       // 11 MRU per km
+const MIN_FARE = 100;    // minimum 100 MRU
 
 function calculateFare(distanceKm) {
     if (!distanceKm || distanceKm <= 0) return MIN_FARE;
