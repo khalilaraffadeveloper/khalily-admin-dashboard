@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Khalily - لوحة التحكم</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🛵</span>
+                    <h1>Khalily</h1>
+                </div>
+                <p class="subtitle">لوحة تحكم الإدارة</p>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="map">
+                    <span class="nav-icon">🗺️</span>
+                    الخريطة المباشرة
+                </a>
+                <a href="#" class="nav-item" data-page="drivers">
+                    <span class="nav-icon">👥</span>
+                    إدارة السائقين
+                </a>
+                <a href="#" class="nav-item" data-page="rides">
+                    <span class="nav-icon">📋</span>
+                    سجل الرحلات
+                </a>
+                <a href="#" class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span>
+                    الإعدادات
+                </a>
+            </nav>
+
+            <div class="sidebar-stats">
+                <div class="stat-card">
+                    <span class="stat-number" id="onlineCount">0</span>
+                    <span class="stat-label">سائق متاح</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="rideCount">0</span>
+                    <span class="stat-label">رحلة نشطة</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-right">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+                    <h2 id="pageTitle">تتبع مباشر للسائقين</h2>
+                    <span class="live-badge" id="liveBadge">● مباشر</span>
+                </div>
+                <div class="header-left" style="display:flex;align-items:center;gap:12px;">
+                    <span class="time-display" id="currentTime"></span>
+                    <button class="logout-btn" id="logoutBtn">تسجيل الخروج</button>
+                </div>
+            </header>
+
+            <div class="content-scroll">
+
+                <!-- MAP PAGE -->
+                <div class="page active" id="page-map">
+                    <div class="map-wrapper">
+                        <div id="map"></div>
+
+                        <div class="dispatch-panel collapsed" id="dispatchPanel">
+                            <div class="panel-header">
+                                <h3>🛵 إرسال طلب رحلة</h3>
+                                <button class="toggle-panel-btn" id="togglePanel">▶</button>
+                            </div>
+
+                            <div class="panel-body">
+                                <div class="form-group">
+                                    <label>اسم الزبون</label>
+                                    <input type="text" id="passengerName" placeholder="أدخل اسم الزبون">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>رقم هاتف الزبون</label>
+                                    <input type="tel" id="passengerPhone" placeholder="رقم الهاتف (اختياري)">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>نقطة الانطلاق</label>
+                                    <input type="text" id="pickupCoords" placeholder="انقر على الخريطة لتحديد الموقع" readonly>
+                                    <button class="btn-sm" id="clearPickup">مسح</button>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>عنوان الانطلاق</label>
+                                    <input type="text" id="pickupAddress" placeholder="أدخل عنوان نقطة الانطلاق">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>نصف قطر البحث (كم)</label>
+                                    <input type="range" id="searchRadius" min="1" max="10" value="3">
+                                    <span class="range-value" id="radiusValue">3 كم</span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>الوجهة</label>
+                                    <input type="text" id="dropoffAddress" placeholder="أدخل عنوان الوجهة">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>السعر (MRU) — يُحسب تلقائياً من المسافة</label>
+                                    <input type="text" id="fareDisplay" readonly style="font-weight:700;font-size:18px;color:var(--primary);text-align:center;background:#E3F2FD;">
+                                </div>
+
+                                <button class="btn-primary" id="dispatchBtn" disabled>
+                                    📡 إرسال تنبيه جغرافي للسائقين
+                                </button>
+
+                                <div class="dispatch-status" id="dispatchStatus"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DRIVERS PAGE -->
+                <div class="page" id="page-drivers">
+                    <div class="page-inner">
+
+                        <div class="section-card">
+                            <div class="section-header" data-toggle="register-driver">
+                                <h3>➕ تسجيل سائق جديد</h3>
+                                <span class="toggle-icon" id="toggle-register-driver">▼</span>
+                            </div>
+                            <div class="section-body open" id="body-register-driver">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>الاسم الكامل</label>
+                                        <input type="text" id="newDriverName" placeholder="اسم السائق">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>رقم الهاتف</label>
+                                        <input type="tel" id="newDriverPhone" placeholder="رقم الهاتف">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>كلمة السر</label>
+                                        <input type="password" id="newDriverPassword" placeholder="كلمة السر لتسجيل الدخول">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>الرصيد الأولي (MRU)</label>
+                                        <input type="number" id="newDriverCredit" placeholder="0" min="0" value="0">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>نوع المركبة</label>
+                                        <select id="newDriverVehicle">
+                                            <option value="motorcycle" selected>دراجة نارية</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group"></div>
+                                </div>
+                                <button class="btn-primary" id="registerDriverBtn">تسجيل السائق</button>
+                                <div class="dispatch-status" id="registerDriverStatus"></div>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <div class="section-header" data-toggle="drivers-list">
+                                <h3>👥 قائمة السائقين (<span id="totalDriversCount">0</span>)</h3>
+                                <span class="toggle-icon" id="toggle-drivers-list">▼</span>
+                            </div>
+                            <div class="section-body open" id="body-drivers-list">
+                                <div class="drivers-controls">
+                                    <input type="text" id="searchDrivers" placeholder="بحث بالاسم أو رقم الهاتف..." class="search-input">
+                                    <select id="filterDriverStatus" class="filter-select">
+                                        <option value="all">الكل</option>
+                                        <option value="online">متاح</option>
+                                        <option value="offline">غير متاح</option>
+                                        <option value="disabled">معطّل</option>
+                                    </select>
+                                </div>
+                                <div class="drivers-table-wrapper">
+                                    <table class="drivers-table">
+                                        <thead>
+                                            <tr>
+                                                <th>الاسم</th>
+                                                <th>الهاتف</th>
+                                                <th>المركبة</th>
+                                                <th>الرصيد</th>
+                                                <th>الحالة</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="driversTableBody">
+                                            <tr><td colspan="6" class="empty-state">جاري تحميل البيانات...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- RIDES PAGE -->
+                <div class="page" id="page-rides">
+                    <div class="page-inner">
+                        <div class="section-card">
+                            <div class="section-header" data-toggle="rides-list">
+                                <h3>📋 سجل الرحلات</h3>
+                                <span class="toggle-icon" id="toggle-rides-list">▼</span>
+                            </div>
+                            <div class="section-body open" id="body-rides-list">
+                                <div class="drivers-controls">
+                                    <select id="filterRideStatus" class="filter-select">
+                                        <option value="all">جميع الحالات</option>
+                                        <option value="pending">قيد الانتظار</option>
+                                        <option value="accepted">مقبولة</option>
+                                        <option value="in_progress">جارية</option>
+                                        <option value="completed">مكتملة</option>
+                                        <option value="cancelled">ملغاة</option>
+                                    </select>
+                                </div>
+                                <div class="drivers-table-wrapper">
+                                    <table class="drivers-table">
+                                        <thead>
+                                            <tr>
+                                                <th>الزبون</th>
+                                                <th>الانطلاق</th>
+                                                <th>الوجهة</th>
+                                                <th>المسافة</th>
+                                                <th>السعر</th>
+                                                <th>العمولة</th>
+                                                <th>الحالة</th>
+                                                <th>التاريخ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ridesTableBody">
+                                            <tr><td colspan="8" class="empty-state">جاري تحميل البيانات...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS PAGE -->
+                <div class="page" id="page-settings">
+                    <div class="page-inner">
+                        <div class="settings-grid">
+                            <div class="setting-card">
+                                <h4>💰 النسبة المقتطعة (العمولة)</h4>
+                                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">النسبة المقتطعة من كل رحلة تُحسب تلقائياً من السعر</p>
+                                <div class="setting-value" id="currentCommission">10%</div>
+                                <div class="setting-input-row">
+                                    <input type="number" id="newCommission" min="0" max="100" placeholder="نسبة مئوية">
+                                    <button onclick="saveCommission()">حفظ</button>
+                                </div>
+                            </div>
+
+                            <div class="setting-card">
+                                <h4>🔍 البحث عن سائق برقم الهاتف</h4>
+                                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">إضافة رصيد لسائق محدد</p>
+                                <div class="form-group">
+                                    <label>رقم الهاتف</label>
+                                    <input type="tel" id="searchDriverPhone" placeholder="أدخل رقم هاتف السائق">
+                                </div>
+                                <button class="btn-primary" onclick="searchDriverByPhone()" style="margin-top:0;">بحث</button>
+                                <div id="searchDriverResult" style="margin-top:12px;"></div>
+                            </div>
+
+                            <div class="setting-card" style="grid-column: 1 / -1;">
+                                <h4>📞 معلومات الاتصال</h4>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;">
+                                    <div style="background:var(--bg);padding:16px;border-radius:12px;">
+                                        <p style="font-size:13px;color:var(--text-secondary);">هاتف التواصل</p>
+                                        <p style="font-size:18px;font-weight:700;color:var(--primary);">47717983</p>
+                                    </div>
+                                    <div style="background:var(--bg);padding:16px;border-radius:12px;">
+                                        <p style="font-size:13px;color:var(--text-secondary);">واتساب تزويد الرصيد</p>
+                                        <p style="font-size:18px;font-weight:700;color:#25D366;">26067036</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Driver Modal -->
+    <div class="modal-overlay" id="editDriverModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>تعديل بيانات السائق</h3>
+                <button class="modal-close" id="closeEditModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editDriverId">
+                <div class="form-group">
+                    <label>الاسم الكامل</label>
+                    <input type="text" id="editDriverName">
+                </div>
+                <div class="form-group">
+                    <label>رقم الهاتف</label>
+                    <input type="tel" id="editDriverPhone">
+                </div>
+                <div class="form-group">
+                    <label>الحالة</label>
+                    <select id="editDriverStatus">
+                        <option value="active">نشط</option>
+                        <option value="disabled">معطّل</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelEditBtn">إلغاء</button>
+                <button class="btn-primary" id="saveEditBtn">حفظ التعديلات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credit Top-up Modal -->
+    <div class="modal-overlay" id="creditModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>شحن رصيد السائق</h3>
+                <button class="modal-close" id="closeCreditModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="creditDriverId">
+                <p class="modal-info">السائق: <strong id="creditDriverName"></strong></p>
+                <p class="modal-info">الرصيد الحالي: <strong id="creditDriverCurrent"></strong> MRU</p>
+                <div class="form-group">
+                    <label>المبلغ المضاف (MRU)</label>
+                    <input type="number" id="creditAmount" placeholder="أدخل المبلغ" min="1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelCreditBtn">إلغاء</button>
+                <button class="btn-primary" id="confirmCreditBtn">شحن الرصيد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal modal-sm">
+            <div class="modal-header modal-header-danger">
+                <h3>تأكيد الحذف</h3>
+                <button class="modal-close" id="closeDeleteModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من حذف السائق <strong id="deleteDriverName"></strong>؟</p>
+                <p class="warning-text">هذا الإجراء لا يمكن التراجع عنه.</p>
+                <input type="hidden" id="deleteDriverId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelDeleteBtn">إلغاء</button>
+                <button class="btn-danger" id="confirmDeleteBtn">حذف نهائي</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

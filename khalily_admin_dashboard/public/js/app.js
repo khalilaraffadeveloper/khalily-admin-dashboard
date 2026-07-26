@@ -7,45 +7,15 @@ let firebaseReady = false;
 let commissionPercent = 10;
 
 // ============================================
-// ADMIN LOGIN
+// AUTH CHECK - redirect to login if not logged in
 // ============================================
-const ADMIN_CREDENTIALS = {
-    username: 'admin',
-    password: 'khalily2024'
-};
-
-function checkLogin() {
-    const loggedIn = sessionStorage.getItem('khalily_admin_logged_in');
-    if (loggedIn === 'true') {
-        document.getElementById('loginOverlay').classList.add('hidden');
-        initDashboard();
-    }
+if (sessionStorage.getItem('khalily_admin_logged_in') !== 'true') {
+    window.location.href = 'index.html';
 }
-
-document.getElementById('loginBtn').addEventListener('click', () => {
-    const user = document.getElementById('loginUser').value.trim();
-    const pass = document.getElementById('loginPass').value.trim();
-    const errorEl = document.getElementById('loginError');
-    if (user === ADMIN_CREDENTIALS.username && pass === ADMIN_CREDENTIALS.password) {
-        sessionStorage.setItem('khalily_admin_logged_in', 'true');
-        document.getElementById('loginOverlay').classList.add('hidden');
-        errorEl.textContent = '';
-        initDashboard();
-    } else {
-        errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
-    }
-});
-
-document.getElementById('loginPass').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-document.getElementById('loginUser').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('loginPass').focus();
-});
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
     sessionStorage.removeItem('khalily_admin_logged_in');
-    location.reload();
+    window.location.href = 'index.html';
 });
 
 // ============================================
@@ -776,5 +746,5 @@ function initDashboard() {
     updateFareDisplay();
 }
 
-// Auto-init if already logged in
-checkLogin();
+// Auto-init (auth check already passed above)
+initDashboard();
