@@ -67,7 +67,7 @@ let currentPage = 'map';
 // PRICING CONFIG
 // ============================================
 const BASE_FARE = 100;   // 100 MRU always
-const PER_KM = 50;       // 50 MRU per km
+const PER_KM = 90;       // 90 MRU per km
 
 function calculateFare(distanceKm) {
     if (!distanceKm || distanceKm <= 0) return BASE_FARE;
