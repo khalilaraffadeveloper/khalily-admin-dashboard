@@ -226,7 +226,8 @@ const pageTitles = {
     drivers: 'إدارة السائقين',
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
-    messages: 'الرسائل'
+    messages: 'الرسائل',
+    admins: 'إدارة المشرفين'
 };
 
 function navigateToPage(page) {
