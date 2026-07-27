@@ -3,6 +3,7 @@ package com.khalily.driver
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,7 @@ import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.khalily.driver.service.KhalilyFirebaseMessagingService
+import com.khalily.driver.service.DriverLocationService
 import com.khalily.driver.util.SoundPlayer
 import com.khalily.driver.ui.screens.home.DriverHomeScreen
 import com.khalily.driver.ui.screens.home.RideDetailDialog
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
     private val db = FirebaseFirestore.getInstance()
     private var rideListener: ListenerRegistration? = null
     private var cancelListener: ListenerRegistration? = null
+    private var creditListener: ListenerRegistration? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -68,6 +71,13 @@ class MainActivity : ComponentActivity() {
         requestPermissions()
 
         if (isLoggedIn) {
+            val driverId = PrefsManager.getDriverId(this)
+            if (!driverId.isNullOrEmpty()) {
+                db.collection("drivers").document(driverId)
+                    .update("isOnline", false)
+                PrefsManager.setOnlineStatus(this, false)
+                stopService(android.content.Intent(this, DriverLocationService::class.java))
+            }
             setupFirestoreListeners()
             loadCommission()
         }
@@ -97,17 +107,17 @@ class MainActivity : ComponentActivity() {
                                     SoundPlayer.stopSound()
                                     rideListener?.remove()
                                     cancelListener?.remove()
+                                    creditListener?.remove()
                                     val driverId = PrefsManager.getDriverId(this@MainActivity)
                                     if (!driverId.isNullOrEmpty()) {
-                                        FirebaseFirestore.getInstance()
-                                            .collection("drivers").document(driverId)
+                                        db.collection("drivers").document(driverId)
                                             .update("isOnline", false)
                                     }
                                     PrefsManager.setLoggedIn(this@MainActivity, false)
                                     PrefsManager.setOnlineStatus(this@MainActivity, false)
                                     PrefsManager.saveDriverId(this@MainActivity, "")
                                     PrefsManager.saveDriverName(this@MainActivity, "")
-                                    stopService(android.content.Intent(this@MainActivity, com.khalily.driver.service.DriverLocationService::class.java))
+                                    stopService(android.content.Intent(this@MainActivity, DriverLocationService::class.java))
                                 }
                             )
                         }
@@ -215,6 +225,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         rideListener?.remove()
         cancelListener?.remove()
+        creditListener?.remove()
     }
 
     private fun loadCommission() {
@@ -229,13 +240,14 @@ class MainActivity : ComponentActivity() {
 
     private fun setupFirestoreListeners() {
         val driverId = PrefsManager.getDriverId(this) ?: return
-        fetchDriverCredit(driverId)
+        listenForCredit(driverId)
         listenForRideRequests(driverId)
         listenForCancellations(driverId)
     }
 
-    private fun fetchDriverCredit(driverId: String) {
-        db.collection("drivers").document(driverId)
+    private fun listenForCredit(driverId: String) {
+        creditListener?.remove()
+        creditListener = db.collection("drivers").document(driverId)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     android.util.Log.e("MainActivity", "Credit listener error: ${e.message}")
@@ -243,19 +255,23 @@ class MainActivity : ComponentActivity() {
                 }
                 snapshot?.let {
                     driverCredit = it.getDouble("credit") ?: 0.0
-                    android.util.Log.d("MainActivity", "Credit updated: $driverCredit")
                 }
             }
     }
 
     private fun listenForRideRequests(driverId: String) {
         rideListener?.remove()
+        var isFirstSnapshot = true
         rideListener = db.collection("rides")
             .whereArrayContains("notifiedDrivers", driverId)
             .whereEqualTo("status", "pending")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     android.util.Log.e("MainActivity", "Ride listener error: ${e.message}")
+                    return@addSnapshotListener
+                }
+                if (isFirstSnapshot) {
+                    isFirstSnapshot = false
                     return@addSnapshotListener
                 }
                 if (snapshot == null || snapshot.isEmpty) return@addSnapshotListener
@@ -280,7 +296,6 @@ class MainActivity : ComponentActivity() {
                     "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
                     "commissionPercent" to commissionPercent.toString()
                 )
-                android.util.Log.d("MainActivity", "Ride request received: ${doc.id}")
                 SoundPlayer.playRideRequestSound(this)
                 currentRideData = rideData
                 showRideDialog = true
@@ -289,18 +304,22 @@ class MainActivity : ComponentActivity() {
 
     private fun listenForCancellations(driverId: String) {
         cancelListener?.remove()
+        var isFirstSnapshot = true
         cancelListener = db.collection("rides")
             .whereArrayContains("notifiedDrivers", driverId)
             .whereEqualTo("status", "cancelled")
             .addSnapshotListener { snapshot, e ->
+                if (isFirstSnapshot) {
+                    isFirstSnapshot = false
+                    return@addSnapshotListener
+                }
                 if (e != null || snapshot == null || snapshot.isEmpty) return@addSnapshotListener
 
                 val seen = PrefsManager.getSeenCancellations(this@MainActivity)
 
                 for (doc in snapshot.documentChanges) {
-                    if (doc.type == com.google.firebase.firestore.DocumentChange.Type.MODIFIED || doc.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                    if (doc.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
                         val rideId = doc.document.id
-
                         if (seen.contains(rideId)) continue
 
                         val currentRideId = currentRideData["rideId"]?.toString()
@@ -423,9 +442,26 @@ class MainActivity : ComponentActivity() {
                 "credit", com.google.firebase.firestore.FieldValue.increment(-commission)
             )
         }.addOnSuccessListener {
-            android.util.Log.d("MainActivity", "Ride completed: $rideId, commission: $commission, fare: $fare")
+            android.util.Log.d("MainActivity", "Ride completed OK: $rideId, fare=$fare, commission=$commission")
         }.addOnFailureListener { e ->
-            android.util.Log.e("MainActivity", "Complete ride error: ${e.message}")
+            android.util.Log.e("MainActivity", "COMPLETE RIDE FAILED: ${e.message}")
+            rideRef.update(
+                mapOf(
+                    "status" to "completed",
+                    "completedBy" to "driver",
+                    "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "commissionAmount" to commission,
+                    "finalFare" to fare
+                )
+            ).addOnSuccessListener {
+                driverRef.update(
+                    mapOf(
+                        "credit" to com.google.firebase.firestore.FieldValue.increment(-commission),
+                        "currentRideId" to null,
+                        "totalRides" to com.google.firebase.firestore.FieldValue.increment(1)
+                    )
+                )
+            }
         }
     }
 
