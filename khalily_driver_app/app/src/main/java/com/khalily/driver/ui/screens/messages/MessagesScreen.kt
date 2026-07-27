@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.khalily.driver.ui.theme.*
@@ -83,12 +84,6 @@ fun MessagesScreen(
                     if (msg.docId.isNotEmpty() && driverId.isNotEmpty() && driverId !in msg.readBy) {
                         db.collection("messages").document(msg.docId)
                             .update("readBy", com.google.firebase.firestore.FieldValue.arrayUnion(driverId))
-                            .addOnSuccessListener {
-                                val newReadCount = msg.readBy.size + 1
-                                if (newReadCount >= msg.recipients.size) {
-                                    db.collection("messages").document(msg.docId).delete()
-                                }
-                            }
                     }
                 }
 
@@ -97,18 +92,6 @@ fun MessagesScreen(
 
         onDispose {
             listener?.remove()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(30_000)
-            val db = FirebaseFirestore.getInstance()
-            for (msg in messages) {
-                if (msg.readBy.size >= msg.recipients.size) {
-                    db.collection("messages").document(msg.docId).delete()
-                }
-            }
         }
     }
 
@@ -170,7 +153,10 @@ fun MessagesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(messages) { msg ->
-                    MessageCard(msg)
+                    MessageCard(msg) {
+                        FirebaseFirestore.getInstance()
+                            .collection("messages").document(msg.docId).delete()
+                    }
                 }
             }
         }
@@ -178,7 +164,7 @@ fun MessagesScreen(
 }
 
 @Composable
-private fun MessageCard(msg: DriverMessage) {
+private fun MessageCard(msg: DriverMessage, onDelete: () -> Unit = {}) {
     val timeText = remember(msg.timestamp) {
         val sdf = SimpleDateFormat("dd/MM/yyyy  hh:mm a", Locale.getDefault())
         sdf.format(Date(msg.timestamp))
@@ -234,9 +220,15 @@ private fun MessageCard(msg: DriverMessage) {
 
             when (msg.type) {
                 "image" -> {
+                    var showFullImage by remember { mutableStateOf(false) }
                     val bitmap = remember(msg.content) {
                         try {
-                            val bytes = Base64.decode(msg.content, Base64.DEFAULT)
+                            val base64Str = if (msg.content.contains(",")) {
+                                msg.content.substringAfter(",", msg.content)
+                            } else {
+                                msg.content
+                            }
+                            val bytes = Base64.decode(base64Str, Base64.DEFAULT)
                             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                         } catch (_: Exception) {
                             null
@@ -251,6 +243,60 @@ private fun MessageCard(msg: DriverMessage) {
                                 .heightIn(max = 250.dp)
                                 .clip(RoundedCornerShape(12.dp))
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            onClick = { showFullImage = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFE3F2FD),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ZoomIn,
+                                    contentDescription = null,
+                                    tint = Color(0xFF1565C0),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "اضغط لعرض الصورة بالكامل",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF1565C0),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        if (showFullImage) {
+                            Dialog(onDismissRequest = { showFullImage = false }) {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color.Black
+                                ) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            IconButton(onClick = { showFullImage = false }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "إغلاق",
+                                                    tint = Color.White
+                                                )
+                                            }
+                                        }
+                                        Image(
+                                            bitmap = bitmap.asImageBitmap(),
+                                            contentDescription = "صورة كاملة",
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         Text(
                             text = "الصورة غير متوفرة",
@@ -280,26 +326,40 @@ private fun MessageCard(msg: DriverMessage) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "من: ${msg.sentBy.ifEmpty { "الإدارة" }}",
-                    fontSize = 11.sp,
-                    color = KhalilyTextSecondary
-                )
-                val readCount = msg.readBy.size
-                val totalCount = msg.recipients.size
-                if (readCount >= totalCount && totalCount > 0) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFF4CAF50)
-                    ) {
-                        Text(
-                            text = "تمت القراءة",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "من: ${msg.sentBy.ifEmpty { "الإدارة" }}",
+                        fontSize = 11.sp,
+                        color = KhalilyTextSecondary
+                    )
+                    val readCount = msg.readBy.size
+                    val totalCount = msg.recipients.size
+                    if (readCount >= totalCount && totalCount > 0) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF4CAF50)
+                        ) {
+                            Text(
+                                text = "تمت القراءة",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "حذف",
+                        tint = Color(0xFFE53935),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }
