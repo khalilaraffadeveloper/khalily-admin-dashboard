@@ -261,7 +261,7 @@ class MainActivity : ComponentActivity() {
 
     private fun listenForRideRequests(driverId: String) {
         rideListener?.remove()
-        PrefsManager.clearOldConsumedRides(this)
+        var isFirstSnapshot = true
 
         rideListener = db.collection("rides")
             .whereArrayContains("notifiedDrivers", driverId)
@@ -271,19 +271,19 @@ class MainActivity : ComponentActivity() {
                     android.util.Log.e("MainActivity", "Ride listener error: ${e.message}")
                     return@addSnapshotListener
                 }
+                if (isFirstSnapshot) {
+                    isFirstSnapshot = false
+                    return@addSnapshotListener
+                }
                 if (snapshot == null || snapshot.isEmpty) return@addSnapshotListener
                 val doc = snapshot.documents.firstOrNull() ?: return@addSnapshotListener
                 if (showRideDialog || showRideDetail || showRideTracking) return@addSnapshotListener
-
-                val rideId = doc.id
-                val consumed = PrefsManager.getConsumedRides(this@MainActivity)
-                if (consumed.contains(rideId)) return@addSnapshotListener
 
                 val credit = driverCredit
                 if (credit <= 0) return@addSnapshotListener
 
                 val rideData = mapOf(
-                    "rideId" to rideId,
+                    "rideId" to doc.id,
                     "passengerName" to (doc.getString("passengerName") ?: "زبون"),
                     "passengerPhone" to (doc.getString("passengerPhone") ?: ""),
                     "pickupLat" to (doc.getDouble("pickupLat") ?: 0.0),
@@ -297,7 +297,6 @@ class MainActivity : ComponentActivity() {
                     "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
                     "commissionPercent" to commissionPercent.toString()
                 )
-                PrefsManager.markRideConsumed(this@MainActivity, rideId)
                 SoundPlayer.playRideRequestSound(this)
                 currentRideData = rideData
                 showRideDialog = true
@@ -306,10 +305,15 @@ class MainActivity : ComponentActivity() {
 
     private fun listenForCancellations(driverId: String) {
         cancelListener?.remove()
+        var isFirstCancelSnapshot = true
         cancelListener = db.collection("rides")
             .whereArrayContains("notifiedDrivers", driverId)
             .whereEqualTo("status", "cancelled")
             .addSnapshotListener { snapshot, e ->
+                if (isFirstCancelSnapshot) {
+                    isFirstCancelSnapshot = false
+                    return@addSnapshotListener
+                }
                 if (e != null || snapshot == null || snapshot.isEmpty) return@addSnapshotListener
 
                 val seen = PrefsManager.getSeenCancellations(this@MainActivity)
