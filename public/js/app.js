@@ -139,6 +139,7 @@ function updateFareDisplay() {
 // ============================================
 let allDrivers = [];
 let allRides = [];
+let ridesListUnsubscribe = null;
 let currentPage = 'map';
 
 // ============================================
@@ -185,6 +186,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
         document.getElementById('pageTitle').textContent = pageTitles[page] || '';
         document.getElementById('liveBadge').style.display = page === 'map' ? '' : 'none';
         currentPage = page;
+        if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
         if (page === 'drivers') loadDriversList();
         if (page === 'rides') loadRidesList();
         if (page === 'settings') loadCommission();
@@ -661,13 +663,18 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
 // ============================================
 async function loadRidesList() {
     if (!requireDb()) return;
+    if (ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     try {
-        const snapshot = await db.collection('rides').orderBy('createdAt', 'desc').limit(100).get();
-        allRides = [];
-        snapshot.forEach(doc => {
-            allRides.push({ id: doc.id, ...doc.data() });
-        });
-        renderRidesList(allRides);
+        ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
+            .onSnapshot(snapshot => {
+                allRides = [];
+                snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
+                const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
+                if (currentFilter === 'all') renderRidesList(allRides);
+                else renderRidesList(allRides.filter(r => r.status === currentFilter));
+            }, err => {
+                console.error('Rides listener error:', err);
+            });
     } catch (err) {
         console.error('Load rides error:', err);
     }

@@ -63,6 +63,7 @@ let radiusCircle = null;
 let mapClickMode = 'pickup'; // 'pickup' or 'dropoff'
 let allDrivers = [];
 let allRides = [];
+let ridesListUnsubscribe = null;
 let currentPage = 'map';
 
 // ============================================
@@ -238,6 +239,7 @@ function navigateToPage(page) {
     const liveBadge = document.getElementById('liveBadge');
     if (liveBadge) liveBadge.classList.toggle('d-none', page !== 'map');
     currentPage = page;
+    if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page === 'drivers') loadDriversList();
     if (page === 'rides') loadRidesList();
     if (page === 'settings') loadCommission();
@@ -760,13 +762,21 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
 // ============================================
 async function loadRidesList() {
     if (!requireDb()) return;
+    if (ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     const tbody = document.getElementById('ridesTableBody');
     tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
-        const snapshot = await db.collection('rides').orderBy('createdAt', 'desc').limit(100).get();
-        allRides = [];
-        snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
-        renderRidesList(allRides);
+        ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
+            .onSnapshot(snapshot => {
+                allRides = [];
+                snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
+                const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
+                if (currentFilter === 'all') renderRidesList(allRides);
+                else renderRidesList(allRides.filter(r => r.status === currentFilter));
+            }, err => {
+                console.error('Rides listener error:', err);
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+            });
     } catch (err) {
         console.error('Load rides error:', err);
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
