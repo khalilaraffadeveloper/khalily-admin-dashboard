@@ -262,43 +262,50 @@ class MainActivity : ComponentActivity() {
     private fun listenForRideRequests(driverId: String) {
         rideListener?.remove()
         var isFirstSnapshot = true
-        rideListener = db.collection("rides")
-            .whereArrayContains("notifiedDrivers", driverId)
-            .whereEqualTo("status", "pending")
-            .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    android.util.Log.e("MainActivity", "Ride listener error: ${e.message}")
-                    return@addSnapshotListener
-                }
-                if (isFirstSnapshot) {
-                    isFirstSnapshot = false
-                    return@addSnapshotListener
-                }
-                if (snapshot == null || snapshot.isEmpty) return@addSnapshotListener
-                val doc = snapshot.documents.firstOrNull() ?: return@addSnapshotListener
-                if (showRideDialog || showRideDetail || showRideTracking) return@addSnapshotListener
 
-                val credit = driverCredit
-                if (credit <= 0) return@addSnapshotListener
+        db.collection("drivers").document(driverId).get()
+            .addOnSuccessListener { driverDoc ->
+                val currentRideId = driverDoc.getString("currentRideId")
+                if (!currentRideId.isNullOrEmpty()) return@addOnSuccessListener
 
-                val rideData = mapOf(
-                    "rideId" to doc.id,
-                    "passengerName" to (doc.getString("passengerName") ?: "زبون"),
-                    "passengerPhone" to (doc.getString("passengerPhone") ?: ""),
-                    "pickupLat" to (doc.getDouble("pickupLat") ?: 0.0),
-                    "pickupLng" to (doc.getDouble("pickupLng") ?: 0.0),
-                    "pickupAddress" to (doc.getString("pickupAddress") ?: ""),
-                    "dropoffLat" to (doc.getDouble("dropoffLat") ?: 0.0),
-                    "dropoffLng" to (doc.getDouble("dropoffLng") ?: 0.0),
-                    "dropoffAddress" to (doc.getString("dropoffAddress") ?: ""),
-                    "realDistanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: "0"),
-                    "distanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
-                    "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
-                    "commissionPercent" to commissionPercent.toString()
-                )
-                SoundPlayer.playRideRequestSound(this)
-                currentRideData = rideData
-                showRideDialog = true
+                rideListener = db.collection("rides")
+                    .whereArrayContains("notifiedDrivers", driverId)
+                    .whereEqualTo("status", "pending")
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) {
+                            android.util.Log.e("MainActivity", "Ride listener error: ${e.message}")
+                            return@addSnapshotListener
+                        }
+                        if (isFirstSnapshot) {
+                            isFirstSnapshot = false
+                            return@addSnapshotListener
+                        }
+                        if (snapshot == null || snapshot.isEmpty) return@addSnapshotListener
+                        val doc = snapshot.documents.firstOrNull() ?: return@addSnapshotListener
+                        if (showRideDialog || showRideDetail || showRideTracking) return@addSnapshotListener
+
+                        val credit = driverCredit
+                        if (credit <= 0) return@addSnapshotListener
+
+                        val rideData = mapOf(
+                            "rideId" to doc.id,
+                            "passengerName" to (doc.getString("passengerName") ?: "زبون"),
+                            "passengerPhone" to (doc.getString("passengerPhone") ?: ""),
+                            "pickupLat" to (doc.getDouble("pickupLat") ?: 0.0),
+                            "pickupLng" to (doc.getDouble("pickupLng") ?: 0.0),
+                            "pickupAddress" to (doc.getString("pickupAddress") ?: ""),
+                            "dropoffLat" to (doc.getDouble("dropoffLat") ?: 0.0),
+                            "dropoffLng" to (doc.getDouble("dropoffLng") ?: 0.0),
+                            "dropoffAddress" to (doc.getString("dropoffAddress") ?: ""),
+                            "realDistanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: "0"),
+                            "distanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
+                            "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
+                            "commissionPercent" to commissionPercent.toString()
+                        )
+                        SoundPlayer.playRideRequestSound(this)
+                        currentRideData = rideData
+                        showRideDialog = true
+                    }
             }
     }
 
