@@ -865,8 +865,7 @@ async function loadStats() {
         allRidesSnap.forEach(doc => {
             const r = doc.data();
             totalRidesCount++;
-            const fare = r.fare || 0;
-            totalComm += r.commissionAmount || Math.round(fare * commissionPercent / 100);
+            if (r.status === 'completed' && r.commissionAmount) totalComm += r.commissionAmount;
             if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
         });
         document.getElementById('statTotalRides').textContent = totalRidesCount;
