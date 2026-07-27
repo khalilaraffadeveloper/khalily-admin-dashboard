@@ -621,8 +621,23 @@
                 <small class="text-muted">تحديد نطاق السائقين القريبين فقط</small>
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">الوجهة</label>
+                <label class="form-label fw-bold">نقطة الوجهة</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="dropoffCoords" placeholder="نقرة ثانية = الوجهة" readonly>
+                    <button class="btn btn-outline-danger" id="clearDropoff"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">عنوان الوجهة</label>
                 <input type="text" class="form-control" id="dropoffAddress" placeholder="أدخل عنوان الوجهة">
+            </div>
+            <div class="mb-3" id="distanceInfo" style="display:none;">
+                <div class="bg-light rounded-3 p-3 text-center">
+                    <small class="text-muted">المسافة</small>
+                    <div class="fs-5 fw-bold text-dark-blue" id="realDistance">0 كم</div>
+                    <small class="text-muted">السعر التلقائي</small>
+                    <div class="fs-5 fw-bold text-gold" id="autoFare">0 MRU</div>
+                </div>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">سعر الرحلة (MRU)</label>
