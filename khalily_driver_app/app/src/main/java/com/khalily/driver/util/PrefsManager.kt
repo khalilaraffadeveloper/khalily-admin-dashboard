@@ -87,4 +87,22 @@ object PrefsManager {
     fun getSeenAutoCompletes(context: Context): Set<String> {
         return prefs(context).getStringSet("seen_autocompletes", emptySet()) ?: emptySet()
     }
+
+    fun markRideConsumed(context: Context, rideId: String) {
+        val seen = getConsumedRides(context).toMutableSet()
+        seen.add(rideId)
+        prefs(context).edit().putStringSet("consumed_rides", seen).apply()
+    }
+
+    fun getConsumedRides(context: Context): Set<String> {
+        return prefs(context).getStringSet("consumed_rides", emptySet()) ?: emptySet()
+    }
+
+    fun clearOldConsumedRides(context: Context) {
+        val seen = getConsumedRides(context).toMutableSet()
+        if (seen.size > 200) {
+            val trimmed = seen.toList().takeLast(100).toSet()
+            prefs(context).edit().putStringSet("consumed_rides", trimmed).apply()
+        }
+    }
 }

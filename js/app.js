@@ -898,7 +898,27 @@ function downloadCSV(csv, filename) {
 // ============================================
 async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius) {
     console.log(`FCM: ${tokens.length} tokens, ride ${rideId}`);
-    addNotifLog('system', `FCM: تم تنبيه ${tokens.length} سائق عبر الإشعارات`);
+    if (tokens.length === 0) {
+        addNotifLog('system', `FCM: لا توجد رموز إشعارات للسائقين`);
+        return;
+    }
+    try {
+        await db.collection('pending_notifications').add({
+            rideId: rideId,
+            tokens: tokens,
+            passengerName: passengerName,
+            fare: fare,
+            pickupLat: lat,
+            pickupLng: lng,
+            pickupAddress: pickup,
+            dropoffAddress: dropoff,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            sent: false
+        });
+        addNotifLog('system', `FCM: تم حفظ إشعار ${tokens.length} سائق — بانتظار الإرسال`);
+    } catch (e) {
+        addNotifLog('system', `FCM خطأ: ${e.message}`);
+    }
 }
 
 // ============================================

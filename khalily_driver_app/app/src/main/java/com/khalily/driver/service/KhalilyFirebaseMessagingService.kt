@@ -48,6 +48,8 @@ class KhalilyFirebaseMessagingService : FirebaseMessagingService() {
             "pickupLat" to (data["pickupLat"]?.toDoubleOrNull() ?: 0.0),
             "pickupLng" to (data["pickupLng"]?.toDoubleOrNull() ?: 0.0),
             "pickupAddress" to (data["pickupAddress"] ?: ""),
+            "dropoffLat" to (data["dropoffLat"]?.toDoubleOrNull() ?: 0.0),
+            "dropoffLng" to (data["dropoffLng"]?.toDoubleOrNull() ?: 0.0),
             "dropoffAddress" to (data["dropoffAddress"] ?: ""),
             "distanceKm" to (data["distanceKm"] ?: "0"),
             "fare" to (data["fare"] ?: data["estimatedFare"] ?: "0")
@@ -78,6 +80,8 @@ class KhalilyFirebaseMessagingService : FirebaseMessagingService() {
             putExtra("pickupLat", data["pickupLat"]?.toDoubleOrNull() ?: 0.0)
             putExtra("pickupLng", data["pickupLng"]?.toDoubleOrNull() ?: 0.0)
             putExtra("pickupAddress", data["pickupAddress"])
+            putExtra("dropoffLat", data["dropoffLat"]?.toDoubleOrNull() ?: 0.0)
+            putExtra("dropoffLng", data["dropoffLng"]?.toDoubleOrNull() ?: 0.0)
             putExtra("dropoffAddress", data["dropoffAddress"])
             putExtra("distanceKm", data["distanceKm"])
             putExtra("fare", data["fare"] ?: data["estimatedFare"])
