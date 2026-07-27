@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
     private var driverCredit by mutableDoubleStateOf(0.0)
     private var isLoggedIn by mutableStateOf(false)
     private var commissionPercent by mutableDoubleStateOf(10.0)
+    private var showAcceptLoading by mutableStateOf(false)
 
     private val db = FirebaseFirestore.getInstance()
     private var rideListener: ListenerRegistration? = null
@@ -142,13 +143,14 @@ class MainActivity : ComponentActivity() {
                                     rideData = currentRideData,
                                     onAccept = {
                                         SoundPlayer.stopSound()
-                                        showRideDialog = false
+                                        showAcceptLoading = true
                                         acceptRideFirestore()
                                     },
                                     onDecline = {
                                         SoundPlayer.stopSound()
                                         showRideDialog = false
-                                    }
+                                    },
+                                    isLoading = showAcceptLoading
                                 )
                             }
 
@@ -407,8 +409,11 @@ class MainActivity : ComponentActivity() {
                 put("passengerPhone", phone)
                 put("commissionPercent", commissionPercent.toString())
             }
+            showAcceptLoading = false
+            showRideDialog = false
             showRideDetail = true
         }.addOnFailureListener { e ->
+            showAcceptLoading = false
             val msg = when (e.message) {
                 "RIDE_ALREADY_ACCEPTED" -> "عذراً، تم قبول هذه الرحلة من قبل سائق آخر"
                 "RIDE_NOT_FOUND" -> "الرحلة لم تعد متاحة"

@@ -31,7 +31,8 @@ import com.khalily.driver.util.NumberFormatter
 fun RideRequestDialog(
     rideData: Map<String, Any>,
     onAccept: () -> Unit,
-    onDecline: () -> Unit
+    onDecline: () -> Unit,
+    isLoading: Boolean = false
 ) {
     val context = LocalContext.current
 
@@ -152,12 +153,26 @@ fun RideRequestDialog(
                         onClick = onAccept,
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2E7D32),
+                            disabledContainerColor = Color(0xFF66BB6A)
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                        enabled = !isLoading
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("قبول الرحلة", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("جاري القبول...", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        } else {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("قبول الرحلة", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))

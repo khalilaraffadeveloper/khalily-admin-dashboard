@@ -57,7 +57,7 @@ fun RideTrackingScreen(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var ridePhase by remember { mutableStateOf(RidePhase.NAVIGATING_TO_PICKUP) }
+    var ridePhase by remember { mutableStateOf(RidePhase.AT_PICKUP) }
 
     val pickupLat = rideData["pickupLat"]?.toString()?.toDoubleOrNull() ?: 18.0735
     val pickupLng = rideData["pickupLng"]?.toString()?.toDoubleOrNull() ?: -15.9582
@@ -623,10 +623,11 @@ fun RideTrackingScreen(
 private fun getLastKnownLocation(context: android.content.Context): android.location.Location? {
     try {
         val client = LocationServices.getFusedLocationProviderClient(context)
-        var location: android.location.Location? = null
-        client.lastLocation.addOnSuccessListener { loc -> location = loc }
-        Thread.sleep(500)
-        return location
+        val task = client.lastLocation
+        while (!task.isComplete) {
+            Thread.sleep(50)
+        }
+        return task.result
     } catch (e: Exception) {
         return null
     }

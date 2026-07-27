@@ -65,16 +65,26 @@ fun SettingsScreen(
         var listener: ListenerRegistration? = null
 
         fun startListening(defaultCommPct: Double) {
-            if (driverId.isEmpty()) { isLoading = false; return }
+            if (driverId.isEmpty()) {
+                android.util.Log.e("Settings", "driverId is empty, cannot load history")
+                isLoading = false
+                return
+            }
+            android.util.Log.d("Settings", "Starting ride history listener for driver: $driverId")
             val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US)
             listener = db.collection("rides")
                 .whereEqualTo("assignedDriverId", driverId)
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) {
-                        android.util.Log.e("Settings", "Ride history error: ${e.message}")
+                        android.util.Log.e("Settings", "Ride history listener error: ${e.message}", e)
+                        isLoading = false
                         return@addSnapshotListener
                     }
-                    if (snapshot == null) return@addSnapshotListener
+                    if (snapshot == null) {
+                        android.util.Log.e("Settings", "Ride history snapshot is null")
+                        return@addSnapshotListener
+                    }
+                    android.util.Log.d("Settings", "Ride history snapshot: ${snapshot.size()} documents")
                     rideHistory = snapshot.documents.mapNotNull { doc ->
                         val finalFare = doc.getDouble("finalFare")
                         val fareLong = doc.getLong("fare")
@@ -120,7 +130,8 @@ fun SettingsScreen(
                 commissionPercent = pct
                 startListening(pct)
             }
-            .addOnFailureListener {
+            .addOnFailureListener { e ->
+                android.util.Log.e("Settings", "Failed to load commission: ${e.message}")
                 startListening(commissionPercent)
             }
 
