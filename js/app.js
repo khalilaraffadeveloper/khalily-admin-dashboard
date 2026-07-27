@@ -861,12 +861,15 @@ async function loadStats() {
         let totalComm = 0;
         let totalRidesCount = 0;
         let activeCount = 0;
+        let completedCount = 0;
         const allRidesSnap = await db.collection('rides').get();
         allRidesSnap.forEach(doc => {
             const r = doc.data();
             totalRidesCount++;
-            const fare = r.fare || 0;
-            totalComm += r.commissionAmount || Math.round(fare * commissionPercent / 100);
+            if (r.status === 'completed') {
+                completedCount++;
+                totalComm += r.commissionAmount || Math.round((r.fare || 0) * commissionPercent / 100);
+            }
             if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
         });
         document.getElementById('statTotalRides').textContent = totalRidesCount;

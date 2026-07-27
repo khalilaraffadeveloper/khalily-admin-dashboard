@@ -1,16 +1,10 @@
 {
-  "emulators": {
-    "firestore": {
-      "host": "localhost",
-      "port": 8080
-    },
-    "auth": {
-      "host": "localhost",
-      "port": 9099
-    },
-    "ui": {
-      "enabled": true,
-      "port": 4000
-    }
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "docs_and_configs/firebase/firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "khalily_admin_dashboard/public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
   }
 }

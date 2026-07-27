@@ -381,51 +381,37 @@ class MainActivity : ComponentActivity() {
     private fun acceptRideFirestore() {
         val rideId = currentRideData["rideId"]?.toString() ?: return
         val driverId = PrefsManager.getDriverId(this) ?: return
+        val phone = currentRideData["passengerPhone"]?.toString() ?: ""
 
         val rideRef = db.collection("rides").document(rideId)
         val driverRef = db.collection("drivers").document(driverId)
 
-        db.runTransaction { transition ->
-            val rideSnapshot = transition.get(rideRef)
+        val rideUpdates = mapOf(
+            "status" to "accepted",
+            "assignedDriverId" to driverId,
+            "acceptedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+        )
+        val driverUpdates = mapOf(
+            "currentRideId" to rideId
+        )
 
-            if (!rideSnapshot.exists()) {
-                throw Exception("RIDE_NOT_FOUND")
+        rideRef.update(rideUpdates)
+            .addOnSuccessListener {
+                driverRef.update(driverUpdates)
+                android.util.Log.d("MainActivity", "ACCEPT RIDE OK: $rideId")
+                currentRideData = currentRideData.toMutableMap().apply {
+                    put("passengerPhone", phone)
+                    put("commissionPercent", commissionPercent.toString())
+                }
+                showAcceptLoading = false
+                showRideDialog = false
+                showRideDetail = true
             }
-
-            val status = rideSnapshot.getString("status") ?: "pending"
-            if (status != "pending") {
-                throw Exception("RIDE_ALREADY_ACCEPTED")
+            .addOnFailureListener { e ->
+                android.util.Log.e("MainActivity", "ACCEPT RIDE FAILED: $rideId error=${e.message}")
+                showAcceptLoading = false
+                showAcceptError("حدث خطأ أثناء قبول الرحلة: ${e.message}")
             }
-
-            transition.update(rideRef,
-                "status", "accepted",
-                "assignedDriverId", driverId,
-                "acceptedAt", com.google.firebase.firestore.FieldValue.serverTimestamp()
-            )
-
-            transition.update(driverRef,
-                "currentRideId", rideId,
-                "credit", com.google.firebase.firestore.FieldValue.increment(-1)
-            )
-
-            rideSnapshot.getString("passengerPhone") ?: ""
-        }.addOnSuccessListener { phone ->
-            currentRideData = currentRideData.toMutableMap().apply {
-                put("passengerPhone", phone)
-                put("commissionPercent", commissionPercent.toString())
-            }
-            showAcceptLoading = false
-            showRideDialog = false
-            showRideDetail = true
-        }.addOnFailureListener { e ->
-            showAcceptLoading = false
-            val msg = when (e.message) {
-                "RIDE_ALREADY_ACCEPTED" -> "عذراً، تم قبول هذه الرحلة من قبل سائق آخر"
-                "RIDE_NOT_FOUND" -> "الرحلة لم تعد متاحة"
-                else -> "حدث خطأ أثناء قبول الرحلة: ${e.message}"
-            }
-            showAcceptError(msg)
-        }
     }
 
     private fun completeRideFirestore(fare: Double, commission: Double) {
@@ -435,46 +421,26 @@ class MainActivity : ComponentActivity() {
         val rideRef = db.collection("rides").document(rideId)
         val driverRef = db.collection("drivers").document(driverId)
 
-        db.runTransaction { transition ->
-            val rideSnapshot = transition.get(rideRef)
-            if (!rideSnapshot.exists()) throw Exception("RIDE_NOT_FOUND")
-
-            transition.update(rideRef,
-                "status", "completed",
-                "completedBy", "driver",
-                "completedAt", com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                "commissionAmount", commission,
-                "finalFare", fare,
-                "assignedDriverId", driverId
+        rideRef.update(
+            mapOf(
+                "status" to "completed",
+                "completedBy" to "driver",
+                "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                "commissionAmount" to commission,
+                "finalFare" to fare,
+                "assignedDriverId" to driverId
             )
-
-            transition.update(driverRef,
-                "currentRideId", null,
-                "totalRides", com.google.firebase.firestore.FieldValue.increment(1),
-                "credit", com.google.firebase.firestore.FieldValue.increment(-commission)
-            )
-        }.addOnSuccessListener {
-            android.util.Log.d("MainActivity", "Ride completed OK: $rideId, fare=$fare, commission=$commission")
-        }.addOnFailureListener { e ->
-            android.util.Log.e("MainActivity", "COMPLETE RIDE FAILED: ${e.message}")
-            rideRef.update(
+        ).addOnSuccessListener {
+            driverRef.update(
                 mapOf(
-                    "status" to "completed",
-                    "completedBy" to "driver",
-                    "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                    "commissionAmount" to commission,
-                    "finalFare" to fare,
-                    "assignedDriverId" to driverId
+                    "credit" to com.google.firebase.firestore.FieldValue.increment(-commission.toLong()),
+                    "currentRideId" to null,
+                    "totalRides" to com.google.firebase.firestore.FieldValue.increment(1)
                 )
-            ).addOnSuccessListener {
-                driverRef.update(
-                    mapOf(
-                        "credit" to com.google.firebase.firestore.FieldValue.increment(-commission),
-                        "currentRideId" to null,
-                        "totalRides" to com.google.firebase.firestore.FieldValue.increment(1)
-                    )
-                )
-            }
+            )
+            android.util.Log.d("MainActivity", "Ride completed OK: $rideId")
+        }.addOnFailureListener { e ->
+            android.util.Log.e("MainActivity", "COMPLETE RIDE FAILED: $rideId error=${e.message}")
         }
     }
 
