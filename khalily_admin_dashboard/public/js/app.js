@@ -225,7 +225,8 @@ const pageTitles = {
     map: 'تتبع مباشر للسائقين',
     drivers: 'إدارة السائقين',
     rides: 'سجل الرحلات',
-    settings: 'الإعدادات'
+    settings: 'الإعدادات',
+    messages: 'الرسائل'
 };
 
 function navigateToPage(page) {
@@ -245,6 +246,8 @@ function navigateToPage(page) {
     if (page === 'drivers') loadDriversList();
     if (page === 'rides') loadRidesList();
     if (page === 'settings') loadCommission();
+    if (page === 'admins') loadAdminsList();
+    if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); }
 }
 
 document.querySelectorAll('.sidebar-link').forEach(item => {
@@ -1010,6 +1013,285 @@ function showStatus(elId, msg, type) {
 }
 
 // ============================================
+// MESSAGING SYSTEM
+// ============================================
+let selectedMsgDrivers = [];
+
+function initMsgTypeSwitch() {
+    const typeEl = document.getElementById('msgType');
+    if (!typeEl) return;
+    typeEl.addEventListener('change', () => {
+        const t = typeEl.value;
+        document.getElementById('msgTextGroup').classList.toggle('d-none', t !== 'text');
+        document.getElementById('msgImageGroup').classList.toggle('d-none', t !== 'image');
+        document.getElementById('msgAudioGroup').classList.toggle('d-none', t !== 'audio');
+    });
+
+    const imgFile = document.getElementById('msgImageFile');
+    if (imgFile) imgFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500000) { alert('الصورة كبيرة جداً. الحد الأقصى 500KB'); e.target.value = ''; return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('msgImagePreview').innerHTML =
+                `<img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;" class="img-fluid">`;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    const audioFile = document.getElementById('msgAudioFile');
+    if (audioFile) audioFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500000) { alert('الملف الصوتي كبير جداً. الحد الأقصى 500KB'); e.target.value = ''; return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('msgAudioPreview').innerHTML =
+                `<audio controls src="${ev.target.result}" style="width:100%;"></audio>`;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+initMsgTypeSwitch();
+
+async function loadMsgRecipients() {
+    if (!requireDb()) return;
+    const sel = document.getElementById('msgRecipients');
+    if (!sel) return;
+    sel.innerHTML = '<option value="all">جميع السائقين</option>';
+    try {
+        const snap = await db.collection('drivers').get();
+        snap.forEach(doc => {
+            const d = doc.data();
+            sel.innerHTML += `<option value="${doc.id}">${d.name || 'سائق'} (${d.phone || ''})</option>`;
+        });
+    } catch (e) { console.log('Recipients load error'); }
+}
+
+document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
+    if (!requireDb('msgSendStatus')) return;
+    const type = document.getElementById('msgType').value;
+    const recipientsSel = document.getElementById('msgRecipients');
+    const recipientIds = Array.from(recipientsSel.selectedOptions).map(o => o.value);
+    const senderName = sessionStorage.getItem('khalily_admin_name') || 'المدير';
+    const msg = { type, senderName, readBy: [], createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+
+    if (recipientIds.includes('all')) {
+        const snap = await db.collection('drivers').get();
+        msg.recipients = snap.docs.map(d => d.id);
+        msg.recipientLabel = 'جميع السائقين';
+    } else {
+        msg.recipients = recipientIds;
+        msg.recipientLabel = `${recipientIds.length} سائق`;
+    }
+
+    if (msg.recipients.length === 0) {
+        showStatus('msgSendStatus', 'لا يوجد مستلمون', 'error');
+        return;
+    }
+
+    if (type === 'text') {
+        msg.content = document.getElementById('msgText').value.trim();
+        if (!msg.content) { showStatus('msgSendStatus', 'اكتب نص الرسالة', 'error'); return; }
+    } else if (type === 'image') {
+        const fileInput = document.getElementById('msgImageFile');
+        if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر صورة', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            msg.content = ev.target.result;
+            await sendMsgToFirestore(msg);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+        return;
+    } else if (type === 'audio') {
+        const fileInput = document.getElementById('msgAudioFile');
+        if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر ملف صوتي', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            msg.content = ev.target.result;
+            await sendMsgToFirestore(msg);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+        return;
+    }
+
+    await sendMsgToFirestore(msg);
+});
+
+async function sendMsgToFirestore(msg) {
+    try {
+        await db.collection('messages').add(msg);
+        showStatus('msgSendStatus', `تم إرسال الرسالة لـ ${msg.recipientLabel} بنجاح!`, 'success');
+        document.getElementById('msgText').value = '';
+        document.getElementById('msgImageFile').value = '';
+        document.getElementById('msgAudioFile').value = '';
+        document.getElementById('msgImagePreview').innerHTML = '';
+        document.getElementById('msgAudioPreview').innerHTML = '';
+        loadSentMessages();
+    } catch (err) {
+        showStatus('msgSendStatus', 'خطأ: ' + err.message, 'error');
+    }
+}
+
+async function loadSentMessages() {
+    if (!requireDb()) return;
+    const container = document.getElementById('msgListContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-4"><div class="khalily-spinner"></div></div>';
+
+    try {
+        const snap = await db.collection('messages').orderBy('createdAt', 'desc').limit(50).get();
+        document.getElementById('msgCount').textContent = snap.size;
+
+        if (snap.empty) {
+            container.innerHTML = '<div class="text-center text-muted py-4 small">لا توجد رسائل بعد</div>';
+            return;
+        }
+
+        const typeIcons = { text: 'bi-chat-left-text-fill', image: 'bi-image-fill', audio: 'bi-mic-fill' };
+        const typeLabels = { text: 'نص', image: 'صورة', audio: 'صوت' };
+
+        container.innerHTML = snap.docs.map(doc => {
+            const m = doc.data();
+            const time = m.createdAt?.toDate ? new Date(m.createdAt.toDate()).toLocaleString('ar-MA') : '';
+            const readCount = (m.readBy || []).length;
+            const totalCount = (m.recipients || []).length;
+            const allRead = readCount >= totalCount;
+
+            let contentPreview = '';
+            if (m.type === 'text') {
+                contentPreview = `<p class="mb-1">${m.content || ''}</p>`;
+            } else if (m.type === 'image') {
+                contentPreview = `<img src="${m.content}" style="max-width:120px;max-height:80px;border-radius:6px;" class="img-fluid">`;
+            } else if (m.type === 'audio') {
+                contentPreview = `<audio controls src="${m.content}" style="height:32px;max-width:200px;"></audio>`;
+            }
+
+            return `<div class="log-entry p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="badge bg-info"><i class="bi ${typeIcons[m.type] || 'bi-envelope'}"></i> ${typeLabels[m.type] || m.type}</span>
+                    <small class="text-muted">${time}</small>
+                </div>
+                <div class="mb-1">${contentPreview}</div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted"><i class="bi bi-people"></i> ${m.recipientLabel || totalCount + ' سائق'} | <i class="bi bi-eye"></i> ${readCount}/${totalCount} قراءة</small>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSentMsg('${doc.id}')"><i class="bi bi-trash"></i></button>
+                </div>
+                ${allRead && totalCount > 0 ? '<div class="mt-1"><span class="badge bg-success">تمت القراءة من الجميع</span></div>' : ''}
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<div class="text-center text-danger py-4">خطأ في تحميل الرسائل</div>';
+    }
+}
+
+window.deleteSentMsg = async function(id) {
+    if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('messages').doc(id).delete();
+        loadSentMessages();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+window.clearOldMessages = async function() {
+    if (!confirm('حذف جميع الرسائل القديمة؟')) return;
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('messages').get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        loadSentMessages();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+// ============================================
+// ADMINS MANAGEMENT
+// ============================================
+async function loadAdminsList() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('adminsTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل المشرفين...</div></td></tr>';
+    try {
+        const snapshot = await db.collection('admins').get();
+        const admins = [];
+        snapshot.forEach(doc => admins.push({ id: doc.id, ...doc.data() }));
+        document.getElementById('totalAdminsCount').textContent = admins.length;
+        if (admins.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">لا يوجد مشرفون</td></tr>';
+            return;
+        }
+        const roleLabels = { admin: 'مدير عام', supervisor: 'مشرف' };
+        const roleBadge = { admin: 'bg-primary', supervisor: 'bg-secondary' };
+        tbody.innerHTML = admins.map(a => `<tr>
+            <td><strong>${a.name || '-'}</strong></td>
+            <td>${a.username || '-'}</td>
+            <td><span class="badge ${roleBadge[a.role] || 'bg-secondary'}">${roleLabels[a.role] || a.role}</span></td>
+            <td>
+                <button class="btn-action btn-action-delete" onclick="deleteAdmin('${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">حذف</button>
+            </td>
+        </tr>`).join('');
+    } catch (err) {
+        console.error('Load admins error:', err);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
+}
+
+window.addAdmin = async function () {
+    if (!requireDb('addAdminStatus')) return;
+    const username = document.getElementById('newAdminUsername').value.trim();
+    const name = document.getElementById('newAdminName').value.trim();
+    const password = document.getElementById('newAdminPassword').value.trim();
+    const role = document.getElementById('newAdminRole').value;
+
+    if (!username) { showStatus('addAdminStatus', 'أدخل اسم المستخدم', 'error'); return; }
+    if (!name) { showStatus('addAdminStatus', 'أدخل الاسم الكامل', 'error'); return; }
+    if (!password) { showStatus('addAdminStatus', 'أدخل كلمة المرور', 'error'); return; }
+
+    try {
+        const existing = await db.collection('admins').where('username', '==', username).get();
+        if (!existing.empty) {
+            showStatus('addAdminStatus', 'اسم المستخدم مستخدم بالفعل', 'error');
+            return;
+        }
+        await db.collection('admins').add({
+            username, name, password, role,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus('addAdminStatus', 'تم إضافة المشرف بنجاح!', 'success');
+        document.getElementById('newAdminUsername').value = '';
+        document.getElementById('newAdminName').value = '';
+        document.getElementById('newAdminPassword').value = '';
+        loadAdminsList();
+    } catch (err) {
+        showStatus('addAdminStatus', 'خطأ: ' + err.message, 'error');
+    }
+};
+
+window.deleteAdmin = async function (id, name) {
+    if (!confirm(`هل أنت متأكد من حذف المشرف "${name}"؟`)) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('admins').doc(id).delete();
+        loadAdminsList();
+    } catch (err) {
+        alert('خطأ: ' + err.message);
+    }
+};
+
+// ============================================
+// ROLE-BASED VISIBILITY
+// ============================================
+function applyRoleVisibility() {
+    const role = sessionStorage.getItem('khalily_admin_role') || 'admin';
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = role === 'admin' ? '' : 'none';
+    });
+}
+
+// ============================================
 // INIT
 // ============================================
 function initDashboard() {
@@ -1017,6 +1299,7 @@ function initDashboard() {
     loadCommission();
     loadStats();
     initRealtimeListeners();
+    applyRoleVisibility();
     setInterval(loadStats, 60000);
     addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }

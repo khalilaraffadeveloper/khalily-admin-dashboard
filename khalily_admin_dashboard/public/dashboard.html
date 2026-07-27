@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Khalily - لوحة التحكم</title>
+    <title>Khalily - ┘ä┘ê╪¡╪⌐ ╪º┘ä╪¬╪¡┘â┘à</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -17,23 +17,27 @@
         <div class="sidebar-header text-center py-4">
             <img src="img/khalily-logo.png" alt="Khalily" class="sidebar-logo mb-2">
             <h4 class="text-white fw-bold mb-0">Khalily</h4>
-            <small class="text-gold">لوحة تحكم الإدارة</small>
+            <small class="text-gold">┘ä┘ê╪¡╪⌐ ╪¬╪¡┘â┘à ╪º┘ä╪Ñ╪»╪º╪▒╪⌐</small>
         </div>
         <div class="sidebar-nav flex-grow-1 px-3 py-2">
             <a href="#" class="sidebar-link active" data-page="map">
-                <i class="bi bi-geo-alt-fill"></i> الخريطة المباشرة
+                <i class="bi bi-geo-alt-fill"></i> ╪º┘ä╪«╪▒┘è╪╖╪⌐ ╪º┘ä┘à╪¿╪º╪┤╪▒╪⌐
             </a>
             <a href="#" class="sidebar-link" data-page="drivers">
-                <i class="bi bi-people-fill"></i> إدارة السائقين
+                <i class="bi bi-people-fill"></i> ╪Ñ╪»╪º╪▒╪⌐ ╪º┘ä╪│╪º╪ª┘é┘è┘å
             </a>
             <a href="#" class="sidebar-link" data-page="rides">
-                <i class="bi bi-journal-text"></i> سجل الرحلات
+                <i class="bi bi-journal-text"></i> ╪│╪¼┘ä ╪º┘ä╪▒╪¡┘ä╪º╪¬
             </a>
             <a href="#" class="sidebar-link" data-page="settings">
-                <i class="bi bi-gear-fill"></i> الإعدادات
+                <i class="bi bi-gear-fill"></i> ╪º┘ä╪Ñ╪╣╪»╪º╪»╪º╪¬
+            </a>
+            
+            <a href='#' class="sidebar-link" data-page="messages">
+                <i class="bi bi-envelope-fill"></i> الرسائل
             </a>
             <a href="#" class="sidebar-link admin-only" data-page="admins">
-                <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
+                <i class="bi bi-shield-lock-fill"></i> ╪Ñ╪»╪º╪▒╪⌐ ╪º┘ä┘à╪┤╪▒┘ü┘è┘å
             </a>
         </div>
         <div class="sidebar-stats px-3 pb-3">
@@ -41,13 +45,13 @@
                 <div class="col-6">
                     <div class="card bg-gold-dark text-center py-2 border-0 rounded-3">
                         <div class="fs-4 fw-bold text-white" id="onlineCount">0</div>
-                        <small class="text-white-50">سائق متاح</small>
+                        <small class="text-white-50">╪│╪º╪ª┘é ┘à╪¬╪º╪¡</small>
                     </div>
                 </div>
                 <div class="col-6">
                     <div class="card bg-purple text-center py-2 border-0 rounded-3">
                         <div class="fs-4 fw-bold text-white" id="rideCount">0</div>
-                        <small class="text-white-50">رحلة نشطة</small>
+                        <small class="text-white-50">╪▒╪¡┘ä╪⌐ ┘å╪┤╪╖╪⌐</small>
                     </div>
                 </div>
             </div>
@@ -64,19 +68,23 @@
             <div class="d-flex flex-column h-100">
                 <div class="p-3">
                     <a href="#" class="sidebar-link active" data-page="map" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-geo-alt-fill"></i> الخريطة المباشرة
+                        <i class="bi bi-geo-alt-fill"></i> ╪º┘ä╪«╪▒┘è╪╖╪⌐ ╪º┘ä┘à╪¿╪º╪┤╪▒╪⌐
                     </a>
                     <a href="#" class="sidebar-link" data-page="drivers" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-people-fill"></i> إدارة السائقين
+                        <i class="bi bi-people-fill"></i> ╪Ñ╪»╪º╪▒╪⌐ ╪º┘ä╪│╪º╪ª┘é┘è┘å
                     </a>
                     <a href="#" class="sidebar-link" data-page="rides" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-journal-text"></i> سجل الرحلات
+                        <i class="bi bi-journal-text"></i> ╪│╪¼┘ä ╪º┘ä╪▒╪¡┘ä╪º╪¬
                     </a>
                     <a href="#" class="sidebar-link" data-page="settings" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-gear-fill"></i> الإعدادات
+                        <i class="bi bi-gear-fill"></i> ╪º┘ä╪Ñ╪╣╪»╪º╪»╪º╪¬
+                    </a>
+                    
+                    <a href="#" class="sidebar-link" data-page="messages" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-envelope-fill"></i> الرسائل
                     </a>
                     <a href="#" class="sidebar-link admin-only" data-page="admins" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
+                        <i class="bi bi-shield-lock-fill"></i> ╪Ñ╪»╪º╪▒╪⌐ ╪º┘ä┘à╪┤╪▒┘ü┘è┘å
                     </a>
                 </div>
                 <div class="px-3 pb-3 mt-auto">
@@ -84,13 +92,13 @@
                         <div class="col-6">
                             <div class="card bg-gold-dark text-center py-2 border-0 rounded-3">
                                 <div class="fs-4 fw-bold text-white onlineCount-mobile">0</div>
-                                <small class="text-white-50">سائق متاح</small>
+                                <small class="text-white-50">╪│╪º╪ª┘é ┘à╪¬╪º╪¡</small>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="card bg-purple text-center py-2 border-0 rounded-3">
                                 <div class="fs-4 fw-bold text-white rideCount-mobile">0</div>
-                                <small class="text-white-50">رحلة نشطة</small>
+                                <small class="text-white-50">╪▒╪¡┘ä╪⌐ ┘å╪┤╪╖╪⌐</small>
                             </div>
                         </div>
                     </div>
@@ -107,16 +115,16 @@
                 <button class="btn d-md-none" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
                     <i class="bi bi-list fs-4 text-dark-blue"></i>
                 </button>
-                <h5 class="fw-bold mb-0 text-dark-blue d-none d-sm-block" id="pageTitle">تتبع مباشر للسائقين</h5>
-                <h6 class="fw-bold mb-0 text-dark-blue d-sm-none" id="pageTitleMobile">تتبع مباشر</h6>
+                <h5 class="fw-bold mb-0 text-dark-blue d-none d-sm-block" id="pageTitle">╪¬╪¬╪¿╪╣ ┘à╪¿╪º╪┤╪▒ ┘ä┘ä╪│╪º╪ª┘é┘è┘å</h5>
+                <h6 class="fw-bold mb-0 text-dark-blue d-sm-none" id="pageTitleMobile">╪¬╪¬╪¿╪╣ ┘à╪¿╪º╪┤╪▒</h6>
                 <span class="badge bg-danger rounded-pill px-3 d-none" id="liveBadge">
-                    <i class="bi bi-broadcast"></i> مباشر
+                    <i class="bi bi-broadcast"></i> ┘à╪¿╪º╪┤╪▒
                 </span>
             </div>
             <div class="d-flex align-items-center gap-3">
                 <span class="text-muted fw-semibold d-none d-sm-inline" id="currentTime"></span>
                 <button class="btn btn-outline-danger btn-sm" id="logoutBtn">
-                    <i class="bi bi-box-arrow-left me-1"></i><span class="d-none d-sm-inline">خروج</span>
+                    <i class="bi bi-box-arrow-left me-1"></i><span class="d-none d-sm-inline">╪«╪▒┘ê╪¼</span>
                 </button>
             </div>
         </header>
@@ -128,27 +136,27 @@
                 <div class="container-fluid">
                     <div class="row g-2 text-center">
                         <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">سائقون متاحون</small>
+                            <small class="text-muted d-block" style="font-size:11px;">╪│╪º╪ª┘é┘ê┘å ┘à╪¬╪º╪¡┘ê┘å</small>
                             <strong class="text-gold fs-5" id="statOnlineDrivers">0</strong>
                         </div>
                         <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">رحلات نشطة</small>
+                            <small class="text-muted d-block" style="font-size:11px;">╪▒╪¡┘ä╪º╪¬ ┘å╪┤╪╖╪⌐</small>
                             <strong class="text-success fs-5" id="statActiveRides">0</strong>
                         </div>
                         <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">رحلات اليوم</small>
+                            <small class="text-muted d-block" style="font-size:11px;">╪▒╪¡┘ä╪º╪¬ ╪º┘ä┘è┘ê┘à</small>
                             <strong class="text-primary fs-5" id="statTodayRides">0</strong>
                         </div>
                         <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">إجمالي العمولات</small>
+                            <small class="text-muted d-block" style="font-size:11px;">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪╣┘à┘ê┘ä╪º╪¬</small>
                             <strong class="text-danger fs-5" id="statTotalComm">0 <small>MRU</small></strong>
                         </div>
                         <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">إجمالي الرحلات</small>
+                            <small class="text-muted d-block" style="font-size:11px;">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪▒╪¡┘ä╪º╪¬</small>
                             <strong class="text-dark-blue fs-5" id="statTotalRides">0</strong>
                         </div>
                         <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">إجمالي السائقين</small>
+                            <small class="text-muted d-block" style="font-size:11px;">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪│╪º╪ª┘é┘è┘å</small>
                             <strong class="fs-5" style="color:var(--k-purple);" id="statTotalDrivers">0</strong>
                         </div>
                     </div>
@@ -168,36 +176,36 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom cursor-pointer" data-bs-toggle="collapse" data-bs-target="#registerForm">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-plus-fill me-2 text-gold"></i>تسجيل سائق جديد</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-plus-fill me-2 text-gold"></i>╪¬╪│╪¼┘è┘ä ╪│╪º╪ª┘é ╪¼╪»┘è╪»</h6>
                             </div>
                             <div class="collapse show" id="registerForm">
                                 <div class="card-body">
                                     <div class="row g-3" autocomplete="off">
                                         <div class="col-md-3 col-6">
-                                            <label class="form-label fw-bold">الاسم</label>
-                                            <input type="text" class="form-control" id="newDriverName" placeholder="اسم السائق" autocomplete="off">
+                                            <label class="form-label fw-bold">╪º┘ä╪º╪│┘à</label>
+                                            <input type="text" class="form-control" id="newDriverName" placeholder="╪º╪│┘à ╪º┘ä╪│╪º╪ª┘é" autocomplete="off">
                                         </div>
                                         <div class="col-md-3 col-6">
-                                            <label class="form-label fw-bold">الهاتف</label>
-                                            <input type="tel" class="form-control" id="newDriverPhone" placeholder="رقم الهاتف" autocomplete="off">
+                                            <label class="form-label fw-bold">╪º┘ä┘ç╪º╪¬┘ü</label>
+                                            <input type="tel" class="form-control" id="newDriverPhone" placeholder="╪▒┘é┘à ╪º┘ä┘ç╪º╪¬┘ü" autocomplete="off">
                                         </div>
                                         <div class="col-md-3 col-6">
-                                            <label class="form-label fw-bold">كلمة السر</label>
-                                            <input type="password" class="form-control" id="newDriverPassword" placeholder="كلمة السر" autocomplete="new-password">
+                                            <label class="form-label fw-bold">┘â┘ä┘à╪⌐ ╪º┘ä╪│╪▒</label>
+                                            <input type="password" class="form-control" id="newDriverPassword" placeholder="┘â┘ä┘à╪⌐ ╪º┘ä╪│╪▒" autocomplete="new-password">
                                         </div>
                                         <div class="col-md-3 col-6">
-                                            <label class="form-label fw-bold">نوع المركبة</label>
+                                            <label class="form-label fw-bold">┘å┘ê╪╣ ╪º┘ä┘à╪▒┘â╪¿╪⌐</label>
                                             <select class="form-select" id="newDriverVehicle">
-                                                <option value="motorcycle">دراجة نارية</option>
+                                                <option value="motorcycle">╪»╪▒╪º╪¼╪⌐ ┘å╪º╪▒┘è╪⌐</option>
                                             </select>
                                         </div>
                                         <div class="col-md-3 col-6">
-                                            <label class="form-label fw-bold">الرصيد (MRU)</label>
+                                            <label class="form-label fw-bold">╪º┘ä╪▒╪╡┘è╪» (MRU)</label>
                                             <input type="number" class="form-control" id="newDriverCredit" value="" min="0" placeholder="0" autocomplete="off">
                                         </div>
                                     </div>
                                     <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerDriverBtn">
-                                        <i class="bi bi-check-circle me-1"></i>تسجيل السائق
+                                        <i class="bi bi-check-circle me-1"></i>╪¬╪│╪¼┘è┘ä ╪º┘ä╪│╪º╪ª┘é
                                     </button>
                                     <div class="mt-2 fw-semibold" id="registerDriverStatus"></div>
                                 </div>
@@ -209,20 +217,20 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-people-fill me-2 text-gold"></i>قائمة السائقين (<span id="totalDriversCount">0</span>)</h6>
-                                <button class="btn btn-sm btn-outline-dark-blue" onclick="exportDriversCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-people-fill me-2 text-gold"></i>┘é╪º╪ª┘à╪⌐ ╪º┘ä╪│╪º╪ª┘é┘è┘å (<span id="totalDriversCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-dark-blue" onclick="exportDriversCSV()"><i class="bi bi-download me-1"></i>╪¬╪╡╪»┘è╪▒ CSV</button>
                             </div>
                             <div class="card-body">
                                 <div class="row g-2 mb-3">
                                     <div class="col-md-8 col-7">
-                                        <input type="text" class="form-control" id="searchDrivers" placeholder="بحث بالاسم أو الهاتف...">
+                                        <input type="text" class="form-control" id="searchDrivers" placeholder="╪¿╪¡╪½ ╪¿╪º┘ä╪º╪│┘à ╪ú┘ê ╪º┘ä┘ç╪º╪¬┘ü...">
                                     </div>
                                     <div class="col-md-4 col-5">
                                         <select class="form-select" id="filterDriverStatus">
-                                            <option value="all">الكل</option>
-                                            <option value="online">متاح</option>
-                                            <option value="offline">غير متاح</option>
-                                            <option value="disabled">معطّل</option>
+                                            <option value="all">╪º┘ä┘â┘ä</option>
+                                            <option value="online">┘à╪¬╪º╪¡</option>
+                                            <option value="offline">╪║┘è╪▒ ┘à╪¬╪º╪¡</option>
+                                            <option value="disabled">┘à╪╣╪╖┘æ┘ä</option>
                                         </select>
                                     </div>
                                 </div>
@@ -230,15 +238,15 @@
                                     <table class="table table-hover align-middle">
                                         <thead class="table-dark-blue text-white">
                                             <tr>
-                                                <th>الاسم</th>
-                                                <th>الهاتف</th>
-                                                <th>الرصيد</th>
-                                                <th>الحالة</th>
-                                                <th>إجراءات</th>
+                                                <th>╪º┘ä╪º╪│┘à</th>
+                                                <th>╪º┘ä┘ç╪º╪¬┘ü</th>
+                                                <th>╪º┘ä╪▒╪╡┘è╪»</th>
+                                                <th>╪º┘ä╪¡╪º┘ä╪⌐</th>
+                                                <th>╪Ñ╪¼╪▒╪º╪í╪º╪¬</th>
                                             </tr>
                                         </thead>
                                         <tbody id="driversTableBody">
-                                            <tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>
+                                            <tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">╪¼╪º╪▒┘è ╪¬╪¡┘à┘è┘ä ╪º┘ä╪│╪º╪ª┘é┘è┘å...</div></td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -254,17 +262,17 @@
             <div class="container-fluid p-3 p-md-4">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                        <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-journal-text me-2 text-gold"></i>سجل الرحلات</h6>
+                        <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-journal-text me-2 text-gold"></i>╪│╪¼┘ä ╪º┘ä╪▒╪¡┘ä╪º╪¬</h6>
                         <div class="d-flex gap-2 align-items-center">
                             <select class="form-select form-select-sm w-auto" id="filterRideStatus">
-                                <option value="all">جميع الحالات</option>
-                                <option value="pending">قيد الانتظار</option>
-                                <option value="accepted">مقبولة</option>
-                                <option value="in_progress">جارية</option>
-                                <option value="completed">مكتملة</option>
-                                <option value="cancelled">ملغاة</option>
+                                <option value="all">╪¼┘à┘è╪╣ ╪º┘ä╪¡╪º┘ä╪º╪¬</option>
+                                <option value="pending">┘é┘è╪» ╪º┘ä╪º┘å╪¬╪╕╪º╪▒</option>
+                                <option value="accepted">┘à┘é╪¿┘ê┘ä╪⌐</option>
+                                <option value="in_progress">╪¼╪º╪▒┘è╪⌐</option>
+                                <option value="completed">┘à┘â╪¬┘à┘ä╪⌐</option>
+                                <option value="cancelled">┘à┘ä╪║╪º╪⌐</option>
                             </select>
-                            <button class="btn btn-sm btn-outline-dark-blue" onclick="exportRidesCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
+                            <button class="btn btn-sm btn-outline-dark-blue" onclick="exportRidesCSV()"><i class="bi bi-download me-1"></i>╪¬╪╡╪»┘è╪▒ CSV</button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -272,19 +280,19 @@
                             <table class="table table-hover align-middle">
                                 <thead class="table-dark-blue text-white">
                                     <tr>
-                                        <th>الزبون</th>
-                                        <th class="d-none d-md-table-cell">الانطلاق</th>
-                                        <th class="d-none d-md-table-cell">الوجهة</th>
-                                        <th>المسافة</th>
-                                        <th>السعر</th>
-                                        <th>العمولة</th>
-                                        <th>الحالة</th>
-                                        <th class="d-none d-lg-table-cell">التاريخ</th>
-                                        <th>إجراءات</th>
+                                        <th>╪º┘ä╪▓╪¿┘ê┘å</th>
+                                        <th class="d-none d-md-table-cell">╪º┘ä╪º┘å╪╖┘ä╪º┘é</th>
+                                        <th class="d-none d-md-table-cell">╪º┘ä┘ê╪¼┘ç╪⌐</th>
+                                        <th>╪º┘ä┘à╪│╪º┘ü╪⌐</th>
+                                        <th>╪º┘ä╪│╪╣╪▒</th>
+                                        <th>╪º┘ä╪╣┘à┘ê┘ä╪⌐</th>
+                                        <th>╪º┘ä╪¡╪º┘ä╪⌐</th>
+                                        <th class="d-none d-lg-table-cell">╪º┘ä╪¬╪º╪▒┘è╪«</th>
+                                        <th>╪Ñ╪¼╪▒╪º╪í╪º╪¬</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ridesTableBody">
-                                    <tr><td colspan="9" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>
+                                    <tr><td colspan="9" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">╪¼╪º╪▒┘è ╪¬╪¡┘à┘è┘ä ╪º┘ä╪▒╪¡┘ä╪º╪¬...</div></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -300,14 +308,14 @@
                     <div class="col-md-6">
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-header bg-white border-bottom">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-percent text-gold me-2"></i>النسبة المقتطعة (العمولة)</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-percent text-gold me-2"></i>╪º┘ä┘å╪│╪¿╪⌐ ╪º┘ä┘à┘é╪¬╪╖╪╣╪⌐ (╪º┘ä╪╣┘à┘ê┘ä╪⌐)</h6>
                             </div>
                             <div class="card-body text-center">
                                 <div class="display-4 fw-bold text-gold my-3" id="currentCommission">10%</div>
-                                <p class="text-muted small">النسبة المقتطعة من كل رحلة تلقائياً</p>
+                                <p class="text-muted small">╪º┘ä┘å╪│╪¿╪⌐ ╪º┘ä┘à┘é╪¬╪╖╪╣╪⌐ ┘à┘å ┘â┘ä ╪▒╪¡┘ä╪⌐ ╪¬┘ä┘é╪º╪ª┘è╪º┘ï</p>
                                 <div class="input-group">
-                                    <input type="number" class="form-control text-center fw-bold" id="newCommission" min="0" max="100" placeholder="النسبة %">
-                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="saveCommission()">حفظ</button>
+                                    <input type="number" class="form-control text-center fw-bold" id="newCommission" min="0" max="100" placeholder="╪º┘ä┘å╪│╪¿╪⌐ %">
+                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="saveCommission()">╪¡┘ü╪╕</button>
                                 </div>
                             </div>
                         </div>
@@ -315,12 +323,12 @@
                     <div class="col-md-6">
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-header bg-white border-bottom">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-search text-gold me-2"></i>بحث عن سائق</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-search text-gold me-2"></i>╪¿╪¡╪½ ╪╣┘å ╪│╪º╪ª┘é</h6>
                             </div>
                             <div class="card-body">
                                 <div class="input-group mb-3">
-                                    <input type="tel" class="form-control" id="searchDriverPhone" placeholder="رقم الهاتف">
-                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="searchDriverByPhone()">بحث</button>
+                                    <input type="tel" class="form-control" id="searchDriverPhone" placeholder="╪▒┘é┘à ╪º┘ä┘ç╪º╪¬┘ü">
+                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="searchDriverByPhone()">╪¿╪¡╪½</button>
                                 </div>
                                 <div id="searchDriverResult"></div>
                             </div>
@@ -329,19 +337,19 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-telephone-fill text-gold me-2"></i>معلومات الاتصال</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-telephone-fill text-gold me-2"></i>┘à╪╣┘ä┘ê┘à╪º╪¬ ╪º┘ä╪º╪¬╪╡╪º┘ä</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="bg-light rounded-3 p-3 text-center">
-                                            <small class="text-muted">هاتف التواصل</small>
+                                            <small class="text-muted">┘ç╪º╪¬┘ü ╪º┘ä╪¬┘ê╪º╪╡┘ä</small>
                                             <div class="fs-4 fw-bold text-dark-blue">47717983</div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="bg-light rounded-3 p-3 text-center">
-                                            <small class="text-muted">واتساب تزويد الرصيد</small>
+                                            <small class="text-muted">┘ê╪º╪¬╪│╪º╪¿ ╪¬╪▓┘ê┘è╪» ╪º┘ä╪▒╪╡┘è╪»</small>
                                             <div class="fs-4 fw-bold text-success">26067036</div>
                                         </div>
                                     </div>
@@ -352,15 +360,15 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-bell-fill text-gold me-2"></i>سجل الإشعارات</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-bell-fill text-gold me-2"></i>╪│╪¼┘ä ╪º┘ä╪Ñ╪┤╪╣╪º╪▒╪º╪¬</h6>
                                 <div class="d-flex gap-2 align-items-center">
                                     <span class="badge bg-success" id="notifLogCount">0</span>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="clearNotifLog()"><i class="bi bi-trash me-1"></i>مسح</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="clearNotifLog()"><i class="bi bi-trash me-1"></i>┘à╪│╪¡</button>
                                 </div>
                             </div>
                             <div class="card-body p-0" style="max-height:300px;overflow-y:auto;">
                                 <div id="notifLogContainer">
-                                    <div class="text-center text-muted py-4 small">لا توجد إشعارات بعد</div>
+                                    <div class="text-center text-muted py-4 small">┘ä╪º ╪¬┘ê╪¼╪» ╪Ñ╪┤╪╣╪º╪▒╪º╪¬ ╪¿╪╣╪»</div>
                                 </div>
                             </div>
                         </div>
@@ -370,39 +378,110 @@
             </div>
         </div>
 
-        <!-- ADMINS PAGE -->
+                <!-- MESSAGES PAGE -->
+        <div class="page-content d-none" id="page-messages">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <!-- Compose Message -->
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-pencil-square me-2 text-gold"></i>إرسال رسالة جديدة</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-3 col-6">
+                                        <label class="form-label fw-bold">نوع الرسالة</label>
+                                        <select class="form-select" id="msgType">
+                                            <option value="text">نص</option>
+                                            <option value="image">صورة</option>
+                                            <option value="audio">صوت</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-9 col-6">
+                                        <label class="form-label fw-bold">المستلمون</label>
+                                        <select class="form-select" id="msgRecipients" multiple size="3" style="min-height:80px;">
+                                            <option value="all">جميع السائقين</option>
+                                        </select>
+                                        <small class="text-muted">اضغط Ctrl لاختيار أكثر من سائق</small>
+                                    </div>
+                                </div>
+                                <!-- Text Input -->
+                                <div id="msgTextGroup" class="mt-3">
+                                    <label class="form-label fw-bold">نص الرسالة</label>
+                                    <textarea class="form-control" id="msgText" rows="3" placeholder="اكتب رسالتك هنا..."></textarea>
+                                </div>
+                                <!-- Image Input -->
+                                <div id="msgImageGroup" class="mt-3 d-none">
+                                    <label class="form-label fw-bold">اختر صورة</label>
+                                    <input type="file" class="form-control" id="msgImageFile" accept="image/*">
+                                    <div id="msgImagePreview" class="mt-2"></div>
+                                </div>
+                                <!-- Audio Input -->
+                                <div id="msgAudioGroup" class="mt-3 d-none">
+                                    <label class="form-label fw-bold">اختر ملف صوتي</label>
+                                    <input type="file" class="form-control" id="msgAudioFile" accept="audio/*">
+                                    <div id="msgAudioPreview" class="mt-2"></div>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-gold text-white fw-bold" id="sendMsgBtn">
+                                        <i class="bi bi-send-fill me-1"></i>إرسال
+                                    </button>
+                                </div>
+                                <div class="mt-2 fw-semibold" id="msgSendStatus"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Sent Messages -->
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-envelope-fill me-2 text-gold"></i>الرسائل المرسلة (<span id="msgCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearOldMessages()"><i class="bi bi-trash me-1"></i>مسح الكل</button>
+                            </div>
+                            <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
+                                <div id="msgListContainer">
+                                    <div class="text-center text-muted py-4 small">لا توجد رسائل بعد</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+<!-- ADMINS PAGE -->
         <div class="page-content d-none" id="page-admins">
             <div class="container-fluid p-3 p-md-4">
                 <div class="row g-3">
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-plus-fill me-2 text-gold"></i>إضافة مشرف جديد</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-plus-fill me-2 text-gold"></i>╪Ñ╪╢╪º┘ü╪⌐ ┘à╪┤╪▒┘ü ╪¼╪»┘è╪»</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label fw-bold">اسم المستخدم</label>
-                                        <input type="text" class="form-control" id="newAdminUsername" placeholder="اسم المستخدم">
+                                        <label class="form-label fw-bold">╪º╪│┘à ╪º┘ä┘à╪│╪¬╪«╪»┘à</label>
+                                        <input type="text" class="form-control" id="newAdminUsername" placeholder="╪º╪│┘à ╪º┘ä┘à╪│╪¬╪«╪»┘à">
                                     </div>
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label fw-bold">الاسم الكامل</label>
-                                        <input type="text" class="form-control" id="newAdminName" placeholder="الاسم الكامل">
+                                        <label class="form-label fw-bold">╪º┘ä╪º╪│┘à ╪º┘ä┘â╪º┘à┘ä</label>
+                                        <input type="text" class="form-control" id="newAdminName" placeholder="╪º┘ä╪º╪│┘à ╪º┘ä┘â╪º┘à┘ä">
                                     </div>
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label fw-bold">كلمة المرور</label>
-                                        <input type="password" class="form-control" id="newAdminPassword" placeholder="كلمة المرور">
+                                        <label class="form-label fw-bold">┘â┘ä┘à╪⌐ ╪º┘ä┘à╪▒┘ê╪▒</label>
+                                        <input type="password" class="form-control" id="newAdminPassword" placeholder="┘â┘ä┘à╪⌐ ╪º┘ä┘à╪▒┘ê╪▒">
                                     </div>
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label fw-bold">الدور</label>
+                                        <label class="form-label fw-bold">╪º┘ä╪»┘ê╪▒</label>
                                         <select class="form-select" id="newAdminRole">
-                                            <option value="supervisor">مشرف</option>
-                                            <option value="admin">مدير عام</option>
+                                            <option value="supervisor">┘à╪┤╪▒┘ü</option>
+                                            <option value="admin">┘à╪»┘è╪▒ ╪╣╪º┘à</option>
                                         </select>
                                     </div>
                                 </div>
                                 <button class="btn btn-dark-blue text-white fw-bold mt-3" onclick="addAdmin()">
-                                    <i class="bi bi-check-circle me-1"></i>إضافة المشرف
+                                    <i class="bi bi-check-circle me-1"></i>╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä┘à╪┤╪▒┘ü
                                 </button>
                                 <div class="mt-2 fw-semibold" id="addAdminStatus"></div>
                             </div>
@@ -411,21 +490,21 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-shield-lock-fill me-2 text-gold"></i>قائمة المشرفين (<span id="totalAdminsCount">0</span>)</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-shield-lock-fill me-2 text-gold"></i>┘é╪º╪ª┘à╪⌐ ╪º┘ä┘à╪┤╪▒┘ü┘è┘å (<span id="totalAdminsCount">0</span>)</h6>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
                                     <table class="table table-hover align-middle">
                                         <thead class="table-dark-blue text-white">
                                             <tr>
-                                                <th>الاسم</th>
-                                                <th>اسم المستخدم</th>
-                                                <th>الدور</th>
-                                                <th>إجراءات</th>
+                                                <th>╪º┘ä╪º╪│┘à</th>
+                                                <th>╪º╪│┘à ╪º┘ä┘à╪│╪¬╪«╪»┘à</th>
+                                                <th>╪º┘ä╪»┘ê╪▒</th>
+                                                <th>╪Ñ╪¼╪▒╪º╪í╪º╪¬</th>
                                             </tr>
                                         </thead>
                                         <tbody id="adminsTableBody">
-                                            <tr><td colspan="4" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل المشرفين...</div></td></tr>
+                                            <tr><td colspan="4" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">╪¼╪º╪▒┘è ╪¬╪¡┘à┘è┘ä ╪º┘ä┘à╪┤╪▒┘ü┘è┘å...</div></td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -441,30 +520,30 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow-lg">
                 <div class="modal-header border-bottom">
-                    <h6 class="fw-bold">تعديل بيانات السائق</h6>
+                    <h6 class="fw-bold">╪¬╪╣╪»┘è┘ä ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪│╪º╪ª┘é</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="editDriverId">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">الاسم</label>
+                        <label class="form-label fw-bold">╪º┘ä╪º╪│┘à</label>
                         <input type="text" class="form-control" id="editDriverName">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">الهاتف</label>
+                        <label class="form-label fw-bold">╪º┘ä┘ç╪º╪¬┘ü</label>
                         <input type="tel" class="form-control" id="editDriverPhone">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">الحالة</label>
+                        <label class="form-label fw-bold">╪º┘ä╪¡╪º┘ä╪⌐</label>
                         <select class="form-select" id="editDriverStatus">
-                            <option value="active">نشط</option>
-                            <option value="disabled">معطّل</option>
+                            <option value="active">┘å╪┤╪╖</option>
+                            <option value="disabled">┘à╪╣╪╖┘æ┘ä</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditBtn">حفظ التعديلات</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">╪Ñ┘ä╪║╪º╪í</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditBtn">╪¡┘ü╪╕ ╪º┘ä╪¬╪╣╪»┘è┘ä╪º╪¬</button>
                 </div>
             </div>
         </div>
@@ -475,19 +554,19 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow-lg">
                 <div class="modal-header border-bottom">
-                    <h6 class="fw-bold">شحن رصيد السائق</h6>
+                    <h6 class="fw-bold">╪┤╪¡┘å ╪▒╪╡┘è╪» ╪º┘ä╪│╪º╪ª┘é</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="creditDriverId">
-                    <p class="mb-1">السائق: <strong id="creditDriverName"></strong></p>
-                    <p class="mb-3">الرصيد الحالي: <strong class="text-gold" id="creditDriverCurrent"></strong> MRU</p>
-                    <label class="form-label fw-bold">المبلغ (MRU)</label>
-                    <input type="number" class="form-control" id="creditAmount" placeholder="أدخل المبلغ" min="1">
+                    <p class="mb-1">╪º┘ä╪│╪º╪ª┘é: <strong id="creditDriverName"></strong></p>
+                    <p class="mb-3">╪º┘ä╪▒╪╡┘è╪» ╪º┘ä╪¡╪º┘ä┘è: <strong class="text-gold" id="creditDriverCurrent"></strong> MRU</p>
+                    <label class="form-label fw-bold">╪º┘ä┘à╪¿┘ä╪║ (MRU)</label>
+                    <input type="number" class="form-control" id="creditAmount" placeholder="╪ú╪»╪«┘ä ╪º┘ä┘à╪¿┘ä╪║" min="1">
                 </div>
                 <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="button" class="btn btn-success text-white fw-bold" id="confirmCreditBtn">شحن الرصيد</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">╪Ñ┘ä╪║╪º╪í</button>
+                    <button type="button" class="btn btn-success text-white fw-bold" id="confirmCreditBtn">╪┤╪¡┘å ╪º┘ä╪▒╪╡┘è╪»</button>
                 </div>
             </div>
         </div>
@@ -498,18 +577,18 @@
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content rounded-4 border-0 shadow-lg">
                 <div class="modal-header bg-danger text-white border-bottom">
-                    <h6 class="fw-bold">تأكيد الحذف</h6>
+                    <h6 class="fw-bold">╪¬╪ú┘â┘è╪» ╪º┘ä╪¡╪░┘ü</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center">
                     <input type="hidden" id="deleteDriverId">
                     <i class="bi bi-exclamation-triangle text-danger fs-1 mb-2"></i>
-                    <p>هل أنت متأكد من حذف <strong id="deleteDriverName"></strong>؟</p>
-                    <small class="text-muted">هذا الإجراء لا يمكن التراجع عنه.</small>
+                    <p>┘ç┘ä ╪ú┘å╪¬ ┘à╪¬╪ú┘â╪» ┘à┘å ╪¡╪░┘ü <strong id="deleteDriverName"></strong>╪ƒ</p>
+                    <small class="text-muted">┘ç╪░╪º ╪º┘ä╪Ñ╪¼╪▒╪º╪í ┘ä╪º ┘è┘à┘â┘å ╪º┘ä╪¬╪▒╪º╪¼╪╣ ╪╣┘å┘ç.</small>
                 </div>
                 <div class="modal-footer border-top justify-content-center">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="button" class="btn btn-danger fw-bold" id="confirmDeleteBtn">حذف نهائي</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">╪Ñ┘ä╪║╪º╪í</button>
+                    <button type="button" class="btn btn-danger fw-bold" id="confirmDeleteBtn">╪¡╪░┘ü ┘å┘ç╪º╪ª┘è</button>
                 </div>
             </div>
         </div>
@@ -519,45 +598,45 @@
     <div class="dispatch-panel-overlay d-none" id="dispatchOverlay" onclick="toggleDispatchPanel()"></div>
     <div class="dispatch-panel" id="dispatchPanel">
         <div class="dispatch-panel-header bg-dark-blue text-white d-flex align-items-center justify-content-between p-3">
-            <h5 class="fw-bold mb-0"><i class="bi bi-motorcycle me-2"></i>إرسال طلب رحلة</h5>
+            <h5 class="fw-bold mb-0"><i class="bi bi-motorcycle me-2"></i>╪Ñ╪▒╪│╪º┘ä ╪╖┘ä╪¿ ╪▒╪¡┘ä╪⌐</h5>
             <button type="button" class="btn-close btn-close-white" onclick="toggleDispatchPanel()"></button>
         </div>
         <div class="dispatch-panel-body p-3">
             <div class="mb-3">
-                <label class="form-label fw-bold">اسم الزبون</label>
-                <input type="text" class="form-control" id="passengerName" placeholder="أدخل اسم الزبون">
+                <label class="form-label fw-bold">╪º╪│┘à ╪º┘ä╪▓╪¿┘ê┘å</label>
+                <input type="text" class="form-control" id="passengerName" placeholder="╪ú╪»╪«┘ä ╪º╪│┘à ╪º┘ä╪▓╪¿┘ê┘å">
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">رقم هاتف الزبون</label>
-                <input type="tel" class="form-control" id="passengerPhone" placeholder="رقم الهاتف (اختياري)">
+                <label class="form-label fw-bold">╪▒┘é┘à ┘ç╪º╪¬┘ü ╪º┘ä╪▓╪¿┘ê┘å</label>
+                <input type="tel" class="form-control" id="passengerPhone" placeholder="╪▒┘é┘à ╪º┘ä┘ç╪º╪¬┘ü (╪º╪«╪¬┘è╪º╪▒┘è)">
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">نقطة الانطلاق</label>
+                <label class="form-label fw-bold">┘å┘é╪╖╪⌐ ╪º┘ä╪º┘å╪╖┘ä╪º┘é</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="pickupCoords" placeholder="انقر على الخريطة" readonly>
+                    <input type="text" class="form-control" id="pickupCoords" placeholder="╪º┘å┘é╪▒ ╪╣┘ä┘ë ╪º┘ä╪«╪▒┘è╪╖╪⌐" readonly>
                     <button class="btn btn-outline-danger" id="clearPickup"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">عنوان الانطلاق</label>
-                <input type="text" class="form-control" id="pickupAddress" placeholder="أدخل العنوان">
+                <label class="form-label fw-bold">╪╣┘å┘ê╪º┘å ╪º┘ä╪º┘å╪╖┘ä╪º┘é</label>
+                <input type="text" class="form-control" id="pickupAddress" placeholder="╪ú╪»╪«┘ä ╪º┘ä╪╣┘å┘ê╪º┘å">
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">نصف قطر البحث: <span class="text-gold fw-bold" id="radiusValue">3 كم</span></label>
+                <label class="form-label fw-bold">┘å╪╡┘ü ┘é╪╖╪▒ ╪º┘ä╪¿╪¡╪½: <span class="text-gold fw-bold" id="radiusValue">3 ┘â┘à</span></label>
                 <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3">
-                <small class="text-muted">تحديد نطاق السائقين القريبين فقط</small>
+                <small class="text-muted">╪¬╪¡╪»┘è╪» ┘å╪╖╪º┘é ╪º┘ä╪│╪º╪ª┘é┘è┘å ╪º┘ä┘é╪▒┘è╪¿┘è┘å ┘ü┘é╪╖</small>
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">الوجهة</label>
-                <input type="text" class="form-control" id="dropoffAddress" placeholder="أدخل عنوان الوجهة">
+                <label class="form-label fw-bold">╪º┘ä┘ê╪¼┘ç╪⌐</label>
+                <input type="text" class="form-control" id="dropoffAddress" placeholder="╪ú╪»╪«┘ä ╪╣┘å┘ê╪º┘å ╪º┘ä┘ê╪¼┘ç╪⌐">
             </div>
             <div class="mb-3">
-                <label class="form-label fw-bold">سعر الرحلة (MRU)</label>
-                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="أدخل السعر">
-                <small class="text-muted">يُحدد يدوياً من قِبل المشرف</small>
+                <label class="form-label fw-bold">╪│╪╣╪▒ ╪º┘ä╪▒╪¡┘ä╪⌐ (MRU)</label>
+                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="╪ú╪»╪«┘ä ╪º┘ä╪│╪╣╪▒">
+                <small class="text-muted">┘è┘Å╪¡╪»╪» ┘è╪»┘ê┘è╪º┘ï ┘à┘å ┘é┘É╪¿┘ä ╪º┘ä┘à╪┤╪▒┘ü</small>
             </div>
             <button class="btn btn-gold text-white fw-bold w-100 py-3" id="dispatchBtn" disabled>
-                <i class="bi bi-send-fill me-2"></i>إرسال تنبيه للسائقين
+                <i class="bi bi-send-fill me-2"></i>╪Ñ╪▒╪│╪º┘ä ╪¬┘å╪¿┘è┘ç ┘ä┘ä╪│╪º╪ª┘é┘è┘å
             </button>
             <div class="text-center mt-2 fw-semibold" id="dispatchStatus"></div>
         </div>
@@ -566,7 +645,7 @@
     <!-- FLOATING DISPATCH TOGGLE BUTTON (always visible) -->
     <button class="dispatch-fab" id="dispatchFab" onclick="toggleDispatchPanel()">
         <i class="bi bi-send-fill"></i>
-        <span class="d-none d-sm-inline ms-2">إرسال رحلة</span>
+        <span class="d-none d-sm-inline ms-2">╪Ñ╪▒╪│╪º┘ä ╪▒╪¡┘ä╪⌐</span>
     </button>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

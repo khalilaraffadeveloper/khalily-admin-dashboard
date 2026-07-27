@@ -39,6 +39,7 @@ import com.khalily.driver.ui.screens.home.RideRequestDialog
 import com.khalily.driver.ui.screens.home.RideTrackingScreen
 import com.khalily.driver.ui.screens.settings.SettingsScreen
 import com.khalily.driver.ui.screens.login.LoginScreen
+import com.khalily.driver.ui.screens.messages.MessagesScreen
 import com.khalily.driver.ui.theme.KhalilyTheme
 import com.khalily.driver.util.PrefsManager
 
@@ -48,6 +49,7 @@ class MainActivity : ComponentActivity() {
     private var showRideDetail by mutableStateOf(false)
     private var showRideTracking by mutableStateOf(false)
     private var showSettings by mutableStateOf(false)
+    private var showMessages by mutableStateOf(false)
     private var showCancelledMsg by mutableStateOf(false)
     private var cancelledRideId by mutableStateOf("")
     private var cancelledMsgText by mutableStateOf("")
@@ -99,6 +101,11 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     when {
+                        showMessages -> {
+                            MessagesScreen(
+                                onBack = { showMessages = false }
+                            )
+                        }
                         showSettings -> {
                             SettingsScreen(
                                 onBack = { showSettings = false },
@@ -135,7 +142,8 @@ class MainActivity : ComponentActivity() {
                         }
                         isLoggedIn -> {
                             DriverHomeScreen(
-                                onNavigateToSettings = { showSettings = true }
+                                onNavigateToSettings = { showSettings = true },
+                                onNavigateToMessages = { showMessages = true }
                             )
 
                             if (showRideDialog) {

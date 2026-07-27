@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -30,6 +31,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.khalily.driver.R
 import com.khalily.driver.service.DriverLocationService
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.khalily.driver.ui.theme.*
 import com.khalily.driver.util.NumberFormatter
 import com.khalily.driver.util.PrefsManager
@@ -47,18 +50,42 @@ private val NOUAKCHOTT_BOUNDS = BoundingBox(
 
 @Composable
 fun DriverHomeScreen(
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToMessages: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val driverId = PrefsManager.getDriverId(context) ?: ""
     var isOnline by remember { mutableStateOf(PrefsManager.isOnline(context)) }
     var driverCredit by remember { mutableDoubleStateOf(0.0) }
     var showCreditAlert by remember { mutableStateOf(false) }
+    var unreadCount by remember { mutableIntStateOf(0) }
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
                 context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    // Listen for unread messages
+    DisposableEffect(driverId) {
+        if (driverId.isEmpty()) return@DisposableEffect onDispose {}
+        val db = FirebaseFirestore.getInstance()
+        var msgListener: ListenerRegistration? = null
+        msgListener = db.collection("messages")
+            .whereArrayContains("recipients", driverId)
+            .addSnapshotListener { snapshot, _ ->
+                if (snapshot == null) return@addSnapshotListener
+                val unread = snapshot.documents.count { doc ->
+                    @Suppress("UNCHECKED_CAST")
+                    val readBy = doc.get("readBy") as? List<String> ?: emptyList()
+                    driverId !in readBy
+                }
+                unreadCount = unread
+            }
+        onDispose {
+            msgListener?.remove()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -212,13 +239,45 @@ fun DriverHomeScreen(
                         )
                     }
 
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "الإعدادات",
-                            tint = KhalilyGold,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Row {
+                        // Messages icon with badge
+                        Box {
+                            IconButton(onClick = onNavigateToMessages) {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = "الرسائل",
+                                    tint = KhalilyGold,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            if (unreadCount > 0) {
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(end = 2.dp, top = 2.dp)
+                                        .size(16.dp),
+                                    shape = CircleShape,
+                                    color = Color(0xFFE53935)
+                                ) {
+                                    Text(
+                                        text = if (unreadCount > 9) "9+" else "$unreadCount",
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "الإعدادات",
+                                tint = KhalilyGold,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
