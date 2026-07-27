@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.FirebaseFirestore
 import com.khalily.driver.R
 import com.khalily.driver.ui.theme.*
@@ -60,14 +61,20 @@ fun SettingsScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var commissionPercent by remember { mutableDoubleStateOf(10.0) }
 
-    LaunchedEffect(Unit) {
-        fun doQuery(defaultCommPct: Double) {
+    DisposableEffect(Unit) {
+        var listener: ListenerRegistration? = null
+
+        fun startListening(defaultCommPct: Double) {
             if (driverId.isEmpty()) { isLoading = false; return }
-            db.collection("rides")
+            val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US)
+            listener = db.collection("rides")
                 .whereEqualTo("assignedDriverId", driverId)
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        android.util.Log.e("Settings", "Ride history error: ${e.message}")
+                        return@addSnapshotListener
+                    }
+                    if (snapshot == null) return@addSnapshotListener
                     rideHistory = snapshot.documents.mapNotNull { doc ->
                         val finalFare = doc.getDouble("finalFare")
                         val fareLong = doc.getLong("fare")
@@ -104,10 +111,6 @@ fun SettingsScreen(
                     }.sortedByDescending { it.createdAtDate }
                     isLoading = false
                 }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("Settings", "Ride history error: ${e.message}")
-                    isLoading = false
-                }
         }
 
         db.collection("settings").document("app_config")
@@ -115,11 +118,15 @@ fun SettingsScreen(
             .addOnSuccessListener { doc ->
                 val pct = if (doc.exists()) (doc.getDouble("commissionPercent") ?: 10.0) else 10.0
                 commissionPercent = pct
-                doQuery(pct)
+                startListening(pct)
             }
             .addOnFailureListener {
-                doQuery(commissionPercent)
+                startListening(commissionPercent)
             }
+
+        onDispose {
+            listener?.remove()
+        }
     }
 
     Column(

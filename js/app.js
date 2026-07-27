@@ -492,31 +492,13 @@ window.quickAddCredit = async function (driverId) {
 // ============================================
 let activeRidesMap = {};
 let firstRidesSnapshot = true;
+let rideStatusCache = {};
 
 function initRealtimeListeners() {
     if (!db) return;
 
     db.collection('rides').where('status', 'in', ['accepted', 'in_progress'])
         .onSnapshot(snapshot => {
-            if (!firstRidesSnapshot && snapshot.docChanges().length > 0) {
-                const hasNew = snapshot.docChanges().some(c => c.type === 'added');
-                if (hasNew) playNotificationSound();
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') {
-                        const rd = change.doc.data();
-                        addNotifLog('new_ride', `رحلة جديدة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                    }
-                    if (change.type === 'modified') {
-                        const rd = change.doc.data();
-                        if (rd.status === 'accepted') addNotifLog('ride_accepted', `تم قبول الرحلة: ${rd.passengerName || 'زبون'}`);
-                        else if (rd.status === 'in_progress') addNotifLog('ride_in_progress', `بدء تنفيذ: ${rd.passengerName || 'زبون'}`);
-                        else if (rd.status === 'completed') addNotifLog('ride_completed', `اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                        else if (rd.status === 'cancelled') addNotifLog('ride_cancelled', `تم إلغاء: ${rd.passengerName || 'زبون'}`);
-                    }
-                });
-            }
-            firstRidesSnapshot = false;
-
             document.getElementById('rideCount').textContent = snapshot.size;
             document.getElementById('statActiveRides').textContent = snapshot.size;
             const mobileCount = document.querySelector('.rideCount-mobile');
@@ -548,6 +530,46 @@ function initRealtimeListeners() {
                     delete activeRidesMap[id];
                 }
             });
+        }, err => {
+            console.error('Active rides listener error:', err);
+        });
+
+    db.collection('rides').orderBy('createdAt', 'desc').limit(50)
+        .onSnapshot(snapshot => {
+            const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
+            const statusIcons = { pending: '⏳', accepted: '✅', in_progress: '🛵', completed: '🏁', cancelled: '❌', no_drivers: '🚫' };
+            const isFirstLoad = Object.keys(rideStatusCache).length === 0;
+            if (!isFirstLoad && snapshot.docChanges().length > 0) {
+                snapshot.docChanges().forEach(change => {
+                    const rd = change.doc.data();
+                    const id = change.doc.id;
+                    const curr = rd.status;
+                    const prev = rideStatusCache[id];
+                    rideStatusCache[id] = curr;
+                    if (change.type === 'added' && !prev) {
+                        if (curr !== 'pending' && curr !== 'no_drivers') {
+                            playNotificationSound();
+                            addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                        }
+                        return;
+                    }
+                    if (change.type === 'modified' && prev && prev !== curr) {
+                        playNotificationSound();
+                        if (curr === 'accepted') addNotifLog('ride_accepted', `✅ تم قبول الرحلة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                        else if (curr === 'in_progress') addNotifLog('ride_in_progress', `🛵 بدء التنفيذ: ${rd.passengerName || 'زبون'}`);
+                        else if (curr === 'completed') addNotifLog('ride_completed', `🏁 اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                        else if (curr === 'cancelled') addNotifLog('ride_cancelled', `❌ تم الإلغاء: ${rd.passengerName || 'زبون'}`);
+                        else addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`);
+                    }
+                });
+            } else {
+                snapshot.forEach(doc => { rideStatusCache[doc.id] = doc.data().status; });
+            }
+            firstRidesSnapshot = false;
+            snapshot.forEach(doc => { rideStatusCache[doc.id] = doc.data().status; });
+        }, err => {
+            console.error('Rides changes listener error:', err);
+            addNotifLog('system', `خطأ في مراقبة الرحلات: ${err.message}`);
         });
 
     db.collection('drivers').where('isOnline', '==', true)
