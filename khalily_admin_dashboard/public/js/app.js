@@ -612,7 +612,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
 async function loadDriversList() {
     if (!requireDb()) return;
     const tbody = document.getElementById('driversTableBody');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
     try {
         const snapshot = await db.collection('drivers').get();
         allDrivers = [];
@@ -620,7 +620,7 @@ async function loadDriversList() {
         renderDriversList(allDrivers);
     } catch (err) {
         console.error('Load drivers error:', err);
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
@@ -628,7 +628,7 @@ function renderDriversList(drivers) {
     const tbody = document.getElementById('driversTableBody');
     document.getElementById('totalDriversCount').textContent = drivers.length;
     if (drivers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا يوجد سائقون</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">لا يوجد سائقون</td></tr>';
         return;
     }
     tbody.innerHTML = drivers.map(d => {
@@ -639,6 +639,7 @@ function renderDriversList(drivers) {
         return `<tr>
             <td><strong>${d.name || '-'}</strong></td>
             <td>${d.phone || '-'}</td>
+            <td><span class="text-muted">${d.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPasswordModal('${d.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
             <td><strong>${d.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
             <td>
@@ -678,6 +679,26 @@ function filterDrivers() {
 const editModal = new bootstrap.Modal(document.getElementById('editDriverModal'));
 const creditModal = new bootstrap.Modal(document.getElementById('creditModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+
+window.openPasswordModal = function(id, name) {
+    document.getElementById('passwordDriverId').value = id;
+    document.getElementById('passwordDriverName').textContent = name;
+    document.getElementById('newPasswordValue').value = '';
+    passwordModal.show();
+};
+
+document.getElementById('savePasswordBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('passwordDriverId').value;
+    const newPass = document.getElementById('newPasswordValue').value.trim();
+    if (!newPass) { alert('أدخل كلمة السور الجديدة'); return; }
+    try {
+        await db.collection('drivers').doc(id).update({ password: newPass });
+        passwordModal.hide();
+        loadDriversList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
 
 window.openEditModal = function(id, name, phone, status) {
     document.getElementById('editDriverId').value = id;

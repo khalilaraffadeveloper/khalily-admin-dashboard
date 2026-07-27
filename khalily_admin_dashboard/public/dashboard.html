@@ -240,13 +240,14 @@
                                             <tr>
                                                 <th>الاسم</th>
                                                 <th>الهاتف</th>
+                                                <th>كلمة السور</th>
                                                 <th>الرصيد</th>
                                                 <th>الحالة</th>
                                                 <th>إجراءات</th>
                                             </tr>
                                         </thead>
                                         <tbody id="driversTableBody">
-                                            <tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>
+                                            <tr><td colspan="6" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -538,6 +539,28 @@
                 <div class="modal-footer border-top">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                     <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditBtn">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREDIT MODAL -->
+    <div class="modal fade" id="passwordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold">تغيير كلمة السور</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="passwordDriverId">
+                    <p class="mb-3">السائق: <strong id="passwordDriverName"></strong></p>
+                    <label class="form-label fw-bold">كلمة السور الجديدة</label>
+                    <input type="text" class="form-control" id="newPasswordValue" placeholder="أدخل كلمة السور الجديدة" autocomplete="new-password">
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="savePasswordBtn">حفظ كلمة السور</button>
                 </div>
             </div>
         </div>
