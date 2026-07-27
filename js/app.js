@@ -491,7 +491,6 @@ window.quickAddCredit = async function (driverId) {
 // REAL-TIME LISTENERS
 // ============================================
 let activeRidesMap = {};
-let firstRidesSnapshot = true;
 let rideStatusCache = {};
 
 function initRealtimeListeners() {
@@ -504,9 +503,11 @@ function initRealtimeListeners() {
             const mobileCount = document.querySelector('.rideCount-mobile');
             if (mobileCount) mobileCount.textContent = snapshot.size;
 
+            const activeIds = new Set();
             snapshot.forEach(doc => {
                 const r = doc.data();
                 const id = doc.id;
+                activeIds.add(id);
                 if (!r.pickupLat || !r.pickupLng) return;
                 if (activeRidesMap[id]) {
                     activeRidesMap[id].marker.setLatLng([r.pickupLat, r.pickupLng]);
@@ -525,51 +526,10 @@ function initRealtimeListeners() {
             });
 
             Object.keys(activeRidesMap).forEach(id => {
-                if (!snapshot.docs.find(d => d.id === id)) {
-                    map.removeLayer(activeRidesMap[id].marker);
-                    delete activeRidesMap[id];
-                }
+                if (!activeIds.has(id)) { map.removeLayer(activeRidesMap[id].marker); delete activeRidesMap[id]; }
             });
         }, err => {
             console.error('Active rides listener error:', err);
-        });
-
-    db.collection('rides').orderBy('createdAt', 'desc').limit(50)
-        .onSnapshot(snapshot => {
-            const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
-            const statusIcons = { pending: '⏳', accepted: '✅', in_progress: '🛵', completed: '🏁', cancelled: '❌', no_drivers: '🚫' };
-            const isFirstLoad = Object.keys(rideStatusCache).length === 0;
-            if (!isFirstLoad && snapshot.docChanges().length > 0) {
-                snapshot.docChanges().forEach(change => {
-                    const rd = change.doc.data();
-                    const id = change.doc.id;
-                    const curr = rd.status;
-                    const prev = rideStatusCache[id];
-                    rideStatusCache[id] = curr;
-                    if (change.type === 'added' && !prev) {
-                        if (curr !== 'pending' && curr !== 'no_drivers') {
-                            playNotificationSound();
-                            addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                        }
-                        return;
-                    }
-                    if (change.type === 'modified' && prev && prev !== curr) {
-                        playNotificationSound();
-                        if (curr === 'accepted') addNotifLog('ride_accepted', `✅ تم قبول الرحلة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                        else if (curr === 'in_progress') addNotifLog('ride_in_progress', `🛵 بدء التنفيذ: ${rd.passengerName || 'زبون'}`);
-                        else if (curr === 'completed') addNotifLog('ride_completed', `🏁 اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                        else if (curr === 'cancelled') addNotifLog('ride_cancelled', `❌ تم الإلغاء: ${rd.passengerName || 'زبون'}`);
-                        else addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`);
-                    }
-                });
-            } else {
-                snapshot.forEach(doc => { rideStatusCache[doc.id] = doc.data().status; });
-            }
-            firstRidesSnapshot = false;
-            snapshot.forEach(doc => { rideStatusCache[doc.id] = doc.data().status; });
-        }, err => {
-            console.error('Rides changes listener error:', err);
-            addNotifLog('system', `خطأ في مراقبة الرحلات: ${err.message}`);
         });
 
     db.collection('drivers').where('isOnline', '==', true)
@@ -788,10 +748,36 @@ async function loadRidesList() {
     if (!requireDb()) return;
     if (ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     const tbody = document.getElementById('ridesTableBody');
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
         ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
             .onSnapshot(snapshot => {
+                const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
+                const statusIcons = { pending: '⏳', accepted: '✅', in_progress: '🛵', completed: '🏁', cancelled: '❌', no_drivers: '🚫' };
+
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'modified' || change.type === 'added') {
+                        const rd = change.doc.data();
+                        const id = change.doc.id;
+                        const curr = rd.status;
+                        const prev = rideStatusCache[id];
+                        rideStatusCache[id] = curr;
+                        if (change.type === 'added' && !prev && curr !== 'pending' && curr !== 'no_drivers') {
+                            playNotificationSound();
+                            addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                        }
+                        if (change.type === 'modified' && prev && prev !== curr) {
+                            playNotificationSound();
+                            if (curr === 'accepted') addNotifLog('ride_accepted', `✅ تم قبول الرحلة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                            else if (curr === 'in_progress') addNotifLog('ride_in_progress', `🛵 بدء التنفيذ: ${rd.passengerName || 'زبون'}`);
+                            else if (curr === 'completed') addNotifLog('ride_completed', `🏁 اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                            else if (curr === 'cancelled') addNotifLog('ride_cancelled', `❌ تم الإلغاء: ${rd.passengerName || 'زبون'}`);
+                            else addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`);
+                        }
+                    }
+                });
+                snapshot.forEach(doc => { rideStatusCache[doc.id] = doc.data().status; });
+
                 allRides = [];
                 snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
                 const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
@@ -799,18 +785,18 @@ async function loadRidesList() {
                 else renderRidesList(allRides.filter(r => r.status === currentFilter));
             }, err => {
                 console.error('Rides listener error:', err);
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
             });
     } catch (err) {
         console.error('Load rides error:', err);
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };

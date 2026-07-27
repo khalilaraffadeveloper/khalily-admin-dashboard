@@ -267,7 +267,6 @@ class MainActivity : ComponentActivity() {
 
         rideListener = db.collection("rides")
             .whereArrayContains("notifiedDrivers", driverId)
-            .whereEqualTo("status", "pending")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     android.util.Log.e("MainActivity", "Ride listener error: ${e.message}")
@@ -278,25 +277,29 @@ class MainActivity : ComponentActivity() {
                     return@addSnapshotListener
                 }
                 if (snapshot == null || snapshot.isEmpty) return@addSnapshotListener
-                val doc = snapshot.documents.firstOrNull() ?: return@addSnapshotListener
+
+                val pendingDoc = snapshot.documents.filter {
+                    it.getString("status") == "pending"
+                }.firstOrNull() ?: return@addSnapshotListener
+
                 if (showRideDialog || showRideDetail || showRideTracking) return@addSnapshotListener
 
                 val credit = driverCredit
                 if (credit <= 0) return@addSnapshotListener
 
                 val rideData = mapOf(
-                    "rideId" to doc.id,
-                    "passengerName" to (doc.getString("passengerName") ?: "زبون"),
-                    "passengerPhone" to (doc.getString("passengerPhone") ?: ""),
-                    "pickupLat" to (doc.getDouble("pickupLat") ?: 0.0),
-                    "pickupLng" to (doc.getDouble("pickupLng") ?: 0.0),
-                    "pickupAddress" to (doc.getString("pickupAddress") ?: ""),
-                    "dropoffLat" to (doc.getDouble("dropoffLat") ?: 0.0),
-                    "dropoffLng" to (doc.getDouble("dropoffLng") ?: 0.0),
-                    "dropoffAddress" to (doc.getString("dropoffAddress") ?: ""),
-                    "realDistanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: "0"),
-                    "distanceKm" to (doc.getDouble("realDistanceKm")?.toString() ?: doc.getDouble("distanceKm")?.toString() ?: doc.getDouble("searchRadiusKm")?.toString() ?: "0"),
-                    "fare" to (doc.getLong("fare")?.toString() ?: doc.getDouble("fare")?.toString() ?: "0"),
+                    "rideId" to pendingDoc.id,
+                    "passengerName" to (pendingDoc.getString("passengerName") ?: "زبون"),
+                    "passengerPhone" to (pendingDoc.getString("passengerPhone") ?: ""),
+                    "pickupLat" to (pendingDoc.getDouble("pickupLat") ?: 0.0),
+                    "pickupLng" to (pendingDoc.getDouble("pickupLng") ?: 0.0),
+                    "pickupAddress" to (pendingDoc.getString("pickupAddress") ?: ""),
+                    "dropoffLat" to (pendingDoc.getDouble("dropoffLat") ?: 0.0),
+                    "dropoffLng" to (pendingDoc.getDouble("dropoffLng") ?: 0.0),
+                    "dropoffAddress" to (pendingDoc.getString("dropoffAddress") ?: ""),
+                    "realDistanceKm" to (pendingDoc.getDouble("realDistanceKm")?.toString() ?: "0"),
+                    "distanceKm" to (pendingDoc.getDouble("realDistanceKm")?.toString() ?: pendingDoc.getDouble("distanceKm")?.toString() ?: pendingDoc.getDouble("searchRadiusKm")?.toString() ?: "0"),
+                    "fare" to (pendingDoc.getLong("fare")?.toString() ?: pendingDoc.getDouble("fare")?.toString() ?: "0"),
                     "commissionPercent" to commissionPercent.toString()
                 )
                 SoundPlayer.playRideRequestSound(this)
@@ -310,7 +313,6 @@ class MainActivity : ComponentActivity() {
         var isFirstCancelSnapshot = true
         cancelListener = db.collection("rides")
             .whereArrayContains("notifiedDrivers", driverId)
-            .whereEqualTo("status", "cancelled")
             .addSnapshotListener { snapshot, e ->
                 if (isFirstCancelSnapshot) {
                     isFirstCancelSnapshot = false
@@ -320,9 +322,12 @@ class MainActivity : ComponentActivity() {
 
                 val seen = PrefsManager.getSeenCancellations(this@MainActivity)
 
-                for (doc in snapshot.documentChanges) {
-                    if (doc.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
-                        val rideId = doc.document.id
+                for (change in snapshot.documentChanges) {
+                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.MODIFIED) {
+                        val doc = change.document
+                        val rideId = doc.id
+                        val status = doc.getString("status")
+                        if (status != "cancelled") continue
                         if (seen.contains(rideId)) continue
 
                         val currentRideId = currentRideData["rideId"]?.toString()
@@ -334,7 +339,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val driverIdCurrent = PrefsManager.getDriverId(this@MainActivity)
-                        val assignedDriver = doc.document.getString("assignedDriverId")
+                        val assignedDriver = doc.getString("assignedDriverId")
                         if (assignedDriver == driverIdCurrent) {
                             cancelledMsgText = "تم إلغاء رحلتك من قبل الإدارة. لن يُخصم أي مبلغ من رصيدك."
                         } else {
@@ -439,7 +444,8 @@ class MainActivity : ComponentActivity() {
                 "completedBy", "driver",
                 "completedAt", com.google.firebase.firestore.FieldValue.serverTimestamp(),
                 "commissionAmount", commission,
-                "finalFare", fare
+                "finalFare", fare,
+                "assignedDriverId", driverId
             )
 
             transition.update(driverRef,
@@ -457,7 +463,8 @@ class MainActivity : ComponentActivity() {
                     "completedBy" to "driver",
                     "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
                     "commissionAmount" to commission,
-                    "finalFare" to fare
+                    "finalFare" to fare,
+                    "assignedDriverId" to driverId
                 )
             ).addOnSuccessListener {
                 driverRef.update(
@@ -472,11 +479,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showAcceptError(message: String) {
-        currentRideData = currentRideData.toMutableMap().apply {
-            put("_error", message)
-        }
         showRideDialog = false
-        showRideDetail = true
+        showRideDetail = false
+        showRideTracking = false
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
     }
 
     private fun requestPermissions() {

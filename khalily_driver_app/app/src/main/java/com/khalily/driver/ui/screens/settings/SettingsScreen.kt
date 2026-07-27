@@ -63,6 +63,48 @@ fun SettingsScreen(
 
     DisposableEffect(Unit) {
         var listener: ListenerRegistration? = null
+        var listener2: ListenerRegistration? = null
+        val rideMap = mutableMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+        val relevantStatuses = setOf("accepted", "in_progress", "completed", "cancelled")
+
+        fun buildHistory(defaultCommPct: Double) {
+            val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US)
+            rideHistory = rideMap.values.filter { doc ->
+                val status = doc.getString("status") ?: ""
+                status in relevantStatuses
+            }.mapNotNull { doc ->
+                val finalFare = doc.getDouble("finalFare")
+                val fareLong = doc.getLong("fare")
+                val fareDouble = doc.getDouble("fare")
+                val fare = finalFare ?: fareDouble ?: fareLong?.toDouble() ?: 0.0
+
+                val savedCommission = doc.getDouble("commissionAmount")
+                val commPct = doc.getDouble("commissionPercent") ?: defaultCommPct
+                val commission = savedCommission ?: Math.round(fare * commPct / 100).toDouble()
+
+                val distDouble = doc.getDouble("realDistanceKm")
+                val distLong = doc.getLong("realDistanceKm")
+                val distFallbackDouble = doc.getDouble("distanceKm")
+                val distFallbackLong = doc.getLong("distanceKm")
+                val distanceKm = distDouble ?: distLong?.toDouble() ?: distFallbackDouble ?: distFallbackLong?.toDouble() ?: 0.0
+
+                val created = doc.getTimestamp("createdAt")?.toDate()
+
+                RideHistoryItem(
+                    rideId = doc.id,
+                    passengerName = doc.getString("passengerName") ?: "",
+                    pickupAddress = doc.getString("pickupAddress") ?: "",
+                    dropoffAddress = doc.getString("dropoffAddress") ?: "",
+                    fare = fare,
+                    commission = commission,
+                    distanceKm = distanceKm,
+                    status = doc.getString("status") ?: "",
+                    createdAt = if (created != null) sdf.format(created) else "",
+                    createdAtDate = created
+                )
+            }.sortedByDescending { it.createdAtDate }
+            isLoading = false
+        }
 
         fun startListening(defaultCommPct: Double) {
             if (driverId.isEmpty()) {
@@ -71,55 +113,31 @@ fun SettingsScreen(
                 return
             }
             android.util.Log.d("Settings", "Starting ride history listener for driver: $driverId")
-            val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US)
+
             listener = db.collection("rides")
                 .whereEqualTo("assignedDriverId", driverId)
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) {
-                        android.util.Log.e("Settings", "Ride history listener error: ${e.message}", e)
-                        isLoading = false
+                        android.util.Log.e("Settings", "Ride history listener (assigned) error: ${e.message}", e)
                         return@addSnapshotListener
                     }
-                    if (snapshot == null) {
-                        android.util.Log.e("Settings", "Ride history snapshot is null")
+                    if (snapshot != null) {
+                        for (doc in snapshot.documents) { rideMap[doc.id] = doc }
+                    }
+                    buildHistory(defaultCommPct)
+                }
+
+            listener2 = db.collection("rides")
+                .whereArrayContains("notifiedDrivers", driverId)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        android.util.Log.e("Settings", "Ride history listener (notified) error: ${e.message}", e)
                         return@addSnapshotListener
                     }
-                    android.util.Log.d("Settings", "Ride history snapshot: ${snapshot.size()} documents")
-                    rideHistory = snapshot.documents.mapNotNull { doc ->
-                        val finalFare = doc.getDouble("finalFare")
-                        val fareLong = doc.getLong("fare")
-                        val fareDouble = doc.getDouble("fare")
-                        val fare = finalFare ?: fareDouble ?: fareLong?.toDouble() ?: 0.0
-
-                        val savedCommission = doc.getDouble("commissionAmount")
-                        val commPct = doc.getDouble("commissionPercent") ?: defaultCommPct
-                        val commission = savedCommission ?: Math.round(fare * commPct / 100).toDouble()
-
-                        val distDouble = doc.getDouble("realDistanceKm")
-                        val distLong = doc.getLong("realDistanceKm")
-                        val distFallbackDouble = doc.getDouble("distanceKm")
-                        val distFallbackLong = doc.getLong("distanceKm")
-                        val distanceKm = distDouble ?: distLong?.toDouble() ?: distFallbackDouble ?: distFallbackLong?.toDouble() ?: 0.0
-
-                        val created = doc.getTimestamp("createdAt")?.toDate()
-                        val status = doc.getString("status") ?: ""
-
-                        if (status.isEmpty()) return@mapNotNull null
-
-                        RideHistoryItem(
-                            rideId = doc.id,
-                            passengerName = doc.getString("passengerName") ?: "",
-                            pickupAddress = doc.getString("pickupAddress") ?: "",
-                            dropoffAddress = doc.getString("dropoffAddress") ?: "",
-                            fare = fare,
-                            commission = commission,
-                            distanceKm = distanceKm,
-                            status = status,
-                            createdAt = if (created != null) sdf.format(created) else "",
-                            createdAtDate = created
-                        )
-                    }.sortedByDescending { it.createdAtDate }
-                    isLoading = false
+                    if (snapshot != null) {
+                        for (doc in snapshot.documents) { rideMap[doc.id] = doc }
+                    }
+                    buildHistory(defaultCommPct)
                 }
         }
 
@@ -137,6 +155,7 @@ fun SettingsScreen(
 
         onDispose {
             listener?.remove()
+            listener2?.remove()
         }
     }
 
