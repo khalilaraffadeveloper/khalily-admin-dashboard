@@ -868,7 +868,7 @@ async function loadStats() {
             totalRidesCount++;
             if (r.status === 'completed') {
                 completedCount++;
-                totalComm += r.commissionAmount || Math.round((r.fare || 0) * commissionPercent / 100);
+                if (r.commissionAmount) totalComm += r.commissionAmount;
             }
             if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
         });
