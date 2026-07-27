@@ -589,6 +589,30 @@
         </div>
     </div>
 
+    <!-- EDIT CREDIT MODAL -->
+    <div class="modal fade" id="editCreditModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold">تعديل الرصيد</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCreditDriverId">
+                    <p class="mb-1">السائق: <strong id="editCreditDriverName"></strong></p>
+                    <p class="mb-3">الرصيد الحالي: <strong class="text-gold" id="editCreditCurrent"></strong> MRU</p>
+                    <label class="form-label fw-bold">الرصيد الجديد (MRU)</label>
+                    <input type="number" class="form-control fw-bold" id="editCreditNewValue" placeholder="أدخل الرصيد الجديد" min="0">
+                    <small class="text-muted">سيتم استبدال الرصيد الحالي بالقيمة الجديدة</small>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-warning text-dark fw-bold" id="confirmEditCreditBtn">حفظ التعديل</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DELETE MODAL -->
     <div class="modal fade" id="deleteModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">

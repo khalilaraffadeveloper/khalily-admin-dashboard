@@ -646,6 +646,7 @@ function renderDriversList(drivers) {
                 <div class="d-flex gap-1 flex-wrap">
                     <button class="btn-action btn-action-edit" onclick="openEditModal('${d.id}','${safeName}','${d.phone||''}','${d.disabled?"disabled":"active"}')">تعديل</button>
                     <button class="btn-action btn-action-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>
+                    <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${d.id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
                     <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>
                     <button class="btn-action btn-action-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>
                 </div>
@@ -680,6 +681,7 @@ const editModal = new bootstrap.Modal(document.getElementById('editDriverModal')
 const creditModal = new bootstrap.Modal(document.getElementById('creditModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+const editCreditModal = new bootstrap.Modal(document.getElementById('editCreditModal'));
 
 window.openPasswordModal = function(id, name) {
     document.getElementById('passwordDriverId').value = id;
@@ -696,6 +698,28 @@ document.getElementById('savePasswordBtn').addEventListener('click', async () =>
     try {
         await db.collection('drivers').doc(id).update({ password: newPass });
         passwordModal.hide();
+        loadDriversList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
+
+window.openEditCreditModal = function(id, name, current) {
+    document.getElementById('editCreditDriverId').value = id;
+    document.getElementById('editCreditDriverName').textContent = name;
+    document.getElementById('editCreditCurrent').textContent = current;
+    document.getElementById('editCreditNewValue').value = current;
+    editCreditModal.show();
+};
+
+document.getElementById('confirmEditCreditBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCreditDriverId').value;
+    const newVal = parseFloat(document.getElementById('editCreditNewValue').value);
+    if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
+        alert('أدخل رصيد صحيح'); return;
+    }
+    try {
+        await db.collection('drivers').doc(id).update({ credit: newVal });
+        editCreditModal.hide();
         loadDriversList();
     } catch (err) { alert('خطأ: ' + err.message); }
 });
