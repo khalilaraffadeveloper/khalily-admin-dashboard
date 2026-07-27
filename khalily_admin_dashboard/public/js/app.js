@@ -1076,7 +1076,7 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
     const recipientsSel = document.getElementById('msgRecipients');
     const recipientIds = Array.from(recipientsSel.selectedOptions).map(o => o.value);
     const senderName = sessionStorage.getItem('khalily_admin_name') || 'المدير';
-    const msg = { type, senderName, readBy: [], createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    const msg = { type, sentBy: senderName, readBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
 
     if (recipientIds.includes('all')) {
         const snap = await db.collection('drivers').get();
@@ -1142,7 +1142,7 @@ async function loadSentMessages() {
     container.innerHTML = '<div class="text-center py-4"><div class="khalily-spinner"></div></div>';
 
     try {
-        const snap = await db.collection('messages').orderBy('createdAt', 'desc').limit(50).get();
+        const snap = await db.collection('messages').orderBy('timestamp', 'desc').limit(50).get();
         document.getElementById('msgCount').textContent = snap.size;
 
         if (snap.empty) {
@@ -1155,7 +1155,7 @@ async function loadSentMessages() {
 
         container.innerHTML = snap.docs.map(doc => {
             const m = doc.data();
-            const time = m.createdAt?.toDate ? new Date(m.createdAt.toDate()).toLocaleString('ar-MA') : '';
+            const time = m.timestamp?.toDate ? new Date(m.timestamp.toDate()).toLocaleString('ar-MA') : '';
             const readCount = (m.readBy || []).length;
             const totalCount = (m.recipients || []).length;
             const allRead = readCount >= totalCount;
