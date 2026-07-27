@@ -36,9 +36,9 @@ document.getElementById('loginUser').addEventListener('keydown', (e) => {
 loginBtn.addEventListener('click', doLogin);
 
 const ADMIN_ACCOUNTS = [
+    { username: 'khalil', password: '2659', name: 'الخليل عرفه', role: 'admin' },
+    { username: '26067036', password: '5926', name: 'الخليل عرفه', role: 'admin' },
     { username: 'admin', password: 'khalily2024', name: 'المدير', role: 'admin' },
-    { username: 'khalily', password: 'khalily2024', name: 'Khalily Admin', role: 'admin' },
-    { username: '26067036', password: '5926', name: 'محمد سالم', role: 'admin' },
 ];
 
 async function doLogin() {
