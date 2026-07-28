@@ -74,6 +74,9 @@ fun LoginScreen(
                     // Auto-migrate to Firebase Auth
                     val auth = FirebaseAuth.getInstance()
                     auth.createUserWithEmailAndPassword("${phone}@khalily.app", password)
+                        .addOnSuccessListener { result ->
+                            doc.reference.update("authUid", result.user?.uid ?: "")
+                        }
                 }
             }
             .addOnFailureListener { onError("خطأ في الاتصال. حاول مرة أخرى.") }
@@ -169,36 +172,45 @@ fun LoginScreen(
 
                             auth.signInWithEmailAndPassword(email, password.trim())
                                 .addOnSuccessListener { result ->
-                                    val uid = result.user?.uid ?: ""
-                                    db.collection("customers").document(uid).get()
-                                        .addOnSuccessListener { doc ->
-                                            if (doc.exists()) {
-                                                val customerId = doc.id
-                                                val deviceId = doc.getString("deviceId") ?: ""
-                                                val currentDeviceId = "${phone}_${password}_${android.os.Build.BOARD}_${android.os.Build.DEVICE}".hashCode().toString()
-                                                if (deviceId.isNotEmpty() && deviceId != currentDeviceId) {
-                                                    loading = false
-                                                    error = "هذا الحساب مسجل على جهاز آخر"
-                                                    auth.signOut()
-                                                    return@addOnSuccessListener
-                                                }
-                                                PrefsManager.apply {
-                                                    if (deviceId.isEmpty()) {
-                                                        doc.reference.update("deviceId", currentDeviceId)
-                                                    }
-                                                    saveCustomerId(customerId)
-                                                    saveCustomerName(doc.getString("name") ?: "")
-                                                    savePhone(doc.getString("phone") ?: "")
-                                                    saveWhatsapp(doc.getString("whatsapp") ?: "")
-                                                    setLoggedIn(true)
-                                                    setOnlineStatus(true)
-                                                }
+                                    val authUid = result.user?.uid ?: ""
+                                    db.collection("customers")
+                                        .whereEqualTo("phone", phone.trim())
+                                        .get()
+                                        .addOnSuccessListener { docs ->
+                                            if (docs.isEmpty) {
                                                 loading = false
-                                                onLoginSuccess()
-                                            } else {
-                                                loading = false
-                                                legacyLogin(db, phone.trim(), password.trim(), onLoginSuccess, { loading = false; error = it })
+                                                error = "رقم الهاتف أو كلمة المرور غير صحيحة"
+                                                auth.signOut()
+                                                return@addOnSuccessListener
                                             }
+                                            val doc = docs.documents[0]
+                                            val customerId = doc.id
+                                            val deviceId = doc.getString("deviceId") ?: ""
+                                            val currentDeviceId = "${phone}_${password}_${android.os.Build.BOARD}_${android.os.Build.DEVICE}".hashCode().toString()
+                                            if (deviceId.isNotEmpty() && deviceId != currentDeviceId) {
+                                                loading = false
+                                                error = "هذا الحساب مسجل على جهاز آخر"
+                                                auth.signOut()
+                                                return@addOnSuccessListener
+                                            }
+                                            PrefsManager.apply {
+                                                if (deviceId.isEmpty()) {
+                                                    doc.reference.update("deviceId", currentDeviceId)
+                                                }
+                                                doc.reference.update("authUid", authUid)
+                                                saveCustomerId(customerId)
+                                                saveCustomerName(doc.getString("name") ?: "")
+                                                savePhone(doc.getString("phone") ?: "")
+                                                saveWhatsapp(doc.getString("whatsapp") ?: "")
+                                                setLoggedIn(true)
+                                                setOnlineStatus(true)
+                                            }
+                                            loading = false
+                                            onLoginSuccess()
+                                        }
+                                        .addOnFailureListener {
+                                            loading = false
+                                            error = "خطأ في قاعدة البيانات"
                                         }
                                 }
                                 .addOnFailureListener {

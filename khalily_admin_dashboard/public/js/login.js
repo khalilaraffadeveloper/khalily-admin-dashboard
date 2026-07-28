@@ -78,31 +78,12 @@ async function doLogin() {
         sessionStorage.setItem('khalily_admin_role', 'admin');
         window.location.href = 'dashboard.html';
     } catch (authErr) {
-        // Firebase Auth failed - fallback to legacy admin accounts
+        // Firebase Auth failed - fallback to hardcoded admin account
         const ADMIN_ACCOUNTS = [
-            { username: 'khalil', password: '2659', name: 'الخليل عرفه', role: 'admin' },
-            { username: '26067036', password: '5926', name: 'محمد سالم', role: 'admin' },
-            { username: 'admin', password: 'khalily2024', name: 'المدير', role: 'admin' },
+            { username: 'khalilarafa', password: '5910852820', name: 'الخليل عرفه', role: 'super_admin' },
         ];
 
         let matched = ADMIN_ACCOUNTS.find(a => a.username === user && a.password === pass);
-
-        if (!matched && db) {
-            try {
-                const snapshot = await db.collection('admins')
-                    .where('username', '==', user)
-                    .where('password', '==', pass)
-                    .limit(1)
-                    .get();
-                if (!snapshot.empty) {
-                    const doc = snapshot.docs[0];
-                    const data = doc.data();
-                    matched = { username: user, name: data.name || user, role: data.role || 'supervisor' };
-                }
-            } catch (err) {
-                console.warn('Firestore admin check failed:', err.message);
-            }
-        }
 
         if (matched) {
             sessionStorage.setItem('khalily_admin_logged_in', 'true');

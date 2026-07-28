@@ -177,6 +177,7 @@ fun RegisterScreen(
                                                             "name" to name,
                                                             "phone" to phone,
                                                             "whatsapp" to whatsappFinal,
+                                                            "authUid" to uid,
                                                             "lat" to 18.0735,
                                                             "lng" to -15.9582,
                                                             "isOnline" to true,
