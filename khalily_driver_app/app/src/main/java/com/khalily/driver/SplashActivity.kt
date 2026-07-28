@@ -13,18 +13,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.khalily.driver.R
 import com.khalily.driver.ui.theme.*
 
 @SuppressLint("CustomSplashScreen")
@@ -71,45 +76,46 @@ private fun SplashScreenContent() {
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
-            // Large app icon with gold circle
+            // Large app icon - no white bg, gold border
             Box(
                 modifier = Modifier
-                    .size(220.dp)
-                    .clip(CircleShape)
-                    .border(6.dp, Color(0xFFE4B028), CircleShape)
-                    .background(Color.White)
+                    .size(260.dp)
+                    .shadow(12.dp, RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(28.dp))
+                    .border(6.dp, Color(0xFFE4B028), RoundedCornerShape(28.dp))
                     .alpha(alpha),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    painter = painterResource(id = R.drawable.hamada3),
                     contentDescription = "Khalily",
                     modifier = Modifier
-                        .size(180.dp)
-                        .clip(CircleShape)
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(22.dp))
                 )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
-            // App name - WHITE, bold, large
+            val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
             Text(
-                text = "Khalily",
-                fontSize = 52.sp,
-                fontWeight = FontWeight.ExtraBold,
+                text = "\u062D\u0645\u0627\u062F\u0647",
+                fontSize = 56.sp,
+                fontFamily = cairoFont,
+                fontWeight = FontWeight.Bold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.alpha(alpha)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Tagline - white
             Text(
-                text = "خدمة التوصيل عبر الدراجات",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.9f),
+                text = "\u0644\u0644\u062A\u0648\u0635\u064A\u0644",
+                fontSize = 20.sp,
+                fontFamily = cairoFont,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFFE4B028),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.alpha(alpha)
             )
@@ -128,7 +134,7 @@ private fun SplashScreenContent() {
 
             // Copyright
             Text(
-                text = "© 2026 Khalily",
+                text = "\u00A9 2026 \u062D\u0645\u0627\u062F\u0647",
                 fontSize = 12.sp,
                 color = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.padding(bottom = 40.dp)

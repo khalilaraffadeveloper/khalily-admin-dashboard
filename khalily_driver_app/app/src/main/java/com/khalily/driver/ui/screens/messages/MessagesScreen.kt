@@ -6,6 +6,7 @@ import android.util.Base64
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,8 +20,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -184,10 +187,11 @@ private fun MessageCard(msg: DriverMessage, onDelete: () -> Unit = {}) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(6.dp, RoundedCornerShape(18.dp))
             .animateContentSize(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -240,39 +244,13 @@ private fun MessageCard(msg: DriverMessage, onDelete: () -> Unit = {}) {
                             contentDescription = "صورة",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 250.dp)
                                 .clip(RoundedCornerShape(12.dp))
+                                .clickable { showFullImage = true }
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Surface(
-                            onClick = { showFullImage = true },
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFE3F2FD),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ZoomIn,
-                                    contentDescription = null,
-                                    tint = Color(0xFF1565C0),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "اضغط لعرض الصورة بالكامل",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF1565C0),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
                         if (showFullImage) {
                             Dialog(onDismissRequest = { showFullImage = false }) {
                                 Surface(
-                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.fillMaxSize(),
                                     color = Color.Black
                                 ) {
                                     Column {
@@ -291,7 +269,11 @@ private fun MessageCard(msg: DriverMessage, onDelete: () -> Unit = {}) {
                                         Image(
                                             bitmap = bitmap.asImageBitmap(),
                                             contentDescription = "صورة كاملة",
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f)
+                                                .padding(4.dp),
+                                            contentScale = ContentScale.Fit
                                         )
                                     }
                                 }

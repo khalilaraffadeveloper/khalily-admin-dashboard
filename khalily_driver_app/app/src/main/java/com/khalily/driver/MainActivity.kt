@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
     private var rideListener: ListenerRegistration? = null
     private var cancelListener: ListenerRegistration? = null
     private var creditListener: ListenerRegistration? = null
+    private var commissionListener: ListenerRegistration? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -116,6 +117,7 @@ class MainActivity : ComponentActivity() {
                                     rideListener?.remove()
                                     cancelListener?.remove()
                                     creditListener?.remove()
+                                    commissionListener?.remove()
                                     val driverId = PrefsManager.getDriverId(this@MainActivity)
                                     if (!driverId.isNullOrEmpty()) {
                                         db.collection("drivers").document(driverId)
@@ -236,13 +238,18 @@ class MainActivity : ComponentActivity() {
         rideListener?.remove()
         cancelListener?.remove()
         creditListener?.remove()
+        commissionListener?.remove()
     }
 
     private fun loadCommission() {
-        db.collection("settings").document("app_config")
-            .get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
+        commissionListener?.remove()
+        commissionListener = db.collection("settings").document("app_config")
+            .addSnapshotListener { doc, e ->
+                if (e != null) {
+                    android.util.Log.e("MainActivity", "Commission listener error: ${e.message}")
+                    return@addSnapshotListener
+                }
+                if (doc != null && doc.exists()) {
                     commissionPercent = doc.getDouble("commissionPercent") ?: 10.0
                 }
             }
@@ -397,6 +404,7 @@ class MainActivity : ComponentActivity() {
         val rideUpdates = mapOf(
             "status" to "accepted",
             "assignedDriverId" to driverId,
+            "commissionPercent" to commissionPercent,
             "acceptedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
         )
         val driverUpdates = mapOf(
@@ -435,6 +443,7 @@ class MainActivity : ComponentActivity() {
                 "completedBy" to "driver",
                 "completedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
                 "commissionAmount" to commission,
+                "commissionPercent" to commissionPercent,
                 "finalFare" to fare,
                 "assignedDriverId" to driverId
             )

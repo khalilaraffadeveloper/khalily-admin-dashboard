@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -87,37 +89,41 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .border(4.dp, KhalilyGold, CircleShape)
-                    .background(Color.White),
+                    .size(160.dp)
+                    .shadow(12.dp, RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(5.dp, KhalilyGold, RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    painter = painterResource(id = R.drawable.hamada3),
                     contentDescription = "Khalily",
                     modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(20.dp))
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+            val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
             Text(
-                text = "Khalily",
-                fontSize = 40.sp,
-                fontWeight = FontWeight.ExtraBold,
+                text = "\u062D\u0645\u0627\u062F\u0647",
+                fontSize = 44.sp,
+                fontFamily = cairoFont,
+                fontWeight = FontWeight.Bold,
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "خدمة التوصيل عبر الدراجات",
-                fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.6f)
+                text = "\u0644\u0644\u062A\u0648\u0635\u064A\u0644",
+                fontSize = 18.sp,
+                fontFamily = cairoFont,
+                fontWeight = FontWeight.Normal,
+                color = KhalilyGold
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -264,7 +270,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = KhalilyTurquoise
+                            containerColor = KhalilyNavy
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                     ) {

@@ -34,7 +34,7 @@ class KhalilyFirebaseMessagingService : FirebaseMessagingService() {
             "ride_request" -> handleRideRequest(data)
             "ride_cancelled" -> handleRideCancelled(data)
             else -> showGenericNotification(
-                title = message.notification?.title ?: "Khalily",
+                title = message.notification?.title ?: "\u062D\u0645\u0627\u062F\u0647",
                 body = message.notification?.body ?: "لديك إشعار جديد"
             )
         }
@@ -119,7 +119,7 @@ class KhalilyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun showGenericNotification(
-        title: String = "Khalily",
+        title: String = "\u062D\u0645\u0627\u062F\u0647",
         body: String = "لديك إشعار جديد"
     ) {
         val notification = NotificationCompat.Builder(this, KhalilyApp.RIDE_REQUEST_CHANNEL)

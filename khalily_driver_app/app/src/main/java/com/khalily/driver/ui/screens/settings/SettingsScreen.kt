@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -71,7 +74,7 @@ fun SettingsScreen(
     var selectedSection by remember { mutableIntStateOf(0) }
     var commissionPercent by remember { mutableDoubleStateOf(10.0) }
 
-    val sectionTitles = listOf("الرحلات", "الرصيد", "التواصل", "ونحن")
+    val sectionTitles = listOf("الرحلات", "الرصيد", "التواصل", "نحن")
     val sectionIcons = listOf(
         Icons.Default.TwoWheeler,
         Icons.Default.AccountBalanceWallet,
@@ -185,34 +188,38 @@ fun SettingsScreen(
                             .padding(vertical = 40.dp, horizontal = 20.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
                             Box(
                                 modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape)
-                                    .border(3.dp, DrawerGold, CircleShape)
-                                    .background(Color.White),
+                                    .size(110.dp)
+                                    .shadow(8.dp, RoundedCornerShape(20.dp))
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .border(4.dp, DrawerGold, RoundedCornerShape(20.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
-                                    painter = painterResource(id = R.mipmap.ic_launcher),
+                                    painter = painterResource(id = R.drawable.hamada3),
                                     contentDescription = "Khalily",
                                     modifier = Modifier
-                                        .size(70.dp)
-                                        .clip(CircleShape)
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(16.dp))
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "خَلِيلِي",
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                text = "\u062D\u0645\u0627\u062F\u0647",
+                                fontSize = 30.sp,
+                                fontFamily = cairoFont,
+                                fontWeight = FontWeight.Bold,
                                 color = DrawerGold
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = PrefsManager.getDriverName(context),
+                                text = "\u0644\u0644\u062A\u0648\u0635\u064A\u0644",
                                 fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.6f)
+                                fontFamily = cairoFont,
+                                fontWeight = FontWeight.Normal,
+                                color = Color.White.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Card(
@@ -316,6 +323,11 @@ fun SettingsScreen(
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "القائمة", tint = Color.White)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "الرجوع", tint = Color.White)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = KhalilyNavy)
@@ -754,42 +766,47 @@ private fun AboutTab() {
                     modifier = Modifier.padding(28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
                     Box(
                         modifier = Modifier
-                            .size(120.dp)
-                            .clip(CircleShape)
-                            .border(3.dp, KhalilyGold, CircleShape)
-                            .background(Color.White),
+                            .size(150.dp)
+                            .shadow(10.dp, RoundedCornerShape(26.dp))
+                            .clip(RoundedCornerShape(26.dp))
+                            .border(4.dp, KhalilyGold, RoundedCornerShape(26.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.mipmap.ic_launcher),
+                            painter = painterResource(id = R.drawable.hamada3),
                             contentDescription = "Khalily",
                             modifier = Modifier
-                                .size(100.dp)
-                                .clip(CircleShape)
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(22.dp))
                         )
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        "\u062E\u064E\u0644\u0650\u064A\u0644\u0650\u064A",
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        "\u062D\u0645\u0627\u062F\u0647",
+                        fontSize = 38.sp,
+                        fontFamily = cairoFont,
+                        fontWeight = FontWeight.Bold,
                         color = KhalilyGold,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("خدمة التوصيل عبر الدراجات", fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f))
+                    Text("\u0644\u0644\u062A\u0648\u0635\u064A\u0644", fontSize = 14.sp, fontFamily = cairoFont, fontWeight = FontWeight.Normal, color = Color.White.copy(alpha = 0.7f), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(10.dp))
                     Card(
                         shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f))
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
                     ) {
                         Text(
                             "الإصدار $versionName",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                             fontSize = 12.sp,
-                            color = KhalilyGold
+                            color = KhalilyGold,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -798,14 +815,14 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("معلومات التطبيق", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = KhalilyNavy)
                     Spacer(modifier = Modifier.height(16.dp))
-                    AboutInfoRow(icon = Icons.Default.Business, label = "الشركة", value = "خَلِيلِي")
+                    AboutInfoRow(icon = Icons.Default.Business, label = "الشركة", value = "\u062D\u0645\u0627\u062F\u0647 \u0644\u0644\u062A\u0648\u0635\u064A\u0644")
                     AboutInfoRow(icon = Icons.Default.LocationOn, label = "المدينة", value = "نواكشط، موريتانيا")
                     AboutInfoRow(icon = Icons.Default.Phone, label = "التواصل", value = "47717983")
                     AboutInfoRow(icon = Icons.Default.Code, label = "الإصدار", value = versionName)
@@ -815,8 +832,8 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -832,8 +849,8 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -868,8 +885,8 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -896,7 +913,7 @@ private fun AboutTab() {
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = Color(0xFFEEEEEE))
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("\u00A9 2026 خَلِيلِي — جميع الحقوق محفوظة", fontSize = 12.sp, color = KhalilyTextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text("\u00A9 2026 \u062D\u0645\u0627\u062F\u0647 \u2014 \u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638\u0629", fontSize = 12.sp, color = KhalilyTextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
@@ -938,8 +955,9 @@ private fun AboutInfoRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = KhalilyTurquoise, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(14.dp))
-        Text(label, fontSize = 14.sp, color = KhalilyTextSecondary, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = KhalilyTextPrimary)
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(label, fontSize = 13.sp, color = KhalilyTextSecondary)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = KhalilyTextPrimary)
     }
 }

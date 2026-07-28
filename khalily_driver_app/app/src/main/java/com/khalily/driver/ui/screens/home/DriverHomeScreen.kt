@@ -159,18 +159,18 @@ fun DriverHomeScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, KhalilyGold, CircleShape)
+                            .size(50.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(2.dp, KhalilyGold, RoundedCornerShape(14.dp))
                             .background(Color.White),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.mipmap.ic_launcher),
+                            painter = painterResource(id = R.drawable.hamada3),
                             contentDescription = "Khalily",
                             modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
