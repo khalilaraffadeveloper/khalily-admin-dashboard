@@ -48,10 +48,10 @@ class KhalilyApp : Application() {
         try {
             val db = FirebaseFirestore.getInstance()
             val settings = FirebaseFirestoreSettings.Builder()
-                .setPersistenceEnabled(true)
+                .setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
                 .build()
             db.firestoreSettings = settings
-            android.util.Log.d("KhalilyApp", "✅ Firestore → khalily-app (Firebase Cloud)")
+            android.util.Log.d("KhalilyApp", "Firestore persistent cache enabled for khalily-app")
         } catch (e: Exception) {
             android.util.Log.e("KhalilyApp", "Firestore connection failed: ${e.message}")
         }
