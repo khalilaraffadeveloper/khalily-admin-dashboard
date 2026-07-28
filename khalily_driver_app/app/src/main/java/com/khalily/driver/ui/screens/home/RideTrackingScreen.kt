@@ -48,7 +48,6 @@ private const val TIMER_RIDE_START_SEC = 10 * 60
 private const val TIMER_RIDE_COMPLETE_SEC = 15 * 60
 private const val REMINDER_WARN_SEC = 5 * 60
 private const val REMINDER_URGENT_SEC = 2 * 60
-private const val PENALTY_AMOUNT = 10.0
 
 @Composable
 fun RideTrackingScreen(
@@ -82,7 +81,6 @@ fun RideTrackingScreen(
     var timeRemaining by remember { mutableIntStateOf(maxTimeSeconds) }
     var reminderPlayed by remember { mutableStateOf(false) }
     var urgentPlayed by remember { mutableStateOf(false) }
-    var showTimeoutDialog by remember { mutableStateOf(false) }
     var showAutoCompleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(ridePhase) {
@@ -133,33 +131,7 @@ fun RideTrackingScreen(
             }
 
             if (timeRemaining <= 0) {
-                if (ridePhase == RidePhase.NAVIGATING_TO_DROPOFF) {
-                    showAutoCompleteDialog = true
-                } else {
-                    showTimeoutDialog = true
-                    if (rideId.isNotEmpty()) {
-                        db.collection("rides").document(rideId)
-                            .update(
-                                mapOf(
-                                    "status" to "cancelled",
-                                    "cancelledBy" to "auto_timeout",
-                                    "penalty" to PENALTY_AMOUNT,
-                                    "cancelledAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-                                )
-                            )
-                        val driverIdCurrent = PrefsManager.getDriverId(context) ?: ""
-                        if (driverIdCurrent.isNotEmpty()) {
-                            db.collection("drivers").document(driverIdCurrent)
-                                .get()
-                                .addOnSuccessListener { doc ->
-                                    val currentCredit = doc.getDouble("credit") ?: 0.0
-                                    val newCredit = (currentCredit - PENALTY_AMOUNT).coerceAtLeast(0.0)
-                                    db.collection("drivers").document(driverIdCurrent)
-                                        .update("credit", newCredit)
-                                }
-                        }
-                    }
-                }
+                showAutoCompleteDialog = true
             }
         }
     }
@@ -545,39 +517,6 @@ fun RideTrackingScreen(
                 }
             }
         }
-    }
-
-    if (showTimeoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showTimeoutDialog = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = KhalilyError, modifier = Modifier.size(40.dp)) },
-            title = {
-                Text("انتهى الوقت!", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            },
-            text = {
-                Text(
-                    text = "لم يتم إكمال الإجراء في الوقت المحدد. تم إلغاء الرحلة تلقائياً وخصم $PENALTY_AMOUNT MRU من رصيدك كغرامة.",
-                    textAlign = TextAlign.Center,
-                    fontSize = 15.sp,
-                    lineHeight = 24.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (rideId.isNotEmpty()) PrefsManager.markCancellationSeen(context, rideId)
-                        showTimeoutDialog = false
-                        onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = KhalilyError)
-                ) {
-                    Text("حسناً", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-            },
-            containerColor = Color.White
-        )
     }
 
     if (showAutoCompleteDialog) {

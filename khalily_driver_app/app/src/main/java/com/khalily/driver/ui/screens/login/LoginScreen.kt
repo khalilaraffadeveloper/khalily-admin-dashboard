@@ -37,6 +37,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.khalily.driver.R
 import com.khalily.driver.ui.theme.*
@@ -70,6 +72,42 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         } catch (e: Exception) {
             android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID)
         }
+    }
+
+    fun legacyLogin(db: FirebaseFirestore, phone: String, password: String, ctx: android.content.Context, success: () -> Unit, fail: (String) -> Unit) {
+        db.collection("drivers")
+            .whereEqualTo("phone", phone)
+            .whereEqualTo("password", password)
+            .get()
+            .addOnSuccessListener { docs ->
+                if (docs.isEmpty) {
+                    fail("رقم الهاتف أو كلمة السر غير صحيحة")
+                    return@addOnSuccessListener
+                }
+                val doc = docs.documents[0]
+                val driverId = doc.id
+                val driverName = doc.getString("name") ?: "سائق"
+                val storedDeviceId = doc.getString("deviceId") ?: ""
+                val currentDeviceId = getDeviceId()
+                if (storedDeviceId.isNotEmpty() && storedDeviceId != currentDeviceId) {
+                    fail("هذا الحساب مسجل على جهاز آخر")
+                    return@addOnSuccessListener
+                }
+                if (storedDeviceId.isEmpty()) {
+                    doc.reference.update("deviceId", currentDeviceId)
+                }
+                PrefsManager.saveDriverId(ctx, driverId)
+                PrefsManager.saveDriverName(ctx, driverName)
+                PrefsManager.setPhone(ctx, phone)
+                PrefsManager.setLoggedIn(ctx, true)
+                success()
+                // Auto-migrate to Firebase Auth
+                val auth = FirebaseAuth.getInstance()
+                auth.createUserWithEmailAndPassword("${phone}@khalily.app", password)
+            }
+            .addOnFailureListener { e ->
+                fail("خطأ: ${e.message}")
+            }
     }
 
     Box(
@@ -223,45 +261,44 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             }
                             isLoading = true
                             errorMsg = null
+                            val auth = FirebaseAuth.getInstance()
                             val db = FirebaseFirestore.getInstance()
-                            db.collection("drivers")
-                                .whereEqualTo("phone", phone.trim())
-                                .whereEqualTo("password", password.trim())
-                                .get()
-                                .addOnSuccessListener { docs ->
-                                    if (docs.isEmpty) {
-                                        isLoading = false
-                                        errorMsg = "رقم الهاتف أو كلمة السر غير صحيحة"
-                                        return@addOnSuccessListener
-                                    }
-                                    val doc = docs.documents[0]
-                                    val driverId = doc.id
-                                    val driverName = doc.getString("name") ?: "سائق"
+                            val email = "${phone.trim()}@khalily.app"
 
-                                    val storedDeviceId = doc.getString("deviceId") ?: ""
-                                    val currentDeviceId = getDeviceId()
-
-                                    if (storedDeviceId.isNotEmpty() && storedDeviceId != currentDeviceId) {
-                                        isLoading = false
-                                        errorMsg = "هذا الحساب مسجل على جهاز آخر"
-                                        return@addOnSuccessListener
-                                    }
-
-                                    if (storedDeviceId.isEmpty()) {
-                                        db.collection("drivers").document(driverId)
-                                            .update("deviceId", currentDeviceId)
-                                    }
-
-                                    PrefsManager.saveDriverId(context, driverId)
-                                    PrefsManager.saveDriverName(context, driverName)
-                                    PrefsManager.setPhone(context, phone.trim())
-                                    PrefsManager.setLoggedIn(context, true)
-                                    isLoading = false
-                                    onLoginSuccess()
+                            // Try Firebase Auth first
+                            auth.signInWithEmailAndPassword(email, password.trim())
+                                .addOnSuccessListener { result ->
+                                    val uid = result.user?.uid ?: ""
+                                    db.collection("drivers").document(uid).get()
+                                        .addOnSuccessListener { doc ->
+                                            if (doc.exists()) {
+                                                val driverName = doc.getString("name") ?: "سائق"
+                                                val storedDeviceId = doc.getString("deviceId") ?: ""
+                                                val currentDeviceId = getDeviceId()
+                                                if (storedDeviceId.isNotEmpty() && storedDeviceId != currentDeviceId) {
+                                                    isLoading = false
+                                                    errorMsg = "هذا الحساب مسجل على جهاز آخر"
+                                                    auth.signOut()
+                                                    return@addOnSuccessListener
+                                                }
+                                                if (storedDeviceId.isEmpty()) {
+                                                    doc.reference.update("deviceId", currentDeviceId)
+                                                }
+                                                PrefsManager.saveDriverId(context, uid)
+                                                PrefsManager.saveDriverName(context, driverName)
+                                                PrefsManager.setPhone(context, phone.trim())
+                                                PrefsManager.setLoggedIn(context, true)
+                                                isLoading = false
+                                                onLoginSuccess()
+                                            } else {
+                                                // Firebase Auth success but no Firestore doc - fallback
+                                                legacyLogin(db, phone.trim(), password.trim(), context, onLoginSuccess, { isLoading = false; errorMsg = it })
+                                            }
+                                        }
                                 }
-                                .addOnFailureListener { e ->
-                                    isLoading = false
-                                    errorMsg = "خطأ: ${e.message}"
+                                .addOnFailureListener {
+                                    // Firebase Auth failed - try legacy Firestore auth
+                                    legacyLogin(db, phone.trim(), password.trim(), context, onLoginSuccess, { isLoading = false; errorMsg = it })
                                 }
                         },
                         enabled = !isLoading,
