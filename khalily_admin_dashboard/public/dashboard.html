@@ -26,6 +26,9 @@
             <a href="#" class="sidebar-link" data-page="drivers">
                 <i class="bi bi-people-fill"></i> إدارة السائقين
             </a>
+            <a href="#" class="sidebar-link" data-page="customers">
+                <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
+            </a>
             <a href="#" class="sidebar-link" data-page="rides">
                 <i class="bi bi-journal-text"></i> سجل الرحلات
             </a>
@@ -72,6 +75,9 @@
                     </a>
                     <a href="#" class="sidebar-link" data-page="drivers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-people-fill"></i> إدارة السائقين
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="customers" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
                     </a>
                     <a href="#" class="sidebar-link" data-page="rides" data-bs-dismiss="offcanvas">
                         <i class="bi bi-journal-text"></i> سجل الرحلات
@@ -135,29 +141,33 @@
             <div class="bg-white border-bottom px-3 py-2">
                 <div class="container-fluid">
                     <div class="row g-2 text-center">
-                        <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">سائقون متاحون</small>
-                            <strong class="text-gold fs-5" id="statOnlineDrivers">0</strong>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">سائقون متاحون</small>
+                            <strong class="text-gold fs-6" id="statOnlineDrivers">0</strong>
                         </div>
-                        <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">رحلات نشطة</small>
-                            <strong class="text-success fs-5" id="statActiveRides">0</strong>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">رحلات نشطة</small>
+                            <strong class="text-success fs-6" id="statActiveRides">0</strong>
                         </div>
-                        <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">رحلات اليوم</small>
-                            <strong class="text-primary fs-5" id="statTodayRides">0</strong>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">رحلات اليوم</small>
+                            <strong class="text-primary fs-6" id="statTodayRides">0</strong>
                         </div>
-                        <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">إجمالي العمولات</small>
-                            <strong class="text-danger fs-5" id="statTotalComm">0 <small>MRU</small></strong>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">إجمالي العمولات</small>
+                            <strong class="text-danger fs-6" id="statTotalComm">0 <small>MRU</small></strong>
                         </div>
-                        <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">إجمالي الرحلات</small>
-                            <strong class="text-dark-blue fs-5" id="statTotalRides">0</strong>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">إجمالي الرحلات</small>
+                            <strong class="text-dark-blue fs-6" id="statTotalRides">0</strong>
                         </div>
-                        <div class="col-4 col-md-2">
-                            <small class="text-muted d-block" style="font-size:11px;">إجمالي السائقين</small>
-                            <strong class="fs-5" style="color:var(--k-purple);" id="statTotalDrivers">0</strong>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">إجمالي السائقين</small>
+                            <strong class="fs-6" style="color:var(--k-purple);" id="statTotalDrivers">0</strong>
+                        </div>
+                        <div class="col-4 col-md-1">
+                            <small class="text-muted d-block" style="font-size:10px;">إجمالي الزبائن</small>
+                            <strong class="fs-6" style="color:#E91E63;" id="statTotalCustomers">0</strong>
                         </div>
                     </div>
                 </div>
@@ -248,6 +258,95 @@
                                         </thead>
                                         <tbody id="driversTableBody">
                                             <tr><td colspan="6" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CUSTOMERS PAGE -->
+        <div class="page-content d-none" id="page-customers">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <!-- Register New Customer -->
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom cursor-pointer" data-bs-toggle="collapse" data-bs-target="#registerCustomerForm">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-plus-fill me-2 text-gold"></i>تسجيل زبون جديد</h6>
+                            </div>
+                            <div class="collapse show" id="registerCustomerForm">
+                                <div class="card-body">
+                                    <div class="row g-3" autocomplete="off">
+                                        <div class="col-md-3 col-6">
+                                            <label class="form-label fw-bold">الاسم</label>
+                                            <input type="text" class="form-control" id="newCustomerName" placeholder="اسم الزبون" autocomplete="off">
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <label class="form-label fw-bold">الهاتف</label>
+                                            <input type="tel" class="form-control" id="newCustomerPhone" placeholder="رقم الهاتف" autocomplete="off">
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <label class="form-label fw-bold">الواتساب</label>
+                                            <input type="tel" class="form-control" id="newCustomerWhatsapp" placeholder="رقم الواتساب (اختياري)" autocomplete="off">
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <label class="form-label fw-bold">كلمة السر</label>
+                                            <input type="password" class="form-control" id="newCustomerPassword" placeholder="كلمة السر" autocomplete="new-password">
+                                        </div>
+                                        <div class="col-md-3 col-6">
+                                            <label class="form-label fw-bold">الرصيد (MRU)</label>
+                                            <input type="number" class="form-control" id="newCustomerCredit" value="" min="0" placeholder="0" autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerCustomerBtn">
+                                        <i class="bi bi-check-circle me-1"></i>تسجيل الزبون
+                                    </button>
+                                    <div class="mt-2 fw-semibold" id="registerCustomerStatus"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customers List -->
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-badge-fill me-2 text-gold"></i>قائمة الزبائن (<span id="totalCustomersCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-dark-blue" onclick="exportCustomersCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-8 col-7">
+                                        <input type="text" class="form-control" id="searchCustomers" placeholder="بحث بالاسم أو الهاتف...">
+                                    </div>
+                                    <div class="col-md-4 col-5">
+                                        <select class="form-select" id="filterCustomerStatus">
+                                            <option value="all">الكل</option>
+                                            <option value="online">متصل</option>
+                                            <option value="offline">غير متصل</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-dark-blue text-white">
+                                            <tr>
+                                                <th>الاسم</th>
+                                                <th>الهاتف</th>
+                                                <th>الواتساب</th>
+                                                <th>كلمة السر</th>
+                                                <th>الرصيد</th>
+                                                <th>الحالة</th>
+                                                <th>الرحلات</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="customersTableBody">
+                                            <tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الزبائن...</div></td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -630,6 +729,128 @@
                 <div class="modal-footer border-top justify-content-center">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                     <button type="button" class="btn btn-danger fw-bold" id="confirmDeleteBtn">حذف نهائي</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT CUSTOMER MODAL -->
+    <div class="modal fade" id="editCustomerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold">تعديل بيانات الزبون</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCustomerId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الاسم</label>
+                        <input type="text" class="form-control" id="editCustomerName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الهاتف</label>
+                        <input type="tel" class="form-control" id="editCustomerPhone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الواتساب</label>
+                        <input type="tel" class="form-control" id="editCustomerWhatsapp">
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditCustomerBtn">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMER PASSWORD MODAL -->
+    <div class="modal fade" id="customerPasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold">تغيير كلمة السر</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="customerPasswordId">
+                    <p class="mb-3">الزبون: <strong id="customerPasswordName"></strong></p>
+                    <label class="form-label fw-bold">كلمة السر الجديدة</label>
+                    <input type="text" class="form-control" id="newCustomerPasswordValue" placeholder="أدخل كلمة السر الجديدة" autocomplete="new-password">
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveCustomerPasswordBtn">حفظ كلمة السر</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMER CREDIT MODAL -->
+    <div class="modal fade" id="customerCreditModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold">شحن رصيد الزبون</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="customerCreditId">
+                    <p class="mb-1">الزبون: <strong id="customerCreditName"></strong></p>
+                    <p class="mb-3">الرصيد الحالي: <strong class="text-gold" id="customerCreditCurrent"></strong> MRU</p>
+                    <label class="form-label fw-bold">المبلغ (MRU)</label>
+                    <input type="number" class="form-control" id="customerCreditAmount" placeholder="أدخل المبلغ" min="1">
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-success text-white fw-bold" id="confirmCustomerCreditBtn">شحن الرصيد</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT CUSTOMER CREDIT MODAL -->
+    <div class="modal fade" id="editCustomerCreditModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold">تعديل رصيد الزبون</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCustomerCreditId">
+                    <p class="mb-1">الزبون: <strong id="editCustomerCreditName"></strong></p>
+                    <p class="mb-3">الرصيد الحالي: <strong class="text-gold" id="editCustomerCreditCurrent"></strong> MRU</p>
+                    <label class="form-label fw-bold">الرصيد الجديد (MRU)</label>
+                    <input type="number" class="form-control fw-bold" id="editCustomerCreditNewValue" placeholder="أدخل الرصيد الجديد" min="0">
+                    <small class="text-muted">سيتم استبدال الرصيد الحالي بالقيمة الجديدة</small>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-warning text-dark fw-bold" id="confirmEditCustomerCreditBtn">حفظ التعديل</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CUSTOMER MODAL -->
+    <div class="modal fade" id="deleteCustomerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-bottom">
+                    <h6 class="fw-bold">تأكيد الحذف</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <input type="hidden" id="deleteCustomerId">
+                    <i class="bi bi-exclamation-triangle text-danger fs-1 mb-2"></i>
+                    <p>هل أنت متأكد من حذف <strong id="deleteCustomerName"></strong>؟</p>
+                    <small class="text-muted">هذا الإجراء لا يمكن التراجع عنه.</small>
+                </div>
+                <div class="modal-footer border-top justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-danger fw-bold" id="confirmDeleteCustomerBtn">حذف نهائي</button>
                 </div>
             </div>
         </div>

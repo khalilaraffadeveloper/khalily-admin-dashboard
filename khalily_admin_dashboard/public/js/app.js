@@ -60,6 +60,7 @@ let dropoffCoords = null;
 let radiusCircle = null;
 let mapClickMode = 'pickup'; // 'pickup' or 'dropoff'
 let allDrivers = [];
+let allCustomers = [];
 let allRides = [];
 let ridesListUnsubscribe = null;
 let currentPage = 'map';
@@ -224,6 +225,7 @@ updateClock();
 const pageTitles = {
     map: 'تتبع مباشر للسائقين',
     drivers: 'إدارة السائقين',
+    customers: 'إدارة الزبائن',
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
@@ -245,6 +247,7 @@ function navigateToPage(page) {
     currentPage = page;
     if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page === 'drivers') loadDriversList();
+    if (page === 'customers') loadCustomersList();
     if (page === 'rides') loadRidesList();
     if (page === 'settings') loadCommission();
     if (page === 'admins') loadAdminsList();
@@ -675,6 +678,111 @@ function filterDrivers() {
 }
 
 // ============================================
+// CUSTOMERS LIST
+// ============================================
+async function loadCustomersList() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('customersTableBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الزبائن...</div></td></tr>';
+    try {
+        const snapshot = await db.collection('customers').get();
+        allCustomers = [];
+        snapshot.forEach(doc => allCustomers.push({ id: doc.id, ...doc.data() }));
+        renderCustomersList(allCustomers);
+    } catch (err) {
+        console.error('Load customers error:', err);
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
+}
+
+function renderCustomersList(customers) {
+    const tbody = document.getElementById('customersTableBody');
+    document.getElementById('totalCustomersCount').textContent = customers.length;
+    if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا يوجد زبائن</td></tr>';
+        return;
+    }
+    tbody.innerHTML = customers.map(c => {
+        const status = c.isOnline ? 'online' : 'offline';
+        const label = c.isOnline ? 'متصل' : 'غير متصل';
+        const badgeClass = `badge bg-${status === 'online' ? 'success' : 'secondary'}`;
+        const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `<tr>
+            <td><strong>${c.name || '-'}</strong></td>
+            <td>${c.phone || '-'}</td>
+            <td>${c.whatsapp || '-'}</td>
+            <td><span class="text-muted">${c.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openCustomerPasswordModal('${c.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
+            <td><strong>${c.credit || 0}</strong> MRU</td>
+            <td><span class="${badgeClass}">${label}</span></td>
+            <td>${c.totalRides || 0}</td>
+            <td>
+                <div class="d-flex gap-1 flex-wrap">
+                    <button class="btn-action btn-action-edit" onclick="openEditCustomerModal('${c.id}','${safeName}','${c.phone||''}','${c.whatsapp||''}')">تعديل</button>
+                    <button class="btn-action btn-action-credit" onclick="openCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">شحن</button>
+                    <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">تعديل الرصيد</button>
+                    <button class="btn-action btn-action-delete" onclick="openDeleteCustomerModal('${c.id}','${safeName}')">حذف</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+document.getElementById('searchCustomers').addEventListener('input', filterCustomers);
+document.getElementById('filterCustomerStatus').addEventListener('change', filterCustomers);
+
+function filterCustomers() {
+    const query = document.getElementById('searchCustomers').value;
+    const statusFilter = document.getElementById('filterCustomerStatus').value;
+    renderCustomersList(allCustomers.filter(c => {
+        const name = (c.name || '');
+        const phone = (c.phone || '');
+        const matchQ = !query || name.includes(query) || phone.includes(query) ||
+            name.localeCompare(query, 'ar', { sensitivity: 'base' }) === 0;
+        let matchS = true;
+        if (statusFilter === 'online') matchS = c.isOnline;
+        else if (statusFilter === 'offline') matchS = !c.isOnline;
+        return matchQ && matchS;
+    }));
+}
+
+// Register customer
+document.getElementById('registerCustomerBtn').addEventListener('click', async () => {
+    const statusEl = 'registerCustomerStatus';
+    if (!requireDb(statusEl)) return;
+    const name = document.getElementById('newCustomerName').value.trim();
+    const phone = document.getElementById('newCustomerPhone').value.trim();
+    const whatsapp = document.getElementById('newCustomerWhatsapp').value.trim();
+    const password = document.getElementById('newCustomerPassword').value.trim();
+    const credit = parseFloat(document.getElementById('newCustomerCredit').value) || 0;
+
+    if (!name) { showStatus(statusEl, 'أدخل اسم الزبون', 'error'); return; }
+    if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
+    if (!password) { showStatus(statusEl, 'أدخل كلمة السر', 'error'); return; }
+
+    const btn = document.getElementById('registerCustomerBtn');
+    btn.disabled = true; btn.textContent = 'جاري التسجيل...';
+    try {
+        await db.collection('customers').add({
+            name, phone, whatsapp, password, credit,
+            lat: 18.0735, lng: -15.9582, geohash: '',
+            isOnline: false, totalRides: 0, fcmToken: '', deviceId: '',
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus(statusEl, 'تم التسجيل بنجاح!', 'success');
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerPhone').value = '';
+        document.getElementById('newCustomerWhatsapp').value = '';
+        document.getElementById('newCustomerPassword').value = '';
+        document.getElementById('newCustomerCredit').value = '0';
+        loadCustomersList();
+    } catch (err) {
+        showStatus(statusEl, 'خطأ: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'تسجيل الزبون';
+});
+
+// ============================================
 // BOOTSTRAP MODALS
 // ============================================
 const editModal = new bootstrap.Modal(document.getElementById('editDriverModal'));
@@ -682,6 +790,13 @@ const creditModal = new bootstrap.Modal(document.getElementById('creditModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
 const editCreditModal = new bootstrap.Modal(document.getElementById('editCreditModal'));
+
+// Customer modals
+const editCustomerModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));
+const customerCreditModal = new bootstrap.Modal(document.getElementById('customerCreditModal'));
+const deleteCustomerModal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
+const customerPasswordModal = new bootstrap.Modal(document.getElementById('customerPasswordModal'));
+const editCustomerCreditModal = new bootstrap.Modal(document.getElementById('editCustomerCreditModal'));
 
 window.openPasswordModal = function(id, name) {
     document.getElementById('passwordDriverId').value = id;
@@ -789,6 +904,116 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
         loadDriversList();
     } catch (err) { console.error('Delete error:', err); }
 });
+
+window.openCustomerPasswordModal = function(id, name) {
+    document.getElementById('customerPasswordId').value = id;
+    document.getElementById('customerPasswordName').textContent = name;
+    document.getElementById('newCustomerPasswordValue').value = '';
+    customerPasswordModal.show();
+};
+
+document.getElementById('saveCustomerPasswordBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('customerPasswordId').value;
+    const newPass = document.getElementById('newCustomerPasswordValue').value.trim();
+    if (!newPass) { alert('أدخل كلمة السر الجديدة'); return; }
+    try {
+        await db.collection('customers').doc(id).update({ password: newPass });
+        customerPasswordModal.hide();
+        loadCustomersList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
+
+window.openEditCustomerCreditModal = function(id, name, current) {
+    document.getElementById('editCustomerCreditId').value = id;
+    document.getElementById('editCustomerCreditName').textContent = name;
+    document.getElementById('editCustomerCreditCurrent').textContent = current;
+    document.getElementById('editCustomerCreditNewValue').value = current;
+    editCustomerCreditModal.show();
+};
+
+document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCustomerCreditId').value;
+    const newVal = parseFloat(document.getElementById('editCustomerCreditNewValue').value);
+    if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
+        alert('أدخل رصيد صحيح'); return;
+    }
+    try {
+        await db.collection('customers').doc(id).update({ credit: newVal });
+        editCustomerCreditModal.hide();
+        loadCustomersList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
+
+window.openEditCustomerModal = function(id, name, phone, whatsapp) {
+    document.getElementById('editCustomerId').value = id;
+    document.getElementById('editCustomerName').value = name;
+    document.getElementById('editCustomerPhone').value = phone;
+    document.getElementById('editCustomerWhatsapp').value = whatsapp;
+    editCustomerModal.show();
+};
+
+document.getElementById('saveEditCustomerBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCustomerId').value;
+    const name = document.getElementById('editCustomerName').value.trim();
+    const phone = document.getElementById('editCustomerPhone').value.trim();
+    const whatsapp = document.getElementById('editCustomerWhatsapp').value.trim();
+    if (!name) return;
+    try {
+        await db.collection('customers').doc(id).update({ name, phone, whatsapp });
+        editCustomerModal.hide();
+        loadCustomersList();
+    } catch (err) { console.error('Edit customer error:', err); }
+});
+
+window.openCustomerCreditModal = function(id, name, current) {
+    document.getElementById('customerCreditId').value = id;
+    document.getElementById('customerCreditName').textContent = name;
+    document.getElementById('customerCreditCurrent').textContent = current;
+    document.getElementById('customerCreditAmount').value = '';
+    customerCreditModal.show();
+};
+
+document.getElementById('confirmCustomerCreditBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('customerCreditId').value;
+    const amount = parseFloat(document.getElementById('customerCreditAmount').value);
+    if (!amount || amount <= 0) return;
+    try {
+        await db.collection('customers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
+        customerCreditModal.hide();
+        loadCustomersList();
+    } catch (err) { console.error('Customer credit error:', err); }
+});
+
+window.openDeleteCustomerModal = function(id, name) {
+    document.getElementById('deleteCustomerId').value = id;
+    document.getElementById('deleteCustomerName').textContent = name;
+    deleteCustomerModal.show();
+};
+
+document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('deleteCustomerId').value;
+    try {
+        await db.collection('customers').doc(id).delete();
+        deleteCustomerModal.hide();
+        loadCustomersList();
+    } catch (err) { console.error('Delete customer error:', err); }
+});
+
+// Export customers CSV
+window.exportCustomersCSV = function () {
+    if (allCustomers.length === 0) { alert('لا يوجد زبائن للتصدير'); return; }
+    let csv = '\uFEFF' + 'الاسم,الهاتف,الواتساب,الرصيد,الحالة,الرحلات\n';
+    allCustomers.forEach(c => {
+        const status = c.isOnline ? 'متصل' : 'غير متصل';
+        csv += `${c.name||''},${c.phone||''},${c.whatsapp||''},${c.credit||0},${status},${c.totalRides||0}\n`;
+    });
+    downloadCSV(csv, 'khalily_customers.csv');
+};
 
 // ============================================
 // RIDES LIST
@@ -924,6 +1149,9 @@ async function loadStats() {
         document.getElementById('statTotalRides').textContent = totalRidesCount;
         document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>`;
         document.getElementById('statActiveRides').textContent = activeCount;
+
+        const custSnap = await db.collection('customers').get();
+        document.getElementById('statTotalCustomers').textContent = custSnap.size;
     } catch (e) {
         console.error('Stats load error:', e);
     }
