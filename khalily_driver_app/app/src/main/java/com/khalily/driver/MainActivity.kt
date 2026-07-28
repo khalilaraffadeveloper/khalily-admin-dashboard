@@ -450,7 +450,7 @@ class MainActivity : ComponentActivity() {
         ).addOnSuccessListener {
             driverRef.update(
                 mapOf(
-                    "credit" to com.google.firebase.firestore.FieldValue.increment(-commission.toLong()),
+                    "credit" to com.google.firebase.firestore.FieldValue.increment(-commission),
                     "currentRideId" to null,
                     "totalRides" to com.google.firebase.firestore.FieldValue.increment(1)
                 )

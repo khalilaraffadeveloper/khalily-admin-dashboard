@@ -3,7 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
-    id("com.google.devtools.ksp")
 }
 
 android {
@@ -43,10 +42,11 @@ android {
         abortOnError = false
     }
 
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output.outputFileName = "Hamada_Driver.apk"
+    androidComponents {
+        onVariants { variant ->
+            variant.outputs.forEach { output ->
+                output.outputFileName.set("Hamada_Driver.apk")
+            }
         }
     }
 
@@ -95,6 +95,7 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     // GeoHash (custom implementation - no external dependency)
+    implementation("com.google.android.material:material:1.12.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
