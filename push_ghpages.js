@@ -9,6 +9,7 @@ const FILE_MAP = [
   { src: 'khalily_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
   { src: 'khalily_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
   { src: 'khalily_admin_dashboard/public/index.html', dst: 'index.html' },
+  { src: 'khalily_admin_dashboard/public/img/hamada3.png', dst: 'img/hamada3.png' },
 ];
 
 const files = {};
@@ -17,7 +18,10 @@ for (const f of FILE_MAP) {
 }
 execSync('git checkout gh-pages', { cwd: ROOT, stdio: 'pipe' });
 for (const f of FILE_MAP) {
-  fs.writeFileSync(path.join(ROOT, f.dst), files[f.dst]);
+  const fullPath = path.join(ROOT, f.dst);
+  const dir = path.dirname(fullPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(fullPath, files[f.dst]);
 }
 for (const f of FILE_MAP) execSync('git add ' + f.dst, { cwd: ROOT, stdio: 'pipe' });
 const status = execSync('git status --porcelain', { cwd: ROOT }).toString().trim();
