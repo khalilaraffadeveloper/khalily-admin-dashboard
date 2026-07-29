@@ -8,25 +8,6 @@ let firebaseReady = false;
 let commissionPercent = 10;
 
 // ============================================
-// VISIBLE ERROR CATCHER (shows JS errors on screen)
-// ============================================
-(function(){
-    const errDiv = document.createElement('div');
-    errDiv.id = 'jsErrorDisplay';
-    errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#B71C1C;color:#fff;padding:12px 20px;font-size:14px;font-weight:600;text-align:right;direction:rtl;display:none;font-family:Cairo,sans-serif;';
-    errDiv.innerHTML = '<span id="jsErrorText"></span> <button onclick="this.parentElement.style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;margin-right:12px;">&times;</button>';
-    document.body.appendChild(errDiv);
-    window.onerror = function(msg, src, line, col, err) {
-        const text = document.getElementById('jsErrorText');
-        if (text) text.textContent = '⚠️ خطأ: ' + (err?.message || msg) + ' (سطر ' + line + ')';
-        errDiv.style.display = 'flex';
-        errDiv.style.alignItems = 'center';
-        errDiv.style.justifyContent = 'space-between';
-        console.error('Dashboard error:', msg, src, line, col, err);
-    };
-})();
-
-// ============================================
 // AUTH CHECK
 // ============================================
 if (sessionStorage.getItem('khalily_admin_logged_in') !== 'true') {
@@ -254,17 +235,11 @@ const pageTitles = {
 };
 
 function navigateToPage(page) {
-    console.log('navigateToPage:', page, '| page element:', document.getElementById('page-' + page));
     document.querySelectorAll('.sidebar-link').forEach(n => n.classList.remove('active'));
     document.querySelectorAll(`.sidebar-link[data-page="${page}"]`).forEach(n => n.classList.add('active'));
     document.querySelectorAll('.page-content').forEach(p => p.classList.add('d-none'));
     const el = document.getElementById('page-' + page);
-    if (el) {
-        el.classList.remove('d-none');
-        console.log('d-none removed from page-' + page + ', current classes:', el.className);
-    } else {
-        console.error('*** page-' + page + ' element NOT FOUND in DOM! ***');
-    }
+    if (el) el.classList.remove('d-none');
     const titleEl = document.getElementById('pageTitle');
     if (titleEl) titleEl.textContent = pageTitles[page] || '';
     const titleMobile = document.getElementById('pageTitleMobile');
@@ -289,9 +264,6 @@ document.querySelectorAll('.sidebar-link').forEach(item => {
         navigateToPage(item.dataset.page);
     });
 });
-
-// Initial page load
-navigateToPage('map');
 
 // ============================================
 // DISPATCH PANEL (Custom RTL-safe)
