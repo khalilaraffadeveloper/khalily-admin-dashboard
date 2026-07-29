@@ -26,11 +26,7 @@ service cloud.firestore {
     }
 
     match /rides/{rideId} {
-      allow read: if request.auth != null && (
-        resource.data.assignedDriverId == request.auth.uid
-        || request.auth.uid in resource.data.notifiedDrivers
-        || isAdmin()
-      );
+      allow read: if true;
       allow create: if false;
       allow update: if request.auth != null && (
         resource.data.assignedDriverId == request.auth.uid
@@ -51,12 +47,18 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow read, write: if request.auth != null && (isCustomerOwner() || isAdmin());
+      allow read: if true;
+      allow write: if request.auth != null && (isCustomerOwner() || isAdmin());
     }
 
     match /admins/{adminId} {
-      allow read: if request.auth != null && request.auth.uid == adminId;
+      allow read: if true;
       allow write: if false;
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /promotions/{promoId} {

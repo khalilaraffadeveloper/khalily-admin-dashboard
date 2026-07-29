@@ -54,8 +54,25 @@ async function doLogin() {
     loginBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>جاري التحقق...';
     loginError.textContent = '';
 
-    let matched = ADMIN_ACCOUNTS.find(a => a.username === user && a.password === pass);
+    let matched = null;
 
+    // 1) Try Firebase Auth (admin email = username@khalily.app)
+    if (db && typeof firebase.auth === 'function') {
+        try {
+            const email = user.includes('@') ? user : `${user}@khalily.app`;
+            await firebase.auth().signInWithEmailAndPassword(email, pass);
+            matched = { name: user, isFirebase: true };
+        } catch (authErr) {
+            console.log('Firebase Auth not available:', authErr.code);
+        }
+    }
+
+    // 2) Fallback: hardcoded admin accounts
+    if (!matched) {
+        matched = ADMIN_ACCOUNTS.find(a => a.username === user && a.password === pass);
+    }
+
+    // 3) Fallback: Firestore admins collection
     if (!matched && db) {
         try {
             const snapshot = await db.collection('admins')
@@ -68,15 +85,18 @@ async function doLogin() {
                 matched = { username: user, password: pass, name: doc.data().name || user };
             }
         } catch (err) {
-            console.warn('Firestore admin check failed, using local accounts:', err.message);
+            console.warn('Firestore admin check failed:', err.message);
         }
     }
 
     if (matched) {
         sessionStorage.setItem('khalily_admin_logged_in', 'true');
-        sessionStorage.setItem('khalily_admin_name', matched.name);
+        sessionStorage.setItem('khalily_admin_name', matched.name || matched.username || user);
         window.location.href = 'dashboard.html';
     } else {
+        if (typeof firebase.auth === 'function') {
+            try { await firebase.auth().signOut(); } catch (e) {}
+        }
         loginError.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
         document.getElementById('loginPass').value = '';
         document.getElementById('loginPass').focus();
