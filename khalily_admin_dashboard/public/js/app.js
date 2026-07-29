@@ -265,6 +265,9 @@ document.querySelectorAll('.sidebar-link').forEach(item => {
     });
 });
 
+// Initial page load
+navigateToPage('map');
+
 // ============================================
 // DISPATCH PANEL (Custom RTL-safe)
 // ============================================
