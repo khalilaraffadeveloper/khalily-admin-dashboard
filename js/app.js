@@ -35,19 +35,10 @@ const firebaseConfig = {
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    // Wait for auth state restoration (needed for Firestore security rules)
-    if (typeof firebase.auth === 'function') {
-        firebase.auth().onAuthStateChanged(user => {
-            firebaseReady = true;
-        });
-        // Fallback timeout: proceed even if auth takes too long
-        setTimeout(() => { if (!firebaseReady) firebaseReady = true; }, 3000);
-    } else {
-        firebaseReady = true;
-    }
 } catch (e) {
     console.error("Firebase init failed:", e);
 }
+firebaseReady = true;
 
 function requireDb(caller) {
     if (!firebaseReady || !db) {

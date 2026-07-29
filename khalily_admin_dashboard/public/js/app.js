@@ -35,10 +35,10 @@ const firebaseConfig = {
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    firebaseReady = true;
 } catch (e) {
     console.error("Firebase init failed:", e);
 }
+firebaseReady = true;
 
 function requireDb(caller) {
     if (!firebaseReady || !db) {
