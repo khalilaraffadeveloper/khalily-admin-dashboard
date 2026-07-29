@@ -225,12 +225,12 @@ class MainActivity : ComponentActivity() {
                         onRideCompleted = { screen = "home" }
                     )
                     "promotions" -> WebViewScreen(
-                        url = "https://khalily-app.web.app/promotions.html",
+                        url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/promotions.html",
                         title = "العروض والنشاطات",
                         onBack = { screen = "home" }
                     )
                     "shop" -> WebViewScreen(
-                        url = "https://khalily-app.web.app/shop.html",
+                        url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/shop.html",
                         title = "المتجر",
                         onBack = { screen = "home" }
                     )

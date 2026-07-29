@@ -112,14 +112,14 @@ class MainActivity : ComponentActivity() {
                         }
                         showPromotions -> {
                             WebViewScreen(
-                                url = "https://khalily-app.web.app/promotions.html",
+                                url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/promotions.html",
                                 title = "العروض والنشاطات",
                                 onBack = { showPromotions = false }
                             )
                         }
                         showShop -> {
                             WebViewScreen(
-                                url = "https://khalily-app.web.app/shop.html",
+                                url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/shop.html",
                                 title = "المتجر",
                                 onBack = { showShop = false }
                             )
