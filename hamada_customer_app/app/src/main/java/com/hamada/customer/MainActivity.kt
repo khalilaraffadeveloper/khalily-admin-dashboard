@@ -11,7 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +24,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.hamada.customer.service.CustomerLocationService
 import com.hamada.customer.ui.screens.home.*
+import com.hamada.customer.ui.screens.WebViewScreen
 import com.hamada.customer.ui.screens.login.LoginScreen
 import com.hamada.customer.ui.screens.login.RegisterScreen
 import com.hamada.customer.ui.screens.settings.SettingsScreen
@@ -186,12 +187,20 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
-                            // Settings button
-                            IconButton(
-                                onClick = { screen = "settings" },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                            // Top navigation buttons
+                            Row(
+                                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(Icons.Default.Settings, contentDescription = "\u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A", tint = androidx.compose.ui.graphics.Color.White)
+                                IconButton(onClick = { screen = "promotions" }) {
+                                    Icon(Icons.Default.Info, contentDescription = "العروض", tint = androidx.compose.ui.graphics.Color.White)
+                                }
+                                IconButton(onClick = { screen = "shop" }) {
+                                    Icon(Icons.Default.ShoppingCart, contentDescription = "المتجر", tint = androidx.compose.ui.graphics.Color.White)
+                                }
+                                IconButton(onClick = { screen = "settings" }) {
+                                    Icon(Icons.Default.Settings, contentDescription = "الإعدادات", tint = androidx.compose.ui.graphics.Color.White)
+                                }
                             }
                         }
                     }
@@ -214,6 +223,16 @@ class MainActivity : ComponentActivity() {
                         dropoffAddress = rideDropoff,
                         fare = rideFare,
                         onRideCompleted = { screen = "home" }
+                    )
+                    "promotions" -> WebViewScreen(
+                        url = "https://khalily-app.web.app/promotions.html",
+                        title = "العروض والنشاطات",
+                        onBack = { screen = "home" }
+                    )
+                    "shop" -> WebViewScreen(
+                        url = "https://khalily-app.web.app/shop.html",
+                        title = "المتجر",
+                        onBack = { screen = "home" }
                     )
                     "settings" -> SettingsScreen(
                         customerName = customerName,

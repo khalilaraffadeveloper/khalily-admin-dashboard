@@ -51,7 +51,9 @@ private val NOUAKCHOTT_BOUNDS = BoundingBox(
 @Composable
 fun DriverHomeScreen(
     onNavigateToSettings: () -> Unit = {},
-    onNavigateToMessages: () -> Unit = {}
+    onNavigateToMessages: () -> Unit = {},
+    onNavigateToPromotions: () -> Unit = {},
+    onNavigateToShop: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val driverId = PrefsManager.getDriverId(context) ?: ""
@@ -269,6 +271,22 @@ fun DriverHomeScreen(
                                     )
                                 }
                             }
+                        }
+                        IconButton(onClick = onNavigateToPromotions) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "العروض",
+                                tint = KhalilyGold,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        IconButton(onClick = onNavigateToShop) {
+                            Icon(
+                                imageVector = Icons.Default.ShoppingCart,
+                                contentDescription = "المتجر",
+                                tint = KhalilyGold,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                         IconButton(onClick = onNavigateToSettings) {
                             Icon(

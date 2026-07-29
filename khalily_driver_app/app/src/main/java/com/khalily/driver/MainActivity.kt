@@ -33,6 +33,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.khalily.driver.service.KhalilyFirebaseMessagingService
 import com.khalily.driver.service.DriverLocationService
 import com.khalily.driver.util.SoundPlayer
+import com.khalily.driver.ui.screens.WebViewScreen
 import com.khalily.driver.ui.screens.home.DriverHomeScreen
 import com.khalily.driver.ui.screens.home.RideDetailDialog
 import com.khalily.driver.ui.screens.home.RideRequestDialog
@@ -50,6 +51,8 @@ class MainActivity : ComponentActivity() {
     private var showRideTracking by mutableStateOf(false)
     private var showSettings by mutableStateOf(false)
     private var showMessages by mutableStateOf(false)
+    private var showPromotions by mutableStateOf(false)
+    private var showShop by mutableStateOf(false)
     private var showCancelledMsg by mutableStateOf(false)
     private var cancelledRideId by mutableStateOf("")
     private var cancelledMsgText by mutableStateOf("")
@@ -107,6 +110,20 @@ class MainActivity : ComponentActivity() {
                                 onBack = { showMessages = false }
                             )
                         }
+                        showPromotions -> {
+                            WebViewScreen(
+                                url = "https://khalily-app.web.app/promotions.html",
+                                title = "العروض والنشاطات",
+                                onBack = { showPromotions = false }
+                            )
+                        }
+                        showShop -> {
+                            WebViewScreen(
+                                url = "https://khalily-app.web.app/shop.html",
+                                title = "المتجر",
+                                onBack = { showShop = false }
+                            )
+                        }
                         showSettings -> {
                             SettingsScreen(
                                 onBack = { showSettings = false },
@@ -145,7 +162,9 @@ class MainActivity : ComponentActivity() {
                         isLoggedIn -> {
                             DriverHomeScreen(
                                 onNavigateToSettings = { showSettings = true },
-                                onNavigateToMessages = { showMessages = true }
+                                onNavigateToMessages = { showMessages = true },
+                                onNavigateToPromotions = { showPromotions = true },
+                                onNavigateToShop = { showShop = true }
                             )
 
                             if (showRideDialog) {

@@ -229,7 +229,9 @@ const pageTitles = {
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
-    admins: 'إدارة المشرفين'
+    admins: 'إدارة المشرفين',
+    promotions: 'العروض والنشاطات',
+    products: 'المتجر والمنتجات'
 };
 
 function navigateToPage(page) {
@@ -252,6 +254,8 @@ function navigateToPage(page) {
     if (page === 'settings') loadCommission();
     if (page === 'admins') loadAdminsList();
     if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); }
+    if (page === 'promotions') loadPromotionsList();
+    if (page === 'products') loadProductsList();
 }
 
 document.querySelectorAll('.sidebar-link').forEach(item => {
@@ -1564,6 +1568,266 @@ function applyRoleVisibility() {
         el.style.display = role === 'admin' ? '' : 'none';
     });
 }
+
+// ============================================
+// PROMOTIONS MANAGEMENT
+// ============================================
+let promoImageFiles = [];
+
+document.getElementById('promoImages')?.addEventListener('change', function(e) {
+    promoImageFiles = Array.from(e.target.files);
+    const preview = document.getElementById('promoImagesPreview');
+    preview.innerHTML = promoImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removePromoImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+});
+
+window.removePromoImage = function(idx) {
+    promoImageFiles.splice(idx, 1);
+    const dt = new DataTransfer();
+    promoImageFiles.forEach(f => dt.items.add(f));
+    document.getElementById('promoImages').files = dt.files;
+    const preview = document.getElementById('promoImagesPreview');
+    preview.innerHTML = promoImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removePromoImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+};
+
+window.addPromotion = async function() {
+    if (!requireDb('addPromoStatus')) return;
+    const title = document.getElementById('promoTitle').value.trim();
+    const type = document.getElementById('promoType').value;
+    const description = document.getElementById('promoDescription').value.trim();
+    const videoUrl = document.getElementById('promoVideo').value.trim();
+
+    if (!title) { showStatus('addPromoStatus', 'أدخل عنوان العرض', 'error'); return; }
+
+    const btn = event.target;
+    btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+    try {
+        const images = [];
+        const storage = firebase.storage();
+        for (let i = 0; i < promoImageFiles.length; i++) {
+            const file = promoImageFiles[i];
+            const ref = storage.ref(`promotions/${Date.now()}_${file.name}`);
+            await ref.put(file);
+            const url = await ref.getDownloadURL();
+            images.push(url);
+        }
+
+        await db.collection('promotions').add({
+            title, type, description, videoUrl, images,
+            active: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showStatus('addPromoStatus', 'تم إضافة العرض بنجاح!', 'success');
+        document.getElementById('promoTitle').value = '';
+        document.getElementById('promoDescription').value = '';
+        document.getElementById('promoVideo').value = '';
+        document.getElementById('promoImages').value = '';
+        document.getElementById('promoImagesPreview').innerHTML = '';
+        promoImageFiles = [];
+        loadPromotionsList();
+    } catch (err) {
+        showStatus('addPromoStatus', 'خطأ: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'إضافة العرض';
+};
+
+async function loadPromotionsList() {
+    if (!requireDb()) return;
+    const list = document.getElementById('promotionsList');
+    list.innerHTML = '<div class="col-12 text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
+    try {
+        const snap = await db.collection('promotions').orderBy('createdAt', 'desc').get();
+        document.getElementById('promoCount').textContent = snap.size;
+        if (snap.empty) {
+            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد عروض</div>';
+            return;
+        }
+        const typeLabels = { promotion: 'عرض', activity: 'نشاط', offer: 'تخفيض' };
+        const typeColors = { promotion: 'bg-primary', activity: 'bg-success', offer: 'bg-danger' };
+        list.innerHTML = snap.docs.map(doc => {
+            const p = doc.data();
+            const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
+            const imgHtml = p.images && p.images.length > 0
+                ? `<div class="d-flex gap-2 mb-2 flex-wrap">${p.images.map(u => `<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`
+                : '';
+            const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
+            return `<div class="col-md-4 col-sm-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="fw-bold mb-1">${p.title}</h6>
+                            <span class="badge ${typeColors[p.type] || 'bg-secondary'}">${typeLabels[p.type] || p.type}</span>
+                        </div>
+                        ${imgHtml}
+                        <p class="small text-muted mb-1">${p.description || ''}</p>
+                        <div class="d-flex gap-2 align-items-center">
+                            ${videoHtml}
+                            <button class="btn btn-sm btn-outline-danger" onclick="deletePromotion('${doc.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <small class="text-muted">${time}</small>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        list.innerHTML = '<div class="col-12 text-center text-danger py-4">خطأ في التحميل</div>';
+    }
+}
+
+window.deletePromotion = async function(id) {
+    if (!confirm('حذف هذا العرض؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('promotions').doc(id).delete();
+        loadPromotionsList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+// ============================================
+// PRODUCTS MANAGEMENT
+// ============================================
+let prodImageFiles = [];
+
+document.getElementById('prodImages')?.addEventListener('change', function(e) {
+    prodImageFiles = Array.from(e.target.files);
+    const preview = document.getElementById('prodImagesPreview');
+    preview.innerHTML = prodImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removeProdImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+});
+
+window.removeProdImage = function(idx) {
+    prodImageFiles.splice(idx, 1);
+    const dt = new DataTransfer();
+    prodImageFiles.forEach(f => dt.items.add(f));
+    document.getElementById('prodImages').files = dt.files;
+    const preview = document.getElementById('prodImagesPreview');
+    preview.innerHTML = prodImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removeProdImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+};
+
+window.addProduct = async function() {
+    if (!requireDb('addProductStatus')) return;
+    const name = document.getElementById('prodName').value.trim();
+    const type = document.getElementById('prodType').value;
+    const price = parseFloat(document.getElementById('prodPrice').value) || 0;
+    const phone = document.getElementById('prodPhone').value.trim();
+    const description = document.getElementById('prodDescription').value.trim();
+    const videoUrl = document.getElementById('prodVideo').value.trim();
+
+    if (!name) { showStatus('addProductStatus', 'أدخل اسم المنتج', 'error'); return; }
+    if (!phone) { showStatus('addProductStatus', 'أدخل رقم هاتف البائع', 'error'); return; }
+
+    const btn = event.target;
+    btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+    try {
+        const images = [];
+        const storage = firebase.storage();
+        for (let i = 0; i < prodImageFiles.length; i++) {
+            const file = prodImageFiles[i];
+            const ref = storage.ref(`products/${Date.now()}_${file.name}`);
+            await ref.put(file);
+            const url = await ref.getDownloadURL();
+            images.push(url);
+        }
+
+        await db.collection('products').add({
+            name, type, price, phone, description, videoUrl, images,
+            active: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showStatus('addProductStatus', 'تم إضافة المنتج بنجاح!', 'success');
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        document.getElementById('prodPhone').value = '';
+        document.getElementById('prodDescription').value = '';
+        document.getElementById('prodVideo').value = '';
+        document.getElementById('prodImages').value = '';
+        document.getElementById('prodImagesPreview').innerHTML = '';
+        prodImageFiles = [];
+        loadProductsList();
+    } catch (err) {
+        showStatus('addProductStatus', 'خطأ: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'إضافة المنتج';
+};
+
+async function loadProductsList() {
+    if (!requireDb()) return;
+    const list = document.getElementById('productsList');
+    list.innerHTML = '<div class="col-12 text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
+    try {
+        const snap = await db.collection('products').orderBy('createdAt', 'desc').get();
+        document.getElementById('productCount').textContent = snap.size;
+        if (snap.empty) {
+            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات</div>';
+            return;
+        }
+        const typeLabels = { car: 'سيارة', motorcycle: 'دراجة نارية', other: 'أخرى' };
+        const typeIcons = { car: 'bi-car-front-fill', motorcycle: 'bi-bicycle', other: 'bi-box-seam' };
+        list.innerHTML = snap.docs.map(doc => {
+            const p = doc.data();
+            const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
+            const imgHtml = p.images && p.images.length > 0
+                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2">`
+                : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="${typeIcons[p.type] || 'bi-box'} fs-1 text-muted"></i></div>`;
+            const moreImages = p.images && p.images.length > 1
+                ? `<div class="d-flex gap-1 mb-2">${p.images.slice(1).map(u => `<img src="${u}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;">`).join('')}</div>`
+                : '';
+            const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
+            return `<div class="col-md-4 col-sm-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <span class="badge ${p.type === 'car' ? 'bg-warning text-dark' : 'bg-info'} mb-1"><i class="${typeIcons[p.type]}"></i> ${typeLabels[p.type] || p.type}</span>
+                        ${imgHtml}
+                        ${moreImages}
+                        <h6 class="fw-bold mb-1">${p.name}</h6>
+                        <p class="small text-muted mb-1">${p.description || ''}</p>
+                        <h5 class="text-gold fw-bold mb-2">${p.price || 0} MRU</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="tel:${p.phone}" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</a>
+                            <a href="https://wa.me/${p.phone.replace(/^0+/, '222')}" target="_blank" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</a>
+                            ${videoHtml}
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${doc.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <small class="text-muted d-block mt-2">${time}</small>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        list.innerHTML = '<div class="col-12 text-center text-danger py-4">خطأ في التحميل</div>';
+    }
+}
+
+window.deleteProduct = async function(id) {
+    if (!confirm('حذف هذا المنتج؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('products').doc(id).delete();
+        loadProductsList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
 
 // ============================================
 // INIT

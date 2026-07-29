@@ -58,5 +58,19 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == adminId;
       allow write: if false;
     }
+
+    match /promotions/{promoId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
   }
 }
