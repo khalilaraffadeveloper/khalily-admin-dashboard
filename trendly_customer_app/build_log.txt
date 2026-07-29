@@ -1,4 +1,4 @@
-To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
 
 > Configure project :app
@@ -42,13 +42,13 @@ Add android.sync.suppressAgpWarnings=UNSUPPORTED_PROJECT_OPTION_USE to the gradl
 > Task :app:processDebugResources FAILED
 
 > Task :app:compileDebugKotlin FAILED
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/MainActivity.kt:163:64 Unresolved reference 'dp'.
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/service/CustomerFirebaseMessagingService.kt:44:56 Syntax error: Expecting '}'.
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/service/CustomerFirebaseMessagingService.kt:44:58 Syntax error: Expecting an expression.
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/ui/screens/home/HomeScreen.kt:140:25 Unresolved reference 'setScrollableAreaLimits'.
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/ui/screens/home/HomeScreen.kt:156:46 Unresolved reference 'makeCircle'.
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/ui/screens/home/HomeScreen.kt:242:56 Argument type mismatch: actual type is 'Int', but 'Double' was expected.
-e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/KHALILY_APP/hamada_customer_app/app/src/main/java/com/hamada/customer/ui/screens/home/HomeScreen.kt:246:56 Argument type mismatch: actual type is 'Int', but 'Double' was expected.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/MainActivity.kt:163:64 Unresolved reference 'dp'.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/service/CustomerFirebaseMessagingService.kt:44:56 Syntax error: Expecting '}'.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/service/CustomerFirebaseMessagingService.kt:44:58 Syntax error: Expecting an expression.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/ui/screens/home/HomeScreen.kt:140:25 Unresolved reference 'setScrollableAreaLimits'.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/ui/screens/home/HomeScreen.kt:156:46 Unresolved reference 'makeCircle'.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/ui/screens/home/HomeScreen.kt:242:56 Argument type mismatch: actual type is 'Int', but 'Double' was expected.
+e: file:///C:/Users/Boutilimit%20Store/OneDrive/Desktop/ARAVA_APP/ARAVA_customer_app/app/src/main/java/com/ARAVA/customer/ui/screens/home/HomeScreen.kt:246:56 Argument type mismatch: actual type is 'Int', but 'Double' was expected.
 
 FAILURE: Build completed with 2 failures.
 
@@ -58,14 +58,14 @@ FAILURE: Build completed with 2 failures.
 Execution failed for task ':app:processDebugResources' (registered by plugin 'com.android.internal.application').
 > A failure occurred while executing com.android.build.gradle.internal.res.LinkApplicationAndroidResourcesTask$TaskAction
    > Android resource linking failed
-     error: resource style/Theme.MaterialComponents.Light.NoActionBar (aka com.hamada.customer:style/Theme.MaterialComponents.Light.NoActionBar) not found.
-     com.hamada.customer.app-mergeDebugResources-63:/values/values.xml:323: error: style attribute 'attr/colorPrimary (aka com.hamada.customer:attr/colorPrimary)' not found.
-     com.hamada.customer.app-mergeDebugResources-63:/values/values.xml:324: error: style attribute 'attr/colorPrimaryVariant (aka com.hamada.customer:attr/colorPrimaryVariant)' not found.
-     com.hamada.customer.app-mergeDebugResources-63:/values/values.xml:325: error: style attribute 'attr/colorOnPrimary (aka com.hamada.customer:attr/colorOnPrimary)' not found.
-     com.hamada.customer.app-mergeDebugResources-63:/values/values.xml:326: error: style attribute 'attr/colorSecondary (aka com.hamada.customer:attr/colorSecondary)' not found.
-     com.hamada.customer.app-mergeDebugResources-63:/values/values.xml:327: error: style attribute 'attr/colorSecondaryVariant (aka com.hamada.customer:attr/colorSecondaryVariant)' not found.
-     com.hamada.customer.app-mergeDebugResources-63:/values/values.xml:328: error: style attribute 'attr/colorOnSecondary (aka com.hamada.customer:attr/colorOnSecondary)' not found.
-     error: resource style/Theme.MaterialComponents.Light.NoActionBar (aka com.hamada.customer:style/Theme.MaterialComponents.Light.NoActionBar) not found.
+     error: resource style/Theme.MaterialComponents.Light.NoActionBar (aka com.ARAVA.customer:style/Theme.MaterialComponents.Light.NoActionBar) not found.
+     com.ARAVA.customer.app-mergeDebugResources-63:/values/values.xml:323: error: style attribute 'attr/colorPrimary (aka com.ARAVA.customer:attr/colorPrimary)' not found.
+     com.ARAVA.customer.app-mergeDebugResources-63:/values/values.xml:324: error: style attribute 'attr/colorPrimaryVariant (aka com.ARAVA.customer:attr/colorPrimaryVariant)' not found.
+     com.ARAVA.customer.app-mergeDebugResources-63:/values/values.xml:325: error: style attribute 'attr/colorOnPrimary (aka com.ARAVA.customer:attr/colorOnPrimary)' not found.
+     com.ARAVA.customer.app-mergeDebugResources-63:/values/values.xml:326: error: style attribute 'attr/colorSecondary (aka com.ARAVA.customer:attr/colorSecondary)' not found.
+     com.ARAVA.customer.app-mergeDebugResources-63:/values/values.xml:327: error: style attribute 'attr/colorSecondaryVariant (aka com.ARAVA.customer:attr/colorSecondaryVariant)' not found.
+     com.ARAVA.customer.app-mergeDebugResources-63:/values/values.xml:328: error: style attribute 'attr/colorOnSecondary (aka com.ARAVA.customer:attr/colorOnSecondary)' not found.
+     error: resource style/Theme.MaterialComponents.Light.NoActionBar (aka com.ARAVA.customer:style/Theme.MaterialComponents.Light.NoActionBar) not found.
      error: failed linking references.
 
 

@@ -1,12 +1,12 @@
-// ============================================
-// KHALILY ADMIN LOGIN - login.js
+﻿// ============================================
+// ARAVA ADMIN LOGIN - login.js
 // ============================================
 
 const firebaseConfig = {
     apiKey: "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM",
-    authDomain: "khalily-app.firebaseapp.com",
-    projectId: "khalily-app",
-    storageBucket: "khalily-app.firebasestorage.app",
+    authDomain: "ARAVA-app.firebaseapp.com",
+    projectId: "ARAVA-app",
+    storageBucket: "ARAVA-app.firebasestorage.app",
     messagingSenderId: "384215858598",
     appId: "1:384215858598:web:c19bf6d475c567285aa367",
     measurementId: "G-P8XMPWG9SY"
@@ -20,7 +20,7 @@ try {
     console.error("Firebase init failed:", e);
 }
 
-if (sessionStorage.getItem('khalily_admin_logged_in') === 'true') {
+if (sessionStorage.getItem('ARAVA_admin_logged_in') === 'true') {
     window.location.href = 'dashboard.html';
 }
 
@@ -52,10 +52,10 @@ async function doLogin() {
 
     let matched = null;
 
-    // 1) Try Firebase Auth (admin email = username@khalily.app)
+    // 1) Try Firebase Auth (admin email = username@ARAVA.app)
     if (db && typeof firebase.auth === 'function') {
         try {
-            const email = user.includes('@') ? user : `${user}@khalily.app`;
+            const email = user.includes('@') ? user : `${user}@ARAVA.app`;
             await firebase.auth().signInWithEmailAndPassword(email, pass);
             matched = { name: user, isFirebase: true };
         } catch (authErr) {
@@ -81,8 +81,8 @@ async function doLogin() {
     }
 
     if (matched) {
-        sessionStorage.setItem('khalily_admin_logged_in', 'true');
-        sessionStorage.setItem('khalily_admin_name', matched.name || matched.username || user);
+        sessionStorage.setItem('ARAVA_admin_logged_in', 'true');
+        sessionStorage.setItem('ARAVA_admin_name', matched.name || matched.username || user);
         window.location.href = 'dashboard.html';
     } else {
         if (typeof firebase.auth === 'function') {

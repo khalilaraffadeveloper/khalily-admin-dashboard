@@ -1,4 +1,4 @@
-# Khalily - Firestore Database Schema
+﻿# ARAVA - Firestore Database Schema
 
 ## Collections Structure
 

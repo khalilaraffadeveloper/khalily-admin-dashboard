@@ -1,10 +1,10 @@
-# Khalily Driver App — Visual Design System Request
+﻿# ARAVA Driver App — Visual Design System Request
 
 ---
 
 ## About This Project
 
-**Khalily** (خليلي) is a motorcycle ride-hailing application built for the city of Nouakchott, Mauritania. It connects passengers with nearby motorcycle drivers in real-time. The app serves two user groups: **drivers** (Android app built with Kotlin/Jetpack Compose/Material 3) and **administrators** (web dashboard built with Bootstrap 5).
+**ARAVA** (خليلي) is a motorcycle ride-hailing application built for the city of Nouakchott, Mauritania. It connects passengers with nearby motorcycle drivers in real-time. The app serves two user groups: **drivers** (Android app built with Kotlin/Jetpack Compose/Material 3) and **administrators** (web dashboard built with Bootstrap 5).
 
 This brief focuses exclusively on the **driver's Android application**.
 
@@ -14,7 +14,7 @@ This brief focuses exclusively on the **driver's Android application**.
 
 | Element | Value |
 |---|---|
-| **App Name** | Khalily (خليلي) |
+| **App Name** | ARAVA (خليلي) |
 | **Tagline** | رفيقك في كل طريق |
 | **Service Type** | Motorcycle ride-hailing |
 | **City** | Nouakchott, Mauritania |
@@ -100,18 +100,18 @@ Note: Arabic script requires approximately 10-15% larger sizes than Latin script
 
 Design and provide **Compose code** for these components:
 
-#### a) KhalilyCard (3 variants)
+#### a) ARAVACard (3 variants)
 - **DefaultCard** — neutral, for general content
 - **AccentCard** — tinted background, for stats and highlights
 - **UrgentCard** — attention-grabbing, for ride requests
 
-#### b) KhalilyButton (4 variants)
+#### b) ARAVAButton (4 variants)
 - **PrimaryButton** — filled, for main actions (Accept Ride, Login)
 - **SecondaryButton** — outlined, for secondary actions (Decline, Cancel)
 - **DangerButton** — for destructive actions (End Ride)
 - **GhostButton** — text-only, for navigation
 
-#### c) KhalilyTextField
+#### c) ARAVATextField
 - Custom styled input field with Arabic placeholder support
 - Focused and unfocused states
 
@@ -205,7 +205,7 @@ Please provide:
 4. **Sample Composable code** for each component listed above
 5. **Brief design rationale** explaining your color and typography choices
 
-All code should be production-ready Kotlin/Jetpack Compose code that I can directly copy into my project's `com.khalily.driver.ui.theme` package.
+All code should be production-ready Kotlin/Jetpack Compose code that I can directly copy into my project's `com.ARAVA.driver.ui.theme` package.
 
 ---
 

@@ -1,7 +1,7 @@
-const https = require('https');
+﻿const https = require('https');
 
 const API_KEY = 'AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM';
-const PROJECT_ID = 'khalily-app';
+const PROJECT_ID = 'ARAVA-app';
 const FIREBASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 function request(method, url, token, body) {
@@ -33,7 +33,7 @@ async function signIn() {
     const data = await request('POST',
         `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
         null,
-        { email: 'khalilarafa@khalily.app', password: '5910852820', returnSecureToken: true }
+        { email: 'khalilarafa@ARAVA.app', password: '5910852820', returnSecureToken: true }
     );
     console.log('✓ تم تسجيل الدخول');
     return data.idToken;

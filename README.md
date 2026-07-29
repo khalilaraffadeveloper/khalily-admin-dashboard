@@ -1,4 +1,4 @@
-# Khalily - منظومة توصيل ذكية
+﻿# ARAVA - منظومة توصيل ذكية
 
 منظومة متكاملة للتوصيل تتكون من تطبيق سائق أندرويد ولوحة تحكم إدارية على الويب.
 
@@ -6,8 +6,8 @@
 
 | المكون | التقنية | الوصف |
 |:---|:---|:---|
-| `khalily_driver_app` | Kotlin + Jetpack Compose | تطبيق السائق مع تتبع الموقع والتنبيهات |
-| `khalily_admin_dashboard` | Node.js + Express + Leaflet | لوحة تحكم مع خريطة مباشرة |
+| `ARAVA_driver_app` | Kotlin + Jetpack Compose | تطبيق السائق مع تتبع الموقع والتنبيهات |
+| `ARAVA_admin_dashboard` | Node.js + Express + Leaflet | لوحة تحكم مع خريطة مباشرة |
 | `docs_and_configs` | Firebase Rules + Schema | قواعد الأمان ومخططات البيانات |
 
 ---
@@ -17,7 +17,7 @@
 ### 1. لوحة تحكم الإدارة
 
 ```bash
-cd khalily_admin_dashboard
+cd ARAVA_admin_dashboard
 npm install
 npm start
 ```
@@ -32,31 +32,31 @@ npm start
 
 **التثبيت عبر Android Studio:**
 1. افتح Android Studio
-2. `File > Open` واختر مجلد `khalily_driver_app`
+2. `File > Open` واختر مجلد `ARAVA_driver_app`
 3. انتظر اكتمال Gradle Sync
 4. `Build > Build Bundle(s) / APK(s) > Build APK(s)`
-5. سيتوفر APK في: `khalily_driver_app/app/build/outputs/apk/debug/app-debug.apk`
+5. سيتوفر APK في: `ARAVA_driver_app/app/build/outputs/apk/debug/app-debug.apk`
 
 **التثبيت عبر السطر:**
 ```bash
-cd khalily_driver_app
+cd ARAVA_driver_app
 ./gradlew assembleDebug
 ```
 
 **المتطلبات:**
-- ملف `google-services.json` من Firebase في `khalily_driver_app/app/`
+- ملف `google-services.json` من Firebase في `ARAVA_driver_app/app/`
 - Android SDK 35+
 
 ### 3. تنظيف البيانات التلقائي
 
 ```bash
-cd khalily_admin_dashboard
+cd ARAVA_admin_dashboard
 node scripts/data-cleanup.js
 ```
 
 لتشغيل تلقائي كل 24 ساعة via cron:
 ```bash
-0 3 * * * cd /path/to/khalily_admin_dashboard && node scripts/data-cleanup.js
+0 3 * * * cd /path/to/ARAVA_admin_dashboard && node scripts/data-cleanup.js
 ```
 
 ---
@@ -66,7 +66,7 @@ node scripts/data-cleanup.js
 1. أنشئ مشروع Firebase جديد على [console.firebase.google.com](https://console.firebase.google.com)
 2. فعّل **Firestore Database**
 3. فعّل **Cloud Messaging (FCM)**
-4. حمّل `google-services.json` وضعه في `khalily_driver_app/app/`
+4. حمّل `google-services.json` وضعه في `ARAVA_driver_app/app/`
 5. حمّل `serviceAccountKey.json` وضعه في `docs_and_configs/firebase/`
 6. انشر قواعد الأمان:
    ```bash
@@ -78,12 +78,12 @@ node scripts/data-cleanup.js
 ## هيكل المشروع
 
 ```
-KHALILY_APP/
-├── khalily_driver_app/          # تطبيق السائق (Android)
+ARAVA_APP/
+├── ARAVA_driver_app/          # تطبيق السائق (Android)
 │   ├── app/src/main/
 │   │   ├── AndroidManifest.xml
-│   │   └── java/com/khalily/driver/
-│   │       ├── KhalilyApp.kt
+│   │   └── java/com/ARAVA/driver/
+│   │       ├── ARAVAApp.kt
 │   │       ├── MainActivity.kt
 │   │       ├── data/model/       # نماذج البيانات
 │   │       ├── service/          # خدمات الخلفية والـ FCM
@@ -92,7 +92,7 @@ KHALILY_APP/
 │   │       └── util/             # أدوات مساعدة
 │   └── build.gradle.kts
 │
-├── khalily_admin_dashboard/     # لوحة التحكم (Web)
+├── ARAVA_admin_dashboard/     # لوحة التحكم (Web)
 │   ├── public/                  # الواجهة الأمامية
 │   │   ├── index.html
 │   │   ├── css/style.css

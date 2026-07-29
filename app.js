@@ -1,5 +1,5 @@
-// ============================================
-// KHALILY ADMIN DASHBOARD - app.js (Bootstrap 5)
+﻿// ============================================
+// ARAVA ADMIN DASHBOARD - app.js (Bootstrap 5)
 // Two-click map: pickup + dropoff, auto-fare
 // ============================================
 
@@ -10,12 +10,12 @@ let commissionPercent = 10;
 // ============================================
 // AUTH CHECK
 // ============================================
-if (sessionStorage.getItem('khalily_admin_logged_in') !== 'true') {
+if (sessionStorage.getItem('ARAVA_admin_logged_in') !== 'true') {
     window.location.href = 'index.html';
 }
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
-    sessionStorage.removeItem('khalily_admin_logged_in');
+    sessionStorage.removeItem('ARAVA_admin_logged_in');
     window.location.href = 'index.html';
 });
 
@@ -24,9 +24,9 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 // ============================================
 const firebaseConfig = {
     apiKey: "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM",
-    authDomain: "khalily-app.firebaseapp.com",
-    projectId: "khalily-app",
-    storageBucket: "khalily-app.firebasestorage.app",
+    authDomain: "ARAVA-app.firebaseapp.com",
+    projectId: "ARAVA-app",
+    storageBucket: "ARAVA-app.firebasestorage.app",
     messagingSenderId: "384215858598",
     appId: "1:384215858598:web:c19bf6d475c567285aa367",
     measurementId: "G-P8XMPWG9SY"
@@ -619,7 +619,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
 async function loadDriversList() {
     if (!requireDb()) return;
     const tbody = document.getElementById('driversTableBody');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
     try {
         const snapshot = await db.collection('drivers').get();
         allDrivers = [];
@@ -687,7 +687,7 @@ function filterDrivers() {
 async function loadCustomersList() {
     if (!requireDb()) return;
     const tbody = document.getElementById('customersTableBody');
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الزبائن...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الزبائن...</div></td></tr>';
     try {
         const snapshot = await db.collection('customers').get();
         allCustomers = [];
@@ -1016,7 +1016,7 @@ window.exportCustomersCSV = function () {
         const status = c.isOnline ? 'متصل' : 'غير متصل';
         csv += `${c.name||''},${c.phone||''},${c.whatsapp||''},${c.credit||0},${status},${c.totalRides||0}\n`;
     });
-    downloadCSV(csv, 'khalily_customers.csv');
+    downloadCSV(csv, 'ARAVA_customers.csv');
 };
 
 // ============================================
@@ -1026,7 +1026,7 @@ async function loadRidesList() {
     if (!requireDb()) return;
     if (ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     const tbody = document.getElementById('ridesTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
         ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
             .onSnapshot(snapshot => {
@@ -1171,7 +1171,7 @@ window.exportDriversCSV = function () {
         const status = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
         csv += `${d.name||''},${d.phone||''},${d.credit||0},${status},${d.totalRides||0}\n`;
     });
-    downloadCSV(csv, 'khalily_drivers.csv');
+    downloadCSV(csv, 'ARAVA_drivers.csv');
 };
 
 window.exportRidesCSV = function () {
@@ -1183,7 +1183,7 @@ window.exportRidesCSV = function () {
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
         csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${r.status||''},${created}\n`;
     });
-    downloadCSV(csv, 'khalily_rides.csv');
+    downloadCSV(csv, 'ARAVA_rides.csv');
 };
 
 function downloadCSV(csv, filename) {
@@ -1381,7 +1381,7 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
     const type = document.getElementById('msgType').value;
     const recipientsSel = document.getElementById('msgRecipients');
     const recipientIds = Array.from(recipientsSel.selectedOptions).map(o => o.value);
-    const senderName = sessionStorage.getItem('khalily_admin_name') || 'المدير';
+    const senderName = sessionStorage.getItem('ARAVA_admin_name') || 'المدير';
     const msg = { type, sentBy: senderName, readBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
 
     if (recipientIds.includes('all')) {
@@ -1445,7 +1445,7 @@ async function loadSentMessages() {
     if (!requireDb()) return;
     const container = document.getElementById('msgListContainer');
     if (!container) return;
-    container.innerHTML = '<div class="text-center py-4"><div class="khalily-spinner"></div></div>';
+    container.innerHTML = '<div class="text-center py-4"><div class="ARAVA-spinner"></div></div>';
 
     try {
         const snap = await db.collection('messages').orderBy('timestamp', 'desc').limit(50).get();
@@ -1520,7 +1520,7 @@ window.clearOldMessages = async function() {
 async function loadAdminsList() {
     if (!requireDb()) return;
     const tbody = document.getElementById('adminsTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل المشرفين...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل المشرفين...</div></td></tr>';
     try {
         const snapshot = await db.collection('admins').get();
         const admins = [];
@@ -1592,7 +1592,7 @@ window.deleteAdmin = async function (id, name) {
 // ROLE-BASED VISIBILITY
 // ============================================
 function applyRoleVisibility() {
-    const role = sessionStorage.getItem('khalily_admin_role') || 'admin';
+    const role = sessionStorage.getItem('ARAVA_admin_role') || 'admin';
     document.querySelectorAll('.admin-only').forEach(el => {
         el.style.display = role === 'admin' ? '' : 'none';
     });
@@ -1674,7 +1674,7 @@ window.addPromotion = async function() {
 async function loadPromotionsList() {
     if (!requireDb()) return;
     const list = document.getElementById('promotionsList');
-    list.innerHTML = '<div class="col-12 text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
+    list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
     try {
         const snap = await db.collection('promotions').orderBy('createdAt', 'desc').get();
         document.getElementById('promoCount').textContent = snap.size;
@@ -1804,7 +1804,7 @@ window.addProduct = async function() {
 async function loadProductsList() {
     if (!requireDb()) return;
     const list = document.getElementById('productsList');
-    list.innerHTML = '<div class="col-12 text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
+    list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
     try {
         const snap = await db.collection('products').orderBy('createdAt', 'desc').get();
         document.getElementById('productCount').textContent = snap.size;

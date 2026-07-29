@@ -1,0 +1,29 @@
+﻿{
+  "project_info": {
+    "project_number": "384215858598",
+    "project_id": "ARAVA-app",
+    "storage_bucket": "ARAVA-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:384215858598:android:placeholder",
+        "android_client_info": {
+          "package_name": "com.ARAVA.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

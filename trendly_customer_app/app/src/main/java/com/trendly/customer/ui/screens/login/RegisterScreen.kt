@@ -1,4 +1,4 @@
-package com.trendly.customer.ui.screens.login
+﻿package com.trendly.customer.ui.screens.login
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -157,7 +157,7 @@ fun RegisterScreen(
                                     error = ""
                                     val auth = FirebaseAuth.getInstance()
                                     val db = FirebaseFirestore.getInstance()
-                                    val email = "${phone.trim()}@khalily.app"
+                                    val email = "${phone.trim()}@ARAVA.app"
                                     val whatsappFinal = if (whatsapp.isBlank()) phone else whatsapp
 
                                     // Check if phone already exists

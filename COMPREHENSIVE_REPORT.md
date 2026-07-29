@@ -1,4 +1,4 @@
-# تقرير شامل — جميع التعديلات الأخيرة
+﻿# تقرير شامل — جميع التعديلات الأخيرة
 
 **التاريخ:** 2026-07-19
 **رقم البناء الأخير:** `80a41fd`
@@ -19,7 +19,7 @@
 | `isFirstSnapshot` كانت تخطّي Snapshot الأول بالكامل | `MainActivity.kt` | إذا وصلت رحلة أثناء تحميل المستمع كانت تضيع |
 | فحص `currentRideId` قبل تفعيل المستمع | `MainActivity.kt` | إذا كان للسائق `currentRideId` قديم، المستمع لم يُربط أبداً |
 | `sendFCMNotifications` كانت stub | `js/app.js` | `console.log()` فقط — لا إشعارات حقيقية |
-| حقول ناقصة في FCM handler | `KhalilyFirebaseMessagingService.kt` | `dropoffLat`/`dropoffLng` مفقودة |
+| حقول ناقصة في FCM handler | `ARAVAFirebaseMessagingService.kt` | `dropoffLat`/`dropoffLng` مفقودة |
 
 ### الإصلاحات
 
@@ -63,7 +63,7 @@ fun getConsumedRides(context: Context): Set<String>
 fun clearOldConsumedRides(context: Context)
 ```
 
-#### 5. إصلاح FCM — إضافة حقول مفقودة (KhalilyFirebaseMessagingService.kt)
+#### 5. إصلاح FCM — إضافة حقول مفقودة (ARAVAFirebaseMessagingService.kt)
 ```kotlin
 // ✅ بعد: الإضافة
 val dropoffLat = data["dropoffLat"]?.toString()?.toDoubleOrNull() ?: 0.0
@@ -273,7 +273,7 @@ db.runTransaction { transaction ->
 | `MainActivity.kt` | إعادة `isFirstSnapshot` | ✅ |
 | `MainActivity.kt` | إضافة `isFirstCancelSnapshot` | ✅ |
 | `PrefsManager.kt` | حذف `consumed_rides` functions | ✅ |
-| `KhalilyFirebaseMessagingService.kt` | إضافة `dropoffLat`/`dropoffLng` | ✅ |
+| `ARAVAFirebaseMessagingService.kt` | إضافة `dropoffLat`/`dropoffLng` | ✅ |
 | `SettingsScreen.kt` | `.get()` → `.addSnapshotListener()` | ✅ |
 | `SettingsScreen.kt` | `LaunchedEffect` → `DisposableEffect` مع cleanup | ✅ |
 
@@ -286,7 +286,7 @@ db.runTransaction { transaction ->
 | `js/app.js` | إلغاء المستمع عند مغادرة الصفحة | ✅ |
 | `js/app.js` | `sendFCMNotifications` مُبسّط | ✅ |
 | `js/app.js` | Error handler على كل المستمعين | ✅ |
-| `khalily_admin_dashboard/public/js/app.js` | نفس التعديلات | ✅ |
+| `ARAVA_admin_dashboard/public/js/app.js` | نفس التعديلات | ✅ |
 
 ---
 
@@ -296,8 +296,8 @@ db.runTransaction { transaction ->
 |---|---|
 | رقم البناء | `80a41fd` |
 | آخر بناء APK | BUILD SUCCESSFUL |
-| مسار APK 1 | `delivery/Khalily_Driver.apk` |
-| مسار APK 2 | `KHALILYTEST_TEST1/Khalily_Driver.apk` |
+| مسار APK 1 | `delivery/ARAVA_Driver.apk` |
+| مسار APK 2 | `ARAVATEST_TEST1/ARAVA_Driver.apk` |
 | Git main | ✅ تم الدفع |
 | Git gh-pages | ✅ تم الدفع |
 

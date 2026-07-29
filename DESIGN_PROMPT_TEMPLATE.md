@@ -1,4 +1,4 @@
-أنت مصمم UI/UX محترف للتطبيقات العربية على أندرويد. مهمتك تصميم نظام بصري كامل لتطبيق "خليلي" (Khalily) — خدمة توصيل دراجات نارية في نواكشط، موريتانيا.
+﻿أنت مصمم UI/UX محترف للتطبيقات العربية على أندرويد. مهمتك تصميم نظام بصري كامل لتطبيق "خليلي" (ARAVA) — خدمة توصيل دراجات نارية في نواكشط، موريتانيا.
 
 التقنية: Kotlin + Jetpack Compose + Material 3
 الخط: Cairo من Google Fonts
@@ -54,7 +54,7 @@ Label Small: للشارات والأرقام الصغيرة
 الthing 3: ملف Theme.kt
 
 اكتب ملف Theme.kt يحتوي على:
-- KhalilyTheme composable function
+- ARAVATheme composable function
 - MaterialTheme colorScheme مرتبط بالألوان من Color.kt
 - MaterialTheme typography مرتبط بالخطوط من Type.kt
 - دعم RTL عبر LocalLayoutDirection
@@ -66,12 +66,12 @@ Label Small: للشارات والأرقام الصغيرة
 
 اكتب أكواد Compose جاهزة للنسخ لكل مكون:
 
-أ) KhalilyCard — بطاقة بألوان مختلفة حسب النوع:
+أ) ARAVACard — بطاقة بألوان مختلفة حسب النوع:
 - DefaultCard: خلفية سطح محايدة
 - AccentCard: خلفية ملونة حسب القسم
 - UrgentCard: خلفية ذهبية لطلبات الرحلة (مهم جداً — يجب أن يلفت الانتباه)
 
-ب) KhalilyButton — زر بأربعة أنماط:
+ب) ARAVAButton — زر بأربعة أنماط:
 - Primary: ممتلئ بلون أساسي، مستطيل الزوايا 12.dp
 - Secondary: محدد بلون، خلفية شفافة
 - Danger: أحمر للإجراءات التدميرية

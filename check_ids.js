@@ -1,6 +1,6 @@
-const fs = require('fs');
-const html = fs.readFileSync('C:/Users/Boutilimit Store/OneDrive/Desktop/KHALILY_APP/khalily_admin_dashboard/public/dashboard.html', 'utf8');
-const js = fs.readFileSync('C:/Users/Boutilimit Store/OneDrive/Desktop/KHALILY_APP/khalily_admin_dashboard/public/js/app.js', 'utf8');
+﻿const fs = require('fs');
+const html = fs.readFileSync('C:/Users/Boutilimit Store/OneDrive/Desktop/ARAVA_APP/ARAVA_admin_dashboard/public/dashboard.html', 'utf8');
+const js = fs.readFileSync('C:/Users/Boutilimit Store/OneDrive/Desktop/ARAVA_APP/ARAVA_admin_dashboard/public/js/app.js', 'utf8');
 
 // Check HTML depth
 const lines = html.split('\n');

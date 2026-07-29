@@ -1,4 +1,4 @@
-package com.trendly.customer.ui.screens.login
+﻿package com.trendly.customer.ui.screens.login
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -73,7 +73,7 @@ fun LoginScreen(
                     onSuccess()
                     // Auto-migrate to Firebase Auth
                     val auth = FirebaseAuth.getInstance()
-                    auth.createUserWithEmailAndPassword("${phone}@khalily.app", password)
+                    auth.createUserWithEmailAndPassword("${phone}@ARAVA.app", password)
                         .addOnSuccessListener { result ->
                             doc.reference.update("authUid", result.user?.uid ?: "")
                         }
@@ -168,7 +168,7 @@ fun LoginScreen(
                             error = ""
                             val auth = FirebaseAuth.getInstance()
                             val db = FirebaseFirestore.getInstance()
-                            val email = "${phone.trim()}@khalily.app"
+                            val email = "${phone.trim()}@ARAVA.app"
 
                             auth.signInWithEmailAndPassword(email, password.trim())
                                 .addOnSuccessListener { result ->

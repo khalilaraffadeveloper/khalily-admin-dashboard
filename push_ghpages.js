@@ -1,15 +1,15 @@
-const { execSync } = require('child_process');
+﻿const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const ROOT = 'C:/Users/Boutilimit Store/OneDrive/Desktop/KHALILY_APP';
+const ROOT = 'C:/Users/Boutilimit Store/OneDrive/Desktop/ARAVA_APP';
 
 const FILE_MAP = [
-  { src: 'khalily_admin_dashboard/public/dashboard.html', dst: 'dashboard.html' },
-  { src: 'khalily_admin_dashboard/public/js/app.js', dst: 'js/app.js' },
-  { src: 'khalily_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
-  { src: 'khalily_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
-  { src: 'khalily_admin_dashboard/public/index.html', dst: 'index.html' },
-  { src: 'khalily_admin_dashboard/public/img/trendly1.png', dst: 'img/trendly1.png' },
+  { src: 'ARAVA_admin_dashboard/public/dashboard.html', dst: 'dashboard.html' },
+  { src: 'ARAVA_admin_dashboard/public/js/app.js', dst: 'js/app.js' },
+  { src: 'ARAVA_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
+  { src: 'ARAVA_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
+  { src: 'ARAVA_admin_dashboard/public/index.html', dst: 'index.html' },
+  { src: 'ARAVA_admin_dashboard/public/img/trendly1.png', dst: 'img/trendly1.png' },
 ];
 
 const files = {};

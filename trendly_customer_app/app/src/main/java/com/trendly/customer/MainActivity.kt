@@ -1,4 +1,4 @@
-package com.trendly.customer
+﻿package com.trendly.customer
 
 import android.Manifest
 import android.content.Intent
@@ -225,12 +225,12 @@ class MainActivity : ComponentActivity() {
                         onRideCompleted = { screen = "home" }
                     )
                     "promotions" -> WebViewScreen(
-                        url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/promotions.html",
+                        url = "https://khalilaraffadeveloper.github.io/ARAVA-admin-dashboard/promotions.html",
                         title = "العروض والنشاطات",
                         onBack = { screen = "home" }
                     )
                     "shop" -> WebViewScreen(
-                        url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/shop.html",
+                        url = "https://khalilaraffadeveloper.github.io/ARAVA-admin-dashboard/shop.html",
                         title = "المتجر",
                         onBack = { screen = "home" }
                     )

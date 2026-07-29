@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
@@ -21,7 +21,7 @@ if (EMULATOR_MODE) {
     process.env.FIREBASE_MESSAGING_EMULATOR_HOST = 'localhost:9199';
 
     try {
-        admin.initializeApp({ projectId: 'demo-khalily' });
+        admin.initializeApp({ projectId: 'demo-ARAVA' });
         console.log('🔥 EMULATOR MODE: Connecting to local Firestore at localhost:8080');
     } catch (err) {
         console.warn('Emulator init failed:', err.message);
@@ -359,5 +359,5 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 app.listen(PORT, () => {
-    console.log(`Khalily Dashboard running on http://localhost:${PORT}`);
+    console.log(`ARAVA Dashboard running on http://localhost:${PORT}`);
 });
