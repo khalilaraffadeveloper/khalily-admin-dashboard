@@ -972,6 +972,35 @@ window.clearNotifLog = function () {
     renderNotifLog();
 };
 
+window.confirmResetAllData = function () {
+    if (!confirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟')) return;
+    if (!confirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟')) return;
+    const status = document.getElementById('resetStatus');
+    status.innerHTML = '<span class="text-danger"><i class="bi bi-hourglass-split me-1"></i>جاري مسح البيانات...</span>';
+    requireDb('resetStatus');
+    const collections = ['rides', 'customers', 'drivers', 'messages'];
+    let completed = 0;
+    collections.forEach(async (col) => {
+        try {
+            const snapshot = await db.collection(col).get();
+            const ids = snapshot.docs.map(d => d.id);
+            for (let i = 0; i < ids.length; i += 500) {
+                const batch = db.batch();
+                const chunk = ids.slice(i, i + 500);
+                chunk.forEach(id => batch.delete(db.collection(col).doc(id)));
+                await batch.commit();
+            }
+            completed++;
+            if (completed === collections.length) {
+                status.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>تم مسح جميع البيانات بنجاح!</span>';
+                setTimeout(() => location.reload(), 2000);
+            }
+        } catch (e) {
+            status.innerHTML = `<span class="text-danger">خطأ في ${col}: ${e.message}</span>`;
+        }
+    });
+};
+
 // ============================================
 // FIND NEARBY DRIVERS
 // ============================================
