@@ -4,9 +4,9 @@
 
 const firebaseConfig = {
     apiKey: "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM",
-    authDomain: "ARAVA-app.firebaseapp.com",
-    projectId: "ARAVA-app",
-    storageBucket: "ARAVA-app.firebasestorage.app",
+    authDomain: "khalily-app.firebaseapp.com",
+    projectId: "khalily-app",
+    storageBucket: "khalily-app.firebasestorage.app",
     messagingSenderId: "384215858598",
     appId: "1:384215858598:web:c19bf6d475c567285aa367",
     measurementId: "G-P8XMPWG9SY"
@@ -35,7 +35,12 @@ document.getElementById('loginUser').addEventListener('keydown', (e) => {
 });
 loginBtn.addEventListener('click', doLogin);
 
-const ADMIN_ACCOUNTS = []; // تم إزالة الحسابات القديمة - فقط Firebase Auth
+const ADMIN_ACCOUNTS = [
+    { username: 'admin', password: 'khalily2024', name: 'المدير' },
+    { username: 'khalily', password: 'khalily2024', name: 'Khalily Admin' },
+    { username: '26067036', password: '5926', name: 'محمد سالم' },
+    { username: 'khalilarafa', password: '5910852820', name: 'المدير العام' },
+];
 
 async function doLogin() {
     const user = document.getElementById('loginUser').value.trim();
@@ -52,10 +57,9 @@ async function doLogin() {
 
     let matched = null;
 
-    // 1) Try Firebase Auth (admin email = username@ARAVA.app)
     if (db && typeof firebase.auth === 'function') {
         try {
-            const email = user.includes('@') ? user : `${user}@ARAVA.app`;
+            const email = user.includes('@') ? user : `${user}@khalily.app`;
             await firebase.auth().signInWithEmailAndPassword(email, pass);
             matched = { name: user, isFirebase: true };
         } catch (authErr) {
@@ -78,6 +82,10 @@ async function doLogin() {
         } catch (err) {
             console.warn('Firestore admin check failed:', err.message);
         }
+    }
+
+    if (!matched) {
+        matched = ADMIN_ACCOUNTS.find(a => a.username === user && a.password === pass);
     }
 
     if (matched) {
