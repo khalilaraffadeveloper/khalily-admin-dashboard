@@ -35,11 +35,7 @@ document.getElementById('loginUser').addEventListener('keydown', (e) => {
 });
 loginBtn.addEventListener('click', doLogin);
 
-const ADMIN_ACCOUNTS = [
-    { username: 'admin', password: 'khalily2024', name: 'المدير' },
-    { username: 'khalily', password: 'khalily2024', name: 'Khalily Admin' },
-    { username: '26067036', password: '5926', name: 'محمد سالم' },
-];
+const ADMIN_ACCOUNTS = []; // تم إزالة الحسابات القديمة - فقط Firebase Auth
 
 async function doLogin() {
     const user = document.getElementById('loginUser').value.trim();
@@ -63,16 +59,11 @@ async function doLogin() {
             await firebase.auth().signInWithEmailAndPassword(email, pass);
             matched = { name: user, isFirebase: true };
         } catch (authErr) {
-            console.log('Firebase Auth not available:', authErr.code);
+            console.log('Firebase Auth failed:', authErr.code);
         }
     }
 
-    // 2) Fallback: hardcoded admin accounts
-    if (!matched) {
-        matched = ADMIN_ACCOUNTS.find(a => a.username === user && a.password === pass);
-    }
-
-    // 3) Fallback: Firestore admins collection
+    // 2) Fallback: Firestore admins collection (legacy accounts)
     if (!matched && db) {
         try {
             const snapshot = await db.collection('admins')
