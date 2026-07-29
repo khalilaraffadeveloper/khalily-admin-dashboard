@@ -198,7 +198,7 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.ARAVA1),
+                                    painter = painterResource(id = R.drawable.arava),
                                     contentDescription = "ARAVA",
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -776,7 +776,7 @@ private fun AboutTab() {
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.ARAVA1),
+                            painter = painterResource(id = R.drawable.arava),
                             contentDescription = "ARAVA",
                             modifier = Modifier
                                 .fillMaxSize()

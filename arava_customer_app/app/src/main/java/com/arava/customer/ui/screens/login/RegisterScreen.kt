@@ -58,7 +58,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(30.dp))
 
             Image(
-                painter = painterResource(id = R.drawable.ARAVA1),
+                painter = painterResource(id = R.drawable.arava),
                 contentDescription = "ARAVA",
                 modifier = Modifier
                     .size(100.dp)

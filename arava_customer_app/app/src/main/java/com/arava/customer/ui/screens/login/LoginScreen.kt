@@ -97,7 +97,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             Image(
-                painter = painterResource(id = R.drawable.ARAVA1),
+                painter = painterResource(id = R.drawable.arava),
                 contentDescription = "ARAVA",
                 modifier = Modifier
                     .size(140.dp)

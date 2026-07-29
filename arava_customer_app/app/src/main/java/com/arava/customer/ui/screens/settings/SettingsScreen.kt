@@ -56,7 +56,7 @@ fun SettingsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ARAVA1),
+                    painter = painterResource(id = R.drawable.arava),
                     contentDescription = null,
                     modifier = Modifier
                         .size(80.dp)

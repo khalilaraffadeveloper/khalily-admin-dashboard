@@ -92,7 +92,7 @@ fun HomeScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = R.drawable.ARAVA1),
+                        painter = painterResource(id = R.drawable.arava),
                         contentDescription = null,
                         modifier = Modifier
                             .size(44.dp)

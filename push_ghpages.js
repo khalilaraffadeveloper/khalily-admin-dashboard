@@ -9,7 +9,7 @@ const FILE_MAP = [
   { src: 'arava_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
   { src: 'arava_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
   { src: 'arava_admin_dashboard/public/index.html', dst: 'index.html' },
-  { src: 'arava_admin_dashboard/public/img/arava1.png', dst: 'img/arava1.png' },
+  { src: 'arava_admin_dashboard/public/img/arava.png', dst: 'img/arava.png' },
 ];
 
 const files = {};

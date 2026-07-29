@@ -80,7 +80,7 @@ private fun SplashContent() {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
-                painter = painterResource(id = R.drawable.ARAVA1),
+                painter = painterResource(id = R.drawable.arava),
                 contentDescription = "ARAVA",
                 modifier = Modifier
                     .size(200.dp)
