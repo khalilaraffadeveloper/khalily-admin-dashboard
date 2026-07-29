@@ -1,7 +1,7 @@
 ﻿const https = require('https');
 
 const API_KEY = 'AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM';
-const PROJECT_ID = 'ARAVA-app';
+const PROJECT_ID = 'khalily-app';
 const FIREBASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 function request(method, url, token, body) {
