@@ -201,3 +201,29 @@
 .log-badge-warning { background: #FFF3E0; color: #E65100; }
 .log-badge-danger { background: #FFEBEE; color: #C62828; }
 .log-badge-info { background: #E3F2FD; color: #1565C0; }
+
+/* ============ STATS BAR ============ */
+.stat-item {
+    min-width: 80px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.stat-item:hover { background: #f0f4ff; }
+.stat-label {
+    font-size: 11px;
+    line-height: 1.3;
+    margin-bottom: 2px;
+}
+.stat-value {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.stat-value small {
+    font-size: 11px;
+    font-weight: 600;
+}
+@media (max-width: 576px) {
+    .stat-value { font-size: 16px; }
+    .stat-label { font-size: 10px; }
+}
