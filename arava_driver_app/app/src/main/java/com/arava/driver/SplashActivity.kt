@@ -87,7 +87,7 @@ private fun SplashScreenContent() {
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.trendly1),
+                    painter = painterResource(id = R.drawable.ARAVA1),
                     contentDescription = "ARAVA",
                     modifier = Modifier
                         .fillMaxSize()
