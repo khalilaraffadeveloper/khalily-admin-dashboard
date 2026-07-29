@@ -1,5 +1,5 @@
-// ============================================
-// KHALILY ADMIN DASHBOARD - app.js (Bootstrap 5)
+﻿// ============================================
+// ARAVA ADMIN DASHBOARD - app.js (Bootstrap 5)
 // Two-click map: pickup + dropoff, auto-fare
 // ============================================
 
@@ -10,12 +10,12 @@ let commissionPercent = 10;
 // ============================================
 // AUTH CHECK
 // ============================================
-if (sessionStorage.getItem('khalily_admin_logged_in') !== 'true') {
+if (sessionStorage.getItem('ARAVA_admin_logged_in') !== 'true') {
     window.location.href = 'index.html';
 }
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
-    sessionStorage.removeItem('khalily_admin_logged_in');
+    sessionStorage.removeItem('ARAVA_admin_logged_in');
     window.location.href = 'index.html';
 });
 
@@ -24,9 +24,9 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 // ============================================
 const firebaseConfig = {
     apiKey: "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM",
-    authDomain: "khalily-app.firebaseapp.com",
-    projectId: "khalily-app",
-    storageBucket: "khalily-app.firebasestorage.app",
+    authDomain: "ARAVA-app.firebaseapp.com",
+    projectId: "ARAVA-app",
+    storageBucket: "ARAVA-app.firebasestorage.app",
     messagingSenderId: "384215858598",
     appId: "1:384215858598:web:c19bf6d475c567285aa367",
     measurementId: "G-P8XMPWG9SY"
@@ -611,7 +611,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
 async function loadDriversList() {
     if (!requireDb()) return;
     const tbody = document.getElementById('driversTableBody');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
     try {
         const snapshot = await db.collection('drivers').get();
         allDrivers = [];
@@ -751,7 +751,7 @@ async function loadRidesList() {
     if (!requireDb()) return;
     if (ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     const tbody = document.getElementById('ridesTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="khalily-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
         ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
             .onSnapshot(snapshot => {
@@ -889,7 +889,7 @@ window.exportDriversCSV = function () {
         const status = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
         csv += `${d.name||''},${d.phone||''},${d.credit||0},${status},${d.totalRides||0}\n`;
     });
-    downloadCSV(csv, 'khalily_drivers.csv');
+    downloadCSV(csv, 'ARAVA_drivers.csv');
 };
 
 window.exportRidesCSV = function () {
@@ -901,7 +901,7 @@ window.exportRidesCSV = function () {
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
         csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${r.status||''},${created}\n`;
     });
-    downloadCSV(csv, 'khalily_rides.csv');
+    downloadCSV(csv, 'ARAVA_rides.csv');
 };
 
 function downloadCSV(csv, filename) {
