@@ -1074,10 +1074,52 @@
         </div>
     </div>
 
+    <!-- AI LOGO GENERATION PROMPT MODAL -->
+    <div class="modal fade" id="aiLogoModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom" style="background:var(--k-blue);">
+                    <h6 class="fw-bold text-white mb-0"><i class="bi bi-magic me-2 text-gold"></i>طلب تصميم شعار ARAVA</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info d-flex align-items-center gap-2 py-2">
+                        <i class="bi bi-info-circle-fill"></i>
+                        <small>انسخ النص أدناه والصقه في أي مولد صور بالذكاء الاصطناعي (مثل DALL·E, Midjourney, Bing Image Creator)</small>
+                    </div>
+                    <textarea class="form-control" id="aiPromptText" rows="10" style="font-size:13px;font-family:'Cairo',sans-serif;" readonly>Create a professional modern logo for "ARAVA" – a delivery app. 
+
+Design requirements:
+- Logo text: "ARAVA" in bold modern Arabic calligraphy (آرافا)
+- Tagline (optional small text): "توصيل" 
+- Brand colors: Dark navy blue (#0B1849) and elegant gold (#D4A843)
+- Icon: A stylized delivery motorcycle or a speed/motion symbol integrated with the letter A
+- Style: Minimalist, clean, premium, suitable for a tech startup
+- Background: Transparent or white
+- Mood: Trustworthy, fast, modern, Moroccan/MENA market
+
+Please generate a high-quality vector-style logo with the icon on the right and text on the left, using the specified gold and dark blue color palette.</textarea>
+                </div>
+                <div class="modal-footer border-top justify-content-between">
+                    <small class="text-muted"><i class="bi bi-lightbulb me-1"></i>يمكنك تعديل النص حسب رغبتك قبل النسخ</small>
+                    <button class="btn btn-gold text-white fw-bold" onclick="copyAiPrompt()">
+                        <i class="bi bi-clipboard me-1"></i>نسخ النص
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FLOATING DISPATCH TOGGLE BUTTON (always visible) -->
     <button class="dispatch-fab" id="dispatchFab" onclick="toggleDispatchPanel()">
         <i class="bi bi-send-fill"></i>
         <span class="d-none d-sm-inline ms-2">إرسال رحلة</span>
+    </button>
+
+    <!-- FLOATING LOGO AI BUTTON -->
+    <button class="logo-ai-fab" onclick="openAiLogoModal()">
+        <i class="bi bi-magic"></i>
+        <span class="d-none d-sm-inline ms-2">شعار ARAVA</span>
     </button>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

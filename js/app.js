@@ -1875,3 +1875,29 @@ function initDashboard() {
 }
 
 initDashboard();
+
+// ============================================
+// AI LOGO PROMPT
+// ============================================
+let aiLogoModal = null;
+document.addEventListener('DOMContentLoaded', function () {
+    aiLogoModal = new bootstrap.Modal(document.getElementById('aiLogoModal'));
+});
+
+window.openAiLogoModal = function () {
+    if (aiLogoModal) aiLogoModal.show();
+};
+
+window.copyAiPrompt = function () {
+    const textarea = document.getElementById('aiPromptText');
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(textarea.value).then(() => {
+        const btn = document.querySelector('#aiLogoModal .btn-gold');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>تم النسخ!';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    }).catch(() => {
+        document.execCommand('copy');
+    });
+};
