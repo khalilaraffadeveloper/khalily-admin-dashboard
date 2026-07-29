@@ -4,12 +4,12 @@ const path = require('path');
 const ROOT = 'C:/Users/Boutilimit Store/OneDrive/Desktop/ARAVA_APP';
 
 const FILE_MAP = [
-  { src: 'ARAVA_admin_dashboard/public/dashboard.html', dst: 'dashboard.html' },
-  { src: 'ARAVA_admin_dashboard/public/js/app.js', dst: 'js/app.js' },
-  { src: 'ARAVA_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
-  { src: 'ARAVA_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
-  { src: 'ARAVA_admin_dashboard/public/index.html', dst: 'index.html' },
-  { src: 'ARAVA_admin_dashboard/public/img/ARAVA1.png', dst: 'img/ARAVA1.png' },
+  { src: 'arava_admin_dashboard/public/dashboard.html', dst: 'dashboard.html' },
+  { src: 'arava_admin_dashboard/public/js/app.js', dst: 'js/app.js' },
+  { src: 'arava_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
+  { src: 'arava_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
+  { src: 'arava_admin_dashboard/public/index.html', dst: 'index.html' },
+  { src: 'arava_admin_dashboard/public/img/arava1.png', dst: 'img/arava1.png' },
 ];
 
 const files = {};
