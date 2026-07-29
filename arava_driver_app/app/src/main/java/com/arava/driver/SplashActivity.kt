@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver
+﻿package com.arava.driver
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -99,7 +99,7 @@ private fun SplashScreenContent() {
 
             val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
             Text(
-                text = "\u062D\u0645\u0627\u062F\u0647",
+                text = "\u0639\u0631\u0641\u0647",
                 fontSize = 56.sp,
                 fontFamily = cairoFont,
                 fontWeight = FontWeight.Bold,
@@ -134,7 +134,7 @@ private fun SplashScreenContent() {
 
             // Copyright
             Text(
-                text = "\u00A9 2026 \u062D\u0645\u0627\u062F\u0647",
+                text = "\u00A9 2026 \u0639\u0631\u0641\u0647",
                 fontSize = 12.sp,
                 color = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.padding(bottom = 40.dp)
