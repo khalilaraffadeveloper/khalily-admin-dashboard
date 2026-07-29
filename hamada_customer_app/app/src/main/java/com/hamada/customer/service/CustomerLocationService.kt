@@ -81,7 +81,7 @@ class CustomerLocationService : Service() {
     }
 
     private fun buildNotification() = NotificationCompat.Builder(this, "location_service_channel")
-        .setContentTitle("عيط أل حماده")
+        .setContentTitle("TRENDLY")
         .setContentText("جاري تتبع موقعك...")
         .setSmallIcon(R.drawable.ic_notification)
         .setOngoing(true)

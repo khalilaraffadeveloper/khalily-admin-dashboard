@@ -81,7 +81,7 @@ private fun SplashContent() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 painter = painterResource(id = R.drawable.hamada3),
-                contentDescription = "حماده",
+                contentDescription = "TRENDLY",
                 modifier = Modifier
                     .size(200.dp)
                     .alpha(alpha)
@@ -93,7 +93,7 @@ private fun SplashContent() {
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "عيط أل حماده",
+                text = "TRENDLY",
                 fontSize = 44.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
@@ -122,7 +122,7 @@ private fun SplashContent() {
             Spacer(modifier = Modifier.height(40.dp))
 
             Text(
-                text = "© 2026 حماده",
+                text = "© 2026 TRENDLY",
                 fontSize = 12.sp,
                 color = Color.White.copy(alpha = 0.5f)
             )

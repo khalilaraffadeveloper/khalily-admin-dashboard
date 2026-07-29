@@ -98,7 +98,7 @@ fun LoginScreen(
 
             Image(
                 painter = painterResource(id = R.drawable.hamada3),
-                contentDescription = "حماده",
+                contentDescription = "TRENDLY",
                 modifier = Modifier
                     .size(140.dp)
                     .shadow(10.dp, RoundedCornerShape(24.dp))
@@ -107,7 +107,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("عيط أل حماده", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text("TRENDLY", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
 
             Spacer(modifier = Modifier.height(40.dp))
 

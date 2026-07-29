@@ -59,7 +59,7 @@ fun RegisterScreen(
 
             Image(
                 painter = painterResource(id = R.drawable.hamada3),
-                contentDescription = "حماده",
+                contentDescription = "TRENDLY",
                 modifier = Modifier
                     .size(100.dp)
                     .shadow(8.dp, RoundedCornerShape(20.dp))
