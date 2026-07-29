@@ -80,7 +80,7 @@ private fun SplashContent() {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
-                painter = painterResource(id = R.drawable.hamada3),
+                painter = painterResource(id = R.drawable.trendly1),
                 contentDescription = "TRENDLY",
                 modifier = Modifier
                     .size(200.dp)

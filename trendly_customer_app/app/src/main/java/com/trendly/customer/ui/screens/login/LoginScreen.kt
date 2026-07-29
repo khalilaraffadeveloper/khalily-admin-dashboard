@@ -97,7 +97,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             Image(
-                painter = painterResource(id = R.drawable.hamada3),
+                painter = painterResource(id = R.drawable.trendly1),
                 contentDescription = "TRENDLY",
                 modifier = Modifier
                     .size(140.dp)

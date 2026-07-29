@@ -9,7 +9,7 @@ const FILE_MAP = [
   { src: 'khalily_admin_dashboard/public/js/login.js', dst: 'js/login.js' },
   { src: 'khalily_admin_dashboard/public/css/style.css', dst: 'css/style.css' },
   { src: 'khalily_admin_dashboard/public/index.html', dst: 'index.html' },
-  { src: 'khalily_admin_dashboard/public/img/hamada3.png', dst: 'img/hamada3.png' },
+  { src: 'khalily_admin_dashboard/public/img/trendly1.png', dst: 'img/trendly1.png' },
 ];
 
 const files = {};

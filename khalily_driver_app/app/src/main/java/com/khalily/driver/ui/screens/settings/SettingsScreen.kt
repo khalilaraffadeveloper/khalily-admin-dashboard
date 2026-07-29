@@ -198,7 +198,7 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.hamada3),
+                                    painter = painterResource(id = R.drawable.trendly1),
                                     contentDescription = "Khalily",
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -776,7 +776,7 @@ private fun AboutTab() {
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.hamada3),
+                            painter = painterResource(id = R.drawable.trendly1),
                             contentDescription = "Khalily",
                             modifier = Modifier
                                 .fillMaxSize()
