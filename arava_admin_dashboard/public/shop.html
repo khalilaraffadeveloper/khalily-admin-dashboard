@@ -140,6 +140,27 @@
             modal.show();
         }
 
+        function callPhone(phone) {
+            if (!phone) return;
+            var a = document.createElement('a');
+            a.href = 'tel:' + phone;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function openWhatsApp(phone, name) {
+            if (!phone) return;
+            var text = encodeURIComponent('مرحباً بخصوص ' + decodeURIComponent(name));
+            var isAndroid = /android/i.test(navigator.userAgent);
+            if (isAndroid) {
+                location.href = 'intent://send/' + phone + '#Intent;scheme=smsto;package=com.whatsapp;action=android.intent.action.SENDTO;S.smsto=' + phone + ';S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.whatsapp;end';
+            } else {
+                location.href = 'https://wa.me/' + phone + '?text=' + text;
+            }
+        }
+
         function renderProducts(filter) {
             const container = document.getElementById('productsContainer');
             const filtered = filter === 'all' ? allProducts : allProducts.filter(p => p.type === filter);
@@ -169,8 +190,8 @@
                             <p class="text-muted small mb-2" style="font-size:13px;">${p.description || ''}</p>
                             <div class="price-tag mb-2">${p.price || 0} <small>MRU</small></div>
                             <div class="d-flex gap-2">
-                                <a href="tel:${p.phone}" class="btn btn-sm text-white btn-call flex-fill"><i class="bi bi-telephone-fill"></i> اتصال</a>
-                                <a href="https://wa.me/${phoneClean}?text=مرحباً%20بخصوص%20${encodeURIComponent(p.name)}" target="_blank" class="btn btn-sm text-white btn-whatsapp flex-fill"><i class="bi bi-whatsapp"></i> واتساب</a>
+                                <button onclick="callPhone('${p.phone||''}')" class="btn btn-sm text-white btn-call flex-fill"><i class="bi bi-telephone-fill"></i> اتصال</button>
+                                <button onclick="openWhatsApp('${phoneClean}','${encodeURIComponent(p.name)}')" class="btn btn-sm text-white btn-whatsapp flex-fill"><i class="bi bi-whatsapp"></i> واتساب</button>
                                 ${videoHtml}
                             </div>
                         </div>

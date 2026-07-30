@@ -1,8 +1,12 @@
 ﻿package com.arava.driver.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.*
@@ -71,6 +75,44 @@ fun WebViewScreen(
                             }
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 isLoading = false
+                            }
+                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                val url = request?.url?.toString() ?: return false
+                                return handleCustomUrl(url, view?.context?.applicationContext)
+                            }
+                            @Deprecated("Deprecated in Java")
+                            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                return handleCustomUrl(url ?: return false, view?.context?.applicationContext)
+                            }
+                            private fun handleCustomUrl(url: String, appContext: android.content.Context?): Boolean {
+                                if (appContext == null) return false
+                                return when {
+                                    url.startsWith("tel:") -> {
+                                        appContext.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                                        true
+                                    }
+                                    url.startsWith("whatsapp://") -> {
+                                        try {
+                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                        } catch (_: ActivityNotFoundException) {
+                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                        }
+                                        true
+                                    }
+                                    url.startsWith("intent://") -> {
+                                        try {
+                                            appContext.startActivity(Intent.parseUri(url, Intent.URI_INTENT_SCHEME))
+                                        } catch (_: Exception) {
+                                            if (url.contains("com.whatsapp")) {
+                                                try {
+                                                    appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                                } catch (_: Exception) {}
+                                            }
+                                        }
+                                        true
+                                    }
+                                    else -> false
+                                }
                             }
                         }
                         webChromeClient = WebChromeClient()

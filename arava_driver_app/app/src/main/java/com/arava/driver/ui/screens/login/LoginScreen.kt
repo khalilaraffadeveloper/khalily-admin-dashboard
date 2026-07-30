@@ -152,7 +152,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             Spacer(modifier = Modifier.height(20.dp))
             val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
             Text(
-                text = "\u062D\u0645\u0627\u062F\u0647",
+                    text = "\u0639\u0631\u0641\u0647",
                 fontSize = 44.sp,
                 fontFamily = cairoFont,
                 fontWeight = FontWeight.Bold,

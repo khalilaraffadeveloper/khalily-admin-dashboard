@@ -1859,8 +1859,8 @@ async function loadProductsList() {
                         <p class="small text-muted mb-1">${p.description || ''}</p>
                         <h5 class="text-gold fw-bold mb-2">${p.price || 0} MRU</h5>
                         <div class="d-flex gap-2 flex-wrap">
-                            <a href="tel:${p.phone}" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</a>
-                            <a href="https://wa.me/222${(p.phone||'').replace(/^0+/, '')}" target="_blank" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</a>
+                            <button onclick="callPhone('${p.phone||''}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>
+                            <button onclick="openWhatsApp('222${(p.phone||'').replace(/^0+/, '')}','${encodeURIComponent(p.name||'')}')" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</button>
                             ${videoHtml}
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${doc.id}')"><i class="bi bi-trash"></i></button>
                         </div>
@@ -1882,6 +1882,18 @@ window.deleteProduct = async function(id) {
         loadProductsList();
     } catch (err) { alert('خطأ: ' + err.message); }
 };
+
+function callPhone(phone) {
+    if (!phone) return;
+    window.location.href = 'tel:' + phone;
+}
+
+function openWhatsApp(phone, name) {
+    if (!phone) return;
+    var text = 'مرحباً بخصوص ' + decodeURIComponent(name);
+    var intentUrl = 'intent://send?phone=' + phone + '&text=' + encodeURIComponent(text) + '#Intent;scheme=smsto;package=com.whatsapp;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.whatsapp;end';
+    window.location.href = intentUrl;
+}
 
 // ============================================
 // INIT

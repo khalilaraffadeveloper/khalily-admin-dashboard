@@ -785,7 +785,7 @@ private fun AboutTab() {
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        "\u062D\u0645\u0627\u062F\u0647",
+                        "\u0639\u0631\u0641\u0647",
                         fontSize = 38.sp,
                         fontFamily = cairoFont,
                         fontWeight = FontWeight.Bold,
@@ -822,7 +822,7 @@ private fun AboutTab() {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("معلومات التطبيق", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
                     Spacer(modifier = Modifier.height(16.dp))
-                    AboutInfoRow(icon = Icons.Default.Business, label = "الشركة", value = "\u062D\u0645\u0627\u062F\u0647 \u0644\u0644\u062A\u0648\u0635\u064A\u0644")
+                    AboutInfoRow(icon = Icons.Default.Business, label = "الشركة", value = "\u0639\u0631\u0641\u0647 \u0644\u0644\u062A\u0648\u0635\u064A\u0644")
                     AboutInfoRow(icon = Icons.Default.LocationOn, label = "المدينة", value = "نواكشط، موريتانيا")
                     AboutInfoRow(icon = Icons.Default.Phone, label = "التواصل", value = "47717983")
                     AboutInfoRow(icon = Icons.Default.Code, label = "الإصدار", value = versionName)
@@ -840,7 +840,7 @@ private fun AboutTab() {
                     Text("رسالتنا", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        "في خَلِيلِي، نؤمن بأن خدمة الزبون وإرضائه هو جوهر عملنا. رضا الزبون يعني رضا السائق والشركة معاً — وهذا مصلحتنا مشتركة.",
+                        "في عرفه، نؤمن بأن خدمة الزبون وإرضائه هو جوهر عملنا. رضا الزبون يعني رضا السائق والشركة معاً — وهذا مصلحتنا جميعاً. نسعى لتقديم تجربة توصيل سريعة وآمنة تلبي تطلعاتكم، ونعمل باستمرار على تطوير خدماتنا لنكون الخيار الأمثل لكم.",
                         fontSize = 13.sp, color = ARAVATextSecondary, lineHeight = 22.sp
                     )
                 }
@@ -913,7 +913,7 @@ private fun AboutTab() {
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = Color(0xFFEEEEEE))
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("\u00A9 2026 \u062D\u0645\u0627\u062F\u0647 \u2014 \u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638\u0629", fontSize = 12.sp, color = ARAVATextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text("\u00A9 2026 \u0639\u0631\u0641\u0647 \u2014 \u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638\u0629", fontSize = 12.sp, color = ARAVATextSecondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
