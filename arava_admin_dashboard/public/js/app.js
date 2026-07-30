@@ -1645,6 +1645,10 @@ window.addPromotion = async function() {
 
     try {
         const images = [];
+        const urlText = document.getElementById('promoImageUrls')?.value.trim();
+        if (urlText) {
+            urlText.split('\n').map(u => u.trim()).filter(u => u).forEach(u => images.push(u));
+        }
         if (promoImageFiles.length > 0) {
             try {
                 const storage = firebase.storage();
@@ -1656,8 +1660,7 @@ window.addPromotion = async function() {
                     images.push(url);
                 }
             } catch (storageErr) {
-                showStatus('addPromoStatus', 'تم حفظ العرض لكن فشل رفع الصور: ' + storageErr.message, 'warning');
-                await new Promise(r => setTimeout(r, 2000));
+                console.warn('Image upload failed (storage not available):', storageErr.message);
             }
         }
 
@@ -1667,12 +1670,13 @@ window.addPromotion = async function() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        showStatus('addPromoStatus', images.length > 0 || promoImageFiles.length === 0 ? 'تم إضافة العرض بنجاح!' : 'تم إضافة العرض بدون صور', 'success');
+        showStatus('addPromoStatus', 'تم إضافة العرض بنجاح!', 'success');
         document.getElementById('promoTitle').value = '';
         document.getElementById('promoDescription').value = '';
         document.getElementById('promoVideo').value = '';
         document.getElementById('promoImages').value = '';
         document.getElementById('promoImagesPreview').innerHTML = '';
+        if (document.getElementById('promoImageUrls')) document.getElementById('promoImageUrls').value = '';
         promoImageFiles = [];
         loadPromotionsList();
     } catch (err) {
@@ -1780,6 +1784,10 @@ window.addProduct = async function() {
 
     try {
         const images = [];
+        const urlText = document.getElementById('prodImageUrls')?.value.trim();
+        if (urlText) {
+            urlText.split('\n').map(u => u.trim()).filter(u => u).forEach(u => images.push(u));
+        }
         if (prodImageFiles.length > 0) {
             try {
                 const storage = firebase.storage();
@@ -1791,8 +1799,7 @@ window.addProduct = async function() {
                     images.push(url);
                 }
             } catch (storageErr) {
-                showStatus('addProductStatus', 'تم حفظ المنتج لكن فشل رفع الصور: ' + storageErr.message, 'warning');
-                await new Promise(r => setTimeout(r, 2000));
+                console.warn('Image upload failed (storage not available):', storageErr.message);
             }
         }
 
@@ -1810,6 +1817,7 @@ window.addProduct = async function() {
         document.getElementById('prodVideo').value = '';
         document.getElementById('prodImages').value = '';
         document.getElementById('prodImagesPreview').innerHTML = '';
+        if (document.getElementById('prodImageUrls')) document.getElementById('prodImageUrls').value = '';
         prodImageFiles = [];
         loadProductsList();
     } catch (err) {

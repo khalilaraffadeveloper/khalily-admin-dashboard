@@ -671,6 +671,10 @@
                                         <label class="form-label fw-bold">صور (اختيار متعدد)</label>
                                         <input type="file" class="form-control" id="promoImages" accept="image/*" multiple>
                                     </div>
+                                    <div class="col-md-8 mt-2">
+                                        <label class="form-label fw-bold small">أو أدخل روابط صور مباشرة (واحد لكل سطر)</label>
+                                        <textarea class="form-control" id="promoImageUrls" rows="2" placeholder="https://example.com/image1.jpg"></textarea>
+                                    </div>
                                     <div id="promoImagesPreview" class="col-12 d-flex gap-2 flex-wrap"></div>
                                 </div>
                                 <button class="btn btn-dark-blue text-white fw-bold mt-3" onclick="addPromotion()">
@@ -738,6 +742,10 @@
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">رابط فيديو (YouTube)</label>
                                         <input type="url" class="form-control" id="prodVideo" placeholder="https://youtube.com/...">
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <label class="form-label fw-bold small">أو أدخل روابط صور مباشرة (واحد لكل سطر)</label>
+                                        <textarea class="form-control" id="prodImageUrls" rows="2" placeholder="https://example.com/image1.jpg"></textarea>
                                     </div>
                                     <div id="prodImagesPreview" class="col-12 d-flex gap-2 flex-wrap"></div>
                                 </div>
