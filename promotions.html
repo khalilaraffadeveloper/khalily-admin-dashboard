@@ -54,8 +54,8 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script>
         function getYouTubeId(url) {
             if (!url) return null;
@@ -95,47 +95,46 @@
 
         function loadPromotions() {
             const container = document.getElementById('promotionsContainer');
-            var timedOut = false;
-            var timer = setTimeout(function () {
-                timedOut = true;
-                container.innerHTML = '<div class="col-12 text-center text-danger py-5"><i class="bi bi-exclamation-triangle" style="font-size:40px;"></i><p>تعذر التحميل. تحقق من اتصال الإنترنت.</p><button class="btn btn-primary mt-2" onclick="loadPromotions()">إعادة المحاولة</button></div>';
-            }, 15000);
-            try {
-                db.collection('promotions').where('active', '==', true).get().then(function (snapshot) {
-                    if (timedOut) return;
-                    clearTimeout(timer);
+            db.collection('promotions').where('active', '==', true)
+                .get()
+                .then(snapshot => {
                     if (snapshot.empty) {
                         container.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-megaphone text-muted"></i><p>لا توجد عروض حالياً</p></div></div>';
                         return;
                     }
-                    var docs = snapshot.docs.map(function (doc) { var d = doc.data(); d.id = doc.id; return d; });
-                    docs.sort(function (a, b) {
-                        var tA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-                        var tB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    docs.sort((a, b) => {
+                        const tA = a.createdAt?.toMillis?.() ?? 0;
+                        const tB = b.createdAt?.toMillis?.() ?? 0;
                         return tB - tA;
                     });
-                    var html = '';
-                    for (var di = 0; di < docs.length; di++) {
-                        var p = docs[di];
-                        var imgs = (p.images || []).filter(function(u) { return u && (u.startsWith('http') || u.startsWith('data:image')); });
-                        var slideId = 'crs-' + di + '-' + Date.now();
-                        var imgHtml = imgs.length > 0
-                            ? '<div id="' + slideId + '" class="carousel slide" data-bs-ride="carousel"><div class="carousel-inner">' + imgs.map(function(u, i) { return '<div class="carousel-item' + (i === 0 ? ' active' : '') + '"><img src="' + u + '" class="promo-img" alt="" onerror="this.style.display=\'none\'"></div>'; }).join('') + '</div>' + (imgs.length > 1 ? '<button class="carousel-control-prev" type="button" data-bs-target="#' + slideId + '" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#' + slideId + '" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>' : '') + '</div>'
-                            : '<div style="height:200px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;"><i class="bi bi-megaphone" style="font-size:40px;color:#bbb;"></i></div>';
-                        var videoHtml = p.videoUrl ? '<button class="video-btn" onclick="playVideo(\'' + p.videoUrl.replace(/'/g, "\\'") + '\')"><i class="bi bi-play-fill"></i> فيديو</button>' : '';
-                        var descHtml = p.description ? '<p class="text-muted small mb-1" style="font-size:14px;">' + p.description + '</p>' : '';
-                        html += '<div class="col-md-4 col-sm-6"><div class="promo-card position-relative"><span class="type-badge badge" style="background:' + (typeColors[p.type] || '#6c757d') + ';color:white;">' + (typeLabels[p.type] || p.type) + '</span>' + imgHtml + '<div class="p-3"><h6 class="fw-bold mb-1">' + p.title + '</h6>' + descHtml + (videoHtml ? '<div class="mt-2">' + videoHtml + '</div>' : '') + '</div></div></div>';
-                    }
-                    container.innerHTML = html;
-                }).catch(function (err) {
-                    clearTimeout(timer);
-                    if (timedOut) return;
-                    container.innerHTML = '<div class="col-12 text-center text-danger py-5"><i class="bi bi-exclamation-triangle" style="font-size:40px;"></i><p>خطأ: ' + err.message + '</p><button class="btn btn-primary mt-2" onclick="loadPromotions()">إعادة المحاولة</button></div>';
+                    container.innerHTML = docs.map(doc => {
+                        const p = doc;
+                        const imgs = (p.images || []).filter(function(u) { return u && (u.startsWith('http') || u.startsWith('data:image')); });
+                        const imgHtml = imgs.length > 0
+                            ? `<div id="carousel-${doc.id}" class="carousel slide" data-bs-ride="carousel">
+                                <div class="carousel-inner">${imgs.map((u, i) => `<div class="carousel-item${i === 0 ? ' active' : ''}"><img src="${u}" class="promo-img" alt="" onerror="this.style.display='none'"></div>`).join('')}</div>
+                                ${imgs.length > 1 ? `<button class="carousel-control-prev" type="button" data-bs-target="#carousel-${doc.id}" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#carousel-${doc.id}" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>` : ''}
+                              </div>`
+                            : `<div style="height:200px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;"><i class="bi bi-megaphone" style="font-size:40px;color:#bbb;"></i></div>`;
+                        const videoHtml = p.videoUrl ? `<button class="video-btn" onclick="playVideo('${p.videoUrl.replace(/'/g, "\\'")}')"><i class="bi bi-play-fill"></i> فيديو</button>` : '';
+                        const descHtml = p.description ? `<p class="text-muted small mb-1" style="font-size:14px;">${p.description}</p>` : '';
+                        return `<div class="col-md-4 col-sm-6">
+                            <div class="promo-card position-relative">
+                                <span class="type-badge badge" style="background:${typeColors[p.type] || '#6c757d'};color:white;">${typeLabels[p.type] || p.type}</span>
+                                ${imgHtml}
+                                <div class="p-3">
+                                    <h6 class="fw-bold mb-1">${p.title}</h6>
+                                    ${descHtml}
+                                    ${videoHtml ? `<div class="mt-2">${videoHtml}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                })
+                .catch(err => {
+                    container.innerHTML = `<div class="col-12 text-center text-danger py-5">حدث خطأ: ${err.message}</div>`;
                 });
-            } catch (e) {
-                clearTimeout(timer);
-                container.innerHTML = '<div class="col-12 text-center text-danger py-5"><p>' + e.message + '</p></div>';
-            }
         }
 
         loadPromotions();
