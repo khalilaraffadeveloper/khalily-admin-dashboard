@@ -66,13 +66,46 @@ function requireDb(caller) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function (e) {
-            var dataUrl = e.target.result;
-            resolve(dataUrl);
+        var MAX_W = 800, MAX_H = 800, QUALITY = 0.4, SIZE_LIMIT = 300 * 1024;
+        if (file.size <= SIZE_LIMIT) {
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+            reader.readAsDataURL(file);
+            return;
+        }
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+            var w = img.width, h = img.height;
+            if (w > MAX_W || h > MAX_H) {
+                var ratio = Math.min(MAX_W / w, MAX_H / h);
+                w = Math.round(w * ratio); h = Math.round(h * ratio);
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(function (blob) {
+                URL.revokeObjectURL(url);
+                if (blob) {
+                    var r = new FileReader();
+                    r.onload = function (e) { resolve(e.target.result); };
+                    r.readAsDataURL(blob);
+                } else {
+                    var r = new FileReader();
+                    r.onload = function (e) { resolve(e.target.result); };
+                    r.readAsDataURL(file);
+                }
+            }, 'image/jpeg', QUALITY);
         };
-        reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
-        reader.readAsDataURL(file);
+        img.onerror = function () {
+            URL.revokeObjectURL(url);
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.readAsDataURL(file);
+        };
+        img.src = url;
     });
 }
 
@@ -87,7 +120,8 @@ function filesToBase64(files, maxCount) {
                 console.log('Converting image ' + (idx + 1) + '/' + count + ' name=' + file.name + ' size=' + file.size);
                 return fileToBase64(file).then(function (b64) {
                     results.push(b64);
-                    console.log('Image ' + (idx + 1) + ' converted OK, length=' + b64.length);
+                    var kb = (b64.length / 1024).toFixed(0);
+                    console.log('Image ' + (idx + 1) + ' OK: ' + kb + 'KB');
                 }).catch(function (e) {
                     console.warn('Image ' + (idx + 1) + ' failed:', e ? e.message : 'unknown error');
                 });
