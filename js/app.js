@@ -66,54 +66,28 @@ function requireDb(caller) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function (e) {
+        var r = new FileReader();
+        r.onload = function (e) {
             var dataUrl = e.target.result;
-            // For non-JPEG or small images, use as-is
-            if (dataUrl.length < 50000 || !dataUrl.startsWith('data:image/')) {
+            // If Compressor is available AND file > 100KB, compress
+            if (typeof Compressor !== 'undefined' && file.size > 100000 && dataUrl.startsWith('data:image/')) {
+                new Compressor(file, {
+                    quality: 0.4, maxWidth: 800, maxHeight: 800, convertSize: 300000,
+                    success: function (blob) {
+                        if (blob && blob.size > 0) {
+                            var r2 = new FileReader();
+                            r2.onload = function (ev) { resolve(ev.target.result); };
+                            r2.readAsDataURL(blob);
+                        } else { resolve(dataUrl); }
+                    },
+                    error: function () { resolve(dataUrl); }
+                });
+            } else {
                 resolve(dataUrl);
-                return;
             }
-            // Compress via Canvas
-            var img = new Image();
-            img.onload = function () {
-                var maxDim = 800;
-                var w = img.width, h = img.height;
-                if (w > maxDim || h > maxDim) {
-                    var ratio = Math.min(maxDim / w, maxDim / h);
-                    w = Math.round(w * ratio);
-                    h = Math.round(h * ratio);
-                }
-                var canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                var quality = file.type === 'image/png' ? 0.7 : 0.5;
-                var compressed = canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality);
-                // If compressed is larger than original, use original
-                resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
-            };
-            img.onerror = function () {
-                // Canvas failed, try Compressor.js fallback
-                if (typeof Compressor !== 'undefined') {
-                    new Compressor(file, {
-                        quality: 0.5, maxWidth: 800, maxHeight: 800,
-                        success: function (blob) {
-                            var r = new FileReader();
-                            r.onload = function (ev) { resolve(ev.target.result); };
-                            r.readAsDataURL(blob);
-                        },
-                        error: function () { resolve(dataUrl); }
-                    });
-                } else {
-                    resolve(dataUrl);
-                }
-            };
-            img.src = dataUrl;
         };
-        reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
-        reader.readAsDataURL(file);
+        r.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+        r.readAsDataURL(file);
     });
 }
 
@@ -1798,6 +1772,12 @@ window.addPromotion = async function() {
                 console.warn('Image conversion failed:', convErr.message);
                 showToast('فشل معالجة الصور، جرب صوراً أصغر', 'warning');
             }
+        }
+
+        if (promoImageFiles.length > 0 && images.length === 0) {
+            showStatus('addPromoStatus', 'فشل رفع الصور. جرب صوراً أصغر أو استخدم رابط مباشر.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة العرض';
+            return;
         }
 
         await db.collection('promotions').add({
