@@ -1397,7 +1397,7 @@ window.clearNotifLog = function () {
     renderNotifLog();
 };
 
-window.confirmResetAllData = function () {
+window.confirmResetAllData = async function () {
     if (!(await ARAconfirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟'))) return;
     if (!(await ARAconfirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟'))) return;
     const status = document.getElementById('resetStatus');
