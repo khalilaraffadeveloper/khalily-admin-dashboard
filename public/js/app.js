@@ -14,8 +14,21 @@ if (sessionStorage.getItem('ARAVA_admin_logged_in') !== 'true') {
     window.location.href = 'index.html';
 }
 
+// Also verify with Firebase Auth if available
+try {
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (!user && sessionStorage.getItem('ARAVA_admin_logged_in') === 'true') {
+            // Firebase session expired but local session exists — keep it for now
+            console.warn('Firebase auth expired, using local session');
+        }
+    });
+} catch (e) {}
+
 document.getElementById('logoutBtn').addEventListener('click', () => {
     sessionStorage.removeItem('ARAVA_admin_logged_in');
+    sessionStorage.removeItem('ARAVA_admin_name');
+    sessionStorage.removeItem('ARAVA_admin_role');
+    try { firebase.auth().signOut(); } catch (e) {}
     window.location.href = 'index.html';
 });
 
@@ -1626,8 +1639,21 @@ window.addAdmin = async function () {
             showStatus('addAdminStatus', 'اسم المستخدم مستخدم بالفعل', 'error');
             return;
         }
+
+        // Create Firebase Auth account
+        let authUid = '';
+        try {
+            const email = `${username}@khalily.app`;
+            const userCred = await firebase.auth().createUserWithEmailAndPassword(email, password);
+            authUid = userCred.user.uid;
+        } catch (authErr) {
+            showStatus('addAdminStatus', 'فشل إنشاء حساب المصادقة: ' + authErr.message, 'error');
+            return;
+        }
+
         await db.collection('admins').add({
             username, name, password, role,
+            authUid: authUid,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         showStatus('addAdminStatus', 'تم إضافة المشرف بنجاح!', 'success');
@@ -1643,6 +1669,25 @@ window.addAdmin = async function () {
 window.deleteAdmin = async function (id, name) {
     if (!confirm(`هل أنت متأكد من حذف المشرف "${name}"؟`)) return;
     if (!requireDb()) return;
+
+    // Prevent deleting the last admin
+    try {
+        const snapshot = await db.collection('admins').get();
+        const admins = [];
+        snapshot.forEach(doc => admins.push({ id: doc.id, ...doc.data() }));
+
+        const targetDoc = admins.find(a => a.id === id);
+        if (targetDoc && targetDoc.role === 'admin') {
+            const otherAdmins = admins.filter(a => a.id !== id && a.role === 'admin');
+            if (otherAdmins.length === 0) {
+                alert('لا يمكن حذف آخر مشرف بصلاحية مدير عام. يجب أن يبقى مشرف واحد على الأقل بصلاحية كاملة.');
+                return;
+            }
+        }
+    } catch (err) {
+        console.error('Error checking admins before delete:', err);
+    }
+
     try {
         await db.collection('admins').doc(id).delete();
         loadAdminsList();

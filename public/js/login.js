@@ -9,16 +9,20 @@
 };
 
 let db = null;
+let auth = null;
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    auth = firebase.auth();
 } catch (e) {
     console.error("Firebase init failed:", e);
 }
 
-if (sessionStorage.getItem('ARAVA_admin_logged_in') === 'true') {
-    window.location.href = 'dashboard.html';
-}
+firebase.auth().onAuthStateChanged(function(user) {
+    if (user && sessionStorage.getItem('ARAVA_admin_logged_in') === 'true') {
+        window.location.href = 'dashboard.html';
+    }
+});
 
 const loginBtn = document.getElementById('loginBtn');
 const loginError = document.getElementById('loginError');
@@ -30,13 +34,6 @@ document.getElementById('loginUser').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('loginPass').focus();
 });
 loginBtn.addEventListener('click', doLogin);
-
-const ADMIN_ACCOUNTS = [
-    { username: 'admin', password: 'khalily2024', name: 'المدير' },
-    { username: 'khalily', password: 'khalily2024', name: 'Khalily Admin' },
-    { username: '26067036', password: '5926', name: 'محمد سالم' },
-    { username: 'khalilarafa', password: '5910852820', name: 'المدير العام' },
-];
 
 async function doLogin() {
     const user = document.getElementById('loginUser').value.trim();
@@ -52,17 +49,41 @@ async function doLogin() {
     loginError.textContent = '';
 
     let matched = null;
+    let role = 'supervisor';
 
-    if (db && typeof firebase.auth === 'function') {
+    // 1. Try Firebase Authentication (Email/Password)
+    if (auth) {
         try {
             const email = user.includes('@') ? user : `${user}@khalily.app`;
-            await firebase.auth().signInWithEmailAndPassword(email, pass);
-            matched = { name: user, isFirebase: true };
+            await auth.signInWithEmailAndPassword(email, pass);
+            const firebaseUser = auth.currentUser;
+            if (firebaseUser) {
+                // Check Firestore for admin role
+                try {
+                    const adminDoc = await db.collection('admins').where('authUid', '==', firebaseUser.uid).limit(1).get();
+                    if (!adminDoc.empty) {
+                        const data = adminDoc.docs[0].data();
+                        matched = { name: data.name || user, isFirebase: true, role: data.role || 'supervisor' };
+                    } else {
+                        // Check by username
+                        const byUser = await db.collection('admins').where('username', '==', user).limit(1).get();
+                        if (!byUser.empty) {
+                            const data = byUser.docs[0].data();
+                            matched = { name: data.name || user, isFirebase: true, role: data.role || 'supervisor' };
+                        } else {
+                            matched = { name: user, isFirebase: true, role: 'supervisor' };
+                        }
+                    }
+                } catch (e) {
+                    matched = { name: user, isFirebase: true, role: 'supervisor' };
+                }
+            }
         } catch (authErr) {
             console.log('Firebase Auth failed:', authErr.code);
         }
     }
 
+    // 2. Fallback: Firestore 'admins' collection (legacy)
     if (!matched && db) {
         try {
             const snapshot = await db.collection('admins')
@@ -72,34 +93,43 @@ async function doLogin() {
                 .get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
-                matched = { username: user, password: pass, name: doc.data().name || user };
+                const data = doc.data();
+                matched = { username: user, name: data.name || user, role: data.role || 'supervisor' };
+                // Migrate to Firebase Auth
+                if (auth) {
+                    try {
+                        const email = `${user}@khalily.app`;
+                        await auth.createUserWithEmailAndPassword(email, pass);
+                        const firebaseUser = auth.currentUser;
+                        if (firebaseUser) {
+                            await doc.ref.update({ authUid: firebaseUser.uid });
+                        }
+                    } catch (e) {
+                        if (e.code === 'auth/email-already-in-use') {
+                            try {
+                                await auth.signInWithEmailAndPassword(email, pass);
+                                const firebaseUser = auth.currentUser;
+                                if (firebaseUser) {
+                                    await doc.ref.update({ authUid: firebaseUser.uid });
+                                }
+                            } catch (e2) {}
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.warn('Firestore admin check failed:', err.message);
         }
     }
 
-    if (!matched) {
-        matched = ADMIN_ACCOUNTS.find(a => a.username === user && a.password === pass);
-    }
-
     if (matched) {
-        if (!matched.isFirebase && db && typeof firebase.auth === 'function') {
-            try {
-                const email = `${user}@khalily.app`;
-                await firebase.auth().createUserWithEmailAndPassword(email, pass);
-            } catch (e) {
-                if (e.code === 'auth/email-already-in-use') {
-                    try { await firebase.auth().signInWithEmailAndPassword(email, pass); } catch (e2) {}
-                }
-            }
-        }
         sessionStorage.setItem('ARAVA_admin_logged_in', 'true');
         sessionStorage.setItem('ARAVA_admin_name', matched.name || matched.username || user);
+        sessionStorage.setItem('ARAVA_admin_role', matched.role || 'supervisor');
         window.location.href = 'dashboard.html';
     } else {
-        if (typeof firebase.auth === 'function') {
-            try { await firebase.auth().signOut(); } catch (e) {}
+        if (auth) {
+            try { await auth.signOut(); } catch (e) {}
         }
         loginError.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
         document.getElementById('loginPass').value = '';
@@ -109,4 +139,3 @@ async function doLogin() {
     loginBtn.disabled = false;
     loginBtn.innerHTML = '<i class="bi bi-box-arrow-in-left me-2"></i>تسجيل الدخول';
 }
-
