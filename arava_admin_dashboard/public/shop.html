@@ -111,7 +111,7 @@
                 const thumbsHtml = thumbs.length > 0
                     ? `<div class="prod-thumbs">${p.images.map((u, i) => `<img src="${u}" class="${i === 0 ? 'active' : ''}" onclick="openGallery('${u}')" alt="">`).join('')}</div>`
                     : '';
-                const phoneClean = p.phone ? p.phone.replace(/^0+/, '222') : '';
+                const phoneClean = p.phone ? '222' + p.phone.replace(/^0+/, '') : '';
                 const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm text-white btn-video"><i class="bi bi-play-fill"></i></a>` : '';
                 return `<div class="col-md-4 col-sm-6">
                     <div class="prod-card position-relative">
