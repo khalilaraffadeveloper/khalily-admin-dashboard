@@ -202,27 +202,46 @@
                 container.innerHTML = html;
             }
 
+            function httpGet(url, callback) {
+                var xhr = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject('Microsoft.XMLHTTP');
+                xhr.open('GET', url, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try { callback(JSON.parse(xhr.responseText)); }
+                            catch(e) { callback(null); }
+                        } else {
+                            callback(null);
+                        }
+                    }
+                };
+                xhr.onerror = function() { callback(null); };
+                xhr.ontimeout = function() { callback(null); };
+                xhr.timeout = 15000;
+                xhr.send();
+            }
+
             function loadProducts() {
                 var container = document.getElementById('productsContainer');
-                fetch(BASE_URL + '/products?key=' + API_KEY)
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        var docs = data.documents || [];
-                        allProducts = [];
-                        for (var i = 0; i < docs.length; i++) {
-                            var prod = convertDoc(docs[i]);
-                            if (prod.active === true) allProducts.push(prod);
-                        }
-                        allProducts.sort(function(a, b) {
-                            var ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
-                            var tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
-                            return tb - ta;
-                        });
-                        renderProducts(currentFilter);
-                    })
-                    .catch(function(err) {
-                        container.innerHTML = '<div class="col-12 text-center text-danger py-5">حدث خطأ: ' + err.message + '</div>';
+                var url = BASE_URL + '/products?key=' + API_KEY;
+                httpGet(url, function(data) {
+                    if (!data) {
+                        container.innerHTML = '<div class="col-12 text-center text-danger py-5">حدث خطأ في الاتصال بقاعدة البيانات</div>';
+                        return;
+                    }
+                    var docs = data.documents || [];
+                    allProducts = [];
+                    for (var i = 0; i < docs.length; i++) {
+                        var prod = convertDoc(docs[i]);
+                        if (prod.active === true) allProducts.push(prod);
+                    }
+                    allProducts.sort(function(a, b) {
+                        var ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
+                        var tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
+                        return tb - ta;
                     });
+                    renderProducts(currentFilter);
+                });
             }
 
             var filterBtns = document.querySelectorAll('.filter-btn');
