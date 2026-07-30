@@ -66,51 +66,55 @@ function requireDb(caller) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        compressImage(file, 800, 0.5, function (compressed) {
-            var reader = new FileReader();
-            reader.onload = function (e) { resolve(e.target.result); };
-            reader.onerror = function () { reject(new Error('فشل قراءة الملف المضغوط')); };
-            reader.readAsDataURL(compressed);
-        }, function (err) {
-            reject(err);
-        });
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var dataUrl = e.target.result;
+            // For non-JPEG or small images, use as-is
+            if (dataUrl.length < 50000 || !dataUrl.startsWith('data:image/')) {
+                resolve(dataUrl);
+                return;
+            }
+            // Compress via Canvas
+            var img = new Image();
+            img.onload = function () {
+                var maxDim = 800;
+                var w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    var ratio = Math.min(maxDim / w, maxDim / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                var canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                var quality = file.type === 'image/png' ? 0.7 : 0.5;
+                var compressed = canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality);
+                // If compressed is larger than original, use original
+                resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+            };
+            img.onerror = function () {
+                // Canvas failed, try Compressor.js fallback
+                if (typeof Compressor !== 'undefined') {
+                    new Compressor(file, {
+                        quality: 0.5, maxWidth: 800, maxHeight: 800,
+                        success: function (blob) {
+                            var r = new FileReader();
+                            r.onload = function (ev) { resolve(ev.target.result); };
+                            r.readAsDataURL(blob);
+                        },
+                        error: function () { resolve(dataUrl); }
+                    });
+                } else {
+                    resolve(dataUrl);
+                }
+            };
+            img.src = dataUrl;
+        };
+        reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+        reader.readAsDataURL(file);
     });
-}
-
-function compressImage(file, maxDim, quality, onSuccess, onError) {
-    var img = new Image();
-    var url = URL.createObjectURL(file);
-    img.onload = function () {
-        var canvas = document.createElement('canvas');
-        var w = img.width, h = img.height;
-        if (w > maxDim || h > maxDim) {
-            var ratio = Math.min(maxDim / w, maxDim / h);
-            w = Math.round(w * ratio);
-            h = Math.round(h * ratio);
-        }
-        canvas.width = w;
-        canvas.height = h;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob(function (blob) {
-            URL.revokeObjectURL(url);
-            if (blob) onSuccess(blob);
-            else onError(new Error('فشل الضغط'));
-        }, file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality);
-    };
-    img.onerror = function () {
-        URL.revokeObjectURL(url);
-        if (typeof Compressor !== 'undefined') {
-            new Compressor(file, {
-                quality: 0.5, maxWidth: 800, maxHeight: 800,
-                success: onSuccess,
-                error: onError
-            });
-        } else {
-            onError(new Error('فشل فتح الصورة'));
-        }
-    };
-    img.src = url;
 }
 
 function filesToBase64(files, maxCount) {
