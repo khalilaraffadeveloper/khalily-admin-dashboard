@@ -142,23 +142,13 @@
 
         function callPhone(phone) {
             if (!phone) return;
-            var a = document.createElement('a');
-            a.href = 'tel:' + phone;
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            window.location.href = 'tel:' + phone;
         }
 
         function openWhatsApp(phone, name) {
             if (!phone) return;
             var text = encodeURIComponent('مرحباً بخصوص ' + decodeURIComponent(name));
-            var isAndroid = /android/i.test(navigator.userAgent);
-            if (isAndroid) {
-                location.href = 'intent://send/' + phone + '#Intent;scheme=smsto;package=com.whatsapp;action=android.intent.action.SENDTO;S.smsto=' + phone + ';S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.whatsapp;end';
-            } else {
-                location.href = 'https://wa.me/' + phone + '?text=' + text;
-            }
+            window.location.href = 'whatsapp://send/?phone=' + phone + '&text=' + text;
         }
 
         function renderProducts(filter) {

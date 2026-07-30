@@ -78,14 +78,14 @@ fun WebViewScreen(
                             }
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val url = request?.url?.toString() ?: return false
-                                return handleCustomUrl(url, view?.context?.applicationContext)
+                                return handleCustomUrl(view, url)
                             }
                             @Deprecated("Deprecated in Java")
                             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                return handleCustomUrl(url ?: return false, view?.context?.applicationContext)
+                                return handleCustomUrl(view, url ?: return false)
                             }
-                            private fun handleCustomUrl(url: String, appContext: android.content.Context?): Boolean {
-                                if (appContext == null) return false
+                            private fun handleCustomUrl(view: WebView?, url: String): Boolean {
+                                val appContext = view?.context?.applicationContext ?: return false
                                 return when {
                                     url.startsWith("tel:") -> {
                                         appContext.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
@@ -94,6 +94,14 @@ fun WebViewScreen(
                                     url.startsWith("whatsapp://") -> {
                                         try {
                                             appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                        } catch (_: ActivityNotFoundException) {
+                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                        }
+                                        true
+                                    }
+                                    url.startsWith("https://wa.me/") || url.startsWith("http://wa.me/") -> {
+                                        try {
+                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url.replace("https://wa.me/", "whatsapp://send/?phone=").replace("http://wa.me/", "whatsapp://send/?phone="))))
                                         } catch (_: ActivityNotFoundException) {
                                             appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
                                         }
