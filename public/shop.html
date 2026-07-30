@@ -86,9 +86,8 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM",
@@ -194,36 +193,25 @@
 
         function loadProducts() {
             const container = document.getElementById('productsContainer');
-            var timedOut = false;
-            var timer = setTimeout(function () {
-                timedOut = true;
-                container.innerHTML = '<div class="col-12 text-center text-danger py-5"><i class="bi bi-exclamation-triangle" style="font-size:40px;"></i><p>تعذر تحميل المنتجات. تحقق من اتصال الإنترنت.</p><button class="btn btn-primary mt-2" onclick="loadProducts()">إعادة المحاولة</button></div>';
-            }, 15000);
-            try {
-                db.collection('products').where('active', '==', true).get().then(function (snapshot) {
-                    if (timedOut) return;
-                    clearTimeout(timer);
+            db.collection('products').where('active', '==', true)
+                .get()
+                .then(snapshot => {
                     if (snapshot.empty) {
                         container.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-shop text-muted"></i><p>لا توجد منتجات حالياً</p></div></div>';
                         allProducts = [];
                         return;
                     }
-                    allProducts = snapshot.docs.map(function (doc) { var d = doc.data(); d.id = doc.id; return d; });
-                    allProducts.sort(function (a, b) {
-                        var tA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-                        var tB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                    allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    allProducts.sort((a, b) => {
+                        const tA = a.createdAt?.toMillis?.() ?? 0;
+                        const tB = b.createdAt?.toMillis?.() ?? 0;
                         return tB - tA;
                     });
                     renderProducts(currentFilter);
-                }).catch(function (err) {
-                    clearTimeout(timer);
-                    if (timedOut) return;
-                    container.innerHTML = '<div class="col-12 text-center text-danger py-5"><i class="bi bi-exclamation-triangle" style="font-size:40px;"></i><p>خطأ: ' + err.message + '</p><button class="btn btn-primary mt-2" onclick="loadProducts()">إعادة المحاولة</button></div>';
+                })
+                .catch(err => {
+                    container.innerHTML = `<div class="col-12 text-center text-danger py-5">حدث خطأ: ${err.message}</div>`;
                 });
-            } catch (e) {
-                clearTimeout(timer);
-                container.innerHTML = '<div class="col-12 text-center text-danger py-5"><p>' + e.message + '</p></div>';
-            }
         }
 
         document.querySelectorAll('.filter-btn').forEach(btn => {
