@@ -53,10 +53,26 @@ function requireDb(caller) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function (e) { resolve(e.target.result); };
-        reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
-        reader.readAsDataURL(file);
+        if (typeof Compressor !== 'undefined') {
+            new Compressor(file, {
+                quality: 0.6,
+                maxWidth: 800,
+                maxHeight: 800,
+                convertSize: 500000,
+                success: function (compressed) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) { resolve(e.target.result); };
+                    reader.onerror = function () { reject(new Error('فشل قراءة الملف المضغوط')); };
+                    reader.readAsDataURL(compressed);
+                },
+                error: function (err) { reject(err); }
+            });
+        } else {
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+            reader.readAsDataURL(file);
+        }
     });
 }
 
@@ -1684,8 +1700,8 @@ window.addPromotion = async function() {
 
     if (!title) { showStatus('addPromoStatus', 'أدخل عنوان العرض', 'error'); return; }
 
-    const btn = event.target;
-    btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+    const btn = document.getElementById('btnAddPromotion');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
 
     try {
         const images = [];
@@ -1700,7 +1716,7 @@ window.addPromotion = async function() {
                 showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
             } catch (convErr) {
                 console.warn('Image conversion failed:', convErr.message);
-                showToast('فشل معالجة بعض الصور', 'warning');
+                showToast('فشل معالجة بعض الصور، جرب صوراً أصغر', 'warning');
             }
         }
 
@@ -1722,7 +1738,7 @@ window.addPromotion = async function() {
     } catch (err) {
         showStatus('addPromoStatus', 'خطأ: ' + err.message, 'error');
     }
-    btn.disabled = false; btn.textContent = 'إضافة العرض';
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة العرض';
 };
 
 async function loadPromotionsList() {
@@ -1819,8 +1835,8 @@ window.addProduct = async function() {
     if (!name) { showStatus('addProductStatus', 'أدخل اسم المنتج', 'error'); return; }
     if (!phone) { showStatus('addProductStatus', 'أدخل رقم هاتف البائع', 'error'); return; }
 
-    const btn = event.target;
-    btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+    const btn = document.getElementById('btnAddProduct');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
 
     try {
         const images = [];
@@ -1835,7 +1851,7 @@ window.addProduct = async function() {
                 showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
             } catch (convErr) {
                 console.warn('Image conversion failed:', convErr.message);
-                showToast('فشل معالجة بعض الصور', 'warning');
+                showToast('فشل معالجة بعض الصور، جرب صوراً أصغر', 'warning');
             }
         }
 
@@ -1859,7 +1875,7 @@ window.addProduct = async function() {
     } catch (err) {
         showStatus('addProductStatus', 'خطأ: ' + err.message, 'error');
     }
-    btn.disabled = false; btn.textContent = 'إضافة المنتج';
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة المنتج';
 };
 
 async function loadProductsList() {
