@@ -110,10 +110,10 @@
                     });
                     container.innerHTML = docs.map(doc => {
                         const p = doc;
-                        const imgs = p.images && p.images.length > 0 ? p.images : [];
+                        const imgs = (p.images || []).filter(function(u) { return u && (u.startsWith('http') || u.startsWith('data:image')); });
                         const imgHtml = imgs.length > 0
                             ? `<div id="carousel-${doc.id}" class="carousel slide" data-bs-ride="carousel">
-                                <div class="carousel-inner">${imgs.map((u, i) => `<div class="carousel-item${i === 0 ? ' active' : ''}"><img src="${u}" class="promo-img" alt=""></div>`).join('')}</div>
+                                <div class="carousel-inner">${imgs.map((u, i) => `<div class="carousel-item${i === 0 ? ' active' : ''}"><img src="${u}" class="promo-img" alt="" onerror="this.style.display='none'"></div>`).join('')}</div>
                                 ${imgs.length > 1 ? `<button class="carousel-control-prev" type="button" data-bs-target="#carousel-${doc.id}" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#carousel-${doc.id}" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>` : ''}
                               </div>`
                             : `<div style="height:200px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;"><i class="bi bi-megaphone" style="font-size:40px;color:#bbb;"></i></div>`;

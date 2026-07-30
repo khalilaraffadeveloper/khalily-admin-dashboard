@@ -49,6 +49,84 @@ function requireDb(caller) {
 }
 
 // ============================================
+// IMAGE TO BASE64 HELPERS
+// ============================================
+function compressImageToBase64(file, maxWidth, maxHeight, quality) {
+    return new Promise(function (resolve, reject) {
+        if (!file.type.startsWith('image/')) {
+            reject(new Error('الملف ليس صورة'));
+            return;
+        }
+        if (file.size < 200 * 1024) {
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            return;
+        }
+        try {
+            new Compressor(file, {
+                maxWidth: maxWidth || 1024,
+                maxHeight: maxHeight || 1024,
+                quality: quality || 0.7,
+                mimeType: 'image/jpeg',
+                success: function (result) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) { resolve(e.target.result); };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(result);
+                },
+                error: function () {
+                    var reader = new FileReader();
+                    reader.onload = function (e) { resolve(e.target.result); };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                }
+            });
+        } catch (err) {
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+function processImagesToBase64(files, maxImages) {
+    maxImages = maxImages || 10;
+    var validFiles = [];
+    for (var i = 0; i < files.length; i++) {
+        if (files[i].type.startsWith('image/')) validFiles.push(files[i]);
+    }
+    var limited = validFiles.slice(0, maxImages);
+    var results = [];
+    var chain = Promise.resolve();
+    limited.forEach(function (file) {
+        chain = chain.then(function () {
+            return compressImageToBase64(file, 1024, 1024, 0.7).then(function (base64) {
+                results.push(base64);
+            }).catch(function (err) {
+                console.warn('Image failed:', file.name, err);
+            });
+        });
+    });
+    return chain.then(function () { return results; });
+}
+
+function showToast(message, type) {
+    var container = document.getElementById('toastContainer');
+    if (!container) { console.log(message); return; }
+    var toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-' + (type || 'info') + ' border-0';
+    toast.role = 'alert';
+    toast.innerHTML = '<div class="d-flex"><div class="toast-body">' + message + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+    container.appendChild(toast);
+    var bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    setTimeout(function () { toast.remove(); }, 5000);
+}
+
+// ============================================
 // STATE
 // ============================================
 let map = null;
@@ -1651,16 +1729,12 @@ window.addPromotion = async function() {
         }
         if (promoImageFiles.length > 0) {
             try {
-                const storage = firebase.storage();
-                for (let i = 0; i < promoImageFiles.length; i++) {
-                    const file = promoImageFiles[i];
-                    const ref = storage.ref(`promotions/${Date.now()}_${file.name}`);
-                    await ref.put(file);
-                    const url = await ref.getDownloadURL();
-                    images.push(url);
-                }
-            } catch (storageErr) {
-                console.warn('Image upload failed (storage not available):', storageErr.message);
+                const base64Images = await processImagesToBase64(promoImageFiles, 10);
+                base64Images.forEach(function (u) { images.push(u); });
+                showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+            } catch (convErr) {
+                console.warn('Image conversion failed:', convErr.message);
+                showToast('فشل معالجة بعض الصور', 'warning');
             }
         }
 
@@ -1702,7 +1776,7 @@ async function loadPromotionsList() {
             const p = doc.data();
             const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
             const imgHtml = p.images && p.images.length > 0
-                ? `<div class="d-flex gap-2 mb-2 flex-wrap">${p.images.map(u => `<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">`).join('')}</div>`
+                ? `<div class="d-flex gap-2 mb-2 flex-wrap">${p.images.map(u => `<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">`).join('')}</div>`
                 : '';
             const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
             return `<div class="col-md-4 col-sm-6">
@@ -1790,16 +1864,12 @@ window.addProduct = async function() {
         }
         if (prodImageFiles.length > 0) {
             try {
-                const storage = firebase.storage();
-                for (let i = 0; i < prodImageFiles.length; i++) {
-                    const file = prodImageFiles[i];
-                    const ref = storage.ref(`products/${Date.now()}_${file.name}`);
-                    await ref.put(file);
-                    const url = await ref.getDownloadURL();
-                    images.push(url);
-                }
-            } catch (storageErr) {
-                console.warn('Image upload failed (storage not available):', storageErr.message);
+                const base64Images = await processImagesToBase64(prodImageFiles, 10);
+                base64Images.forEach(function (u) { images.push(u); });
+                showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+            } catch (convErr) {
+                console.warn('Image conversion failed:', convErr.message);
+                showToast('فشل معالجة بعض الصور', 'warning');
             }
         }
 
@@ -1843,10 +1913,10 @@ async function loadProductsList() {
             const p = doc.data();
             const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
             const imgHtml = p.images && p.images.length > 0
-                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2">`
+                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.src='data:image/svg+xml,%253Csvg%2520xmlns%253D%2522http://www.w3.org/2000/svg%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%253E%253Crect%2520fill%253D%2522%2523f0f0f0%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%252F%253E%253Ctext%2520x%253D%252250%2525%2522%2520y%253D%252250%2525%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522%2523999%2522%2520font-size%253D%252240%2522%253E%25F0%259F%2596%25BC%253C%252Ftext%253E%253C%252Fsvg%253E'">`
                 : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="${typeIcons[p.type] || 'bi-box'} fs-1 text-muted"></i></div>`;
             const moreImages = p.images && p.images.length > 1
-                ? `<div class="d-flex gap-1 mb-2">${p.images.slice(1).map(u => `<img src="${u}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;">`).join('')}</div>`
+                ? `<div class="d-flex gap-1 mb-2">${p.images.slice(1, 5).map(u => `<img src="${u}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;" onerror="this.style.display='none'">`).join('')}</div>`
                 : '';
             const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
             return `<div class="col-md-4 col-sm-6">
