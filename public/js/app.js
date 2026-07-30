@@ -35,10 +35,10 @@ const firebaseConfig = {
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    firebaseReady = true;
 } catch (e) {
     console.error("Firebase init failed:", e);
 }
+firebaseReady = true;
 
 function requireDb(caller) {
     if (!firebaseReady || !db) {
@@ -46,6 +46,66 @@ function requireDb(caller) {
         return false;
     }
     return true;
+}
+
+// ============================================
+// IMAGE TO BASE64 HELPERS
+// ============================================
+function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+        if (typeof Compressor !== 'undefined') {
+            new Compressor(file, {
+                quality: 0.6,
+                maxWidth: 800,
+                maxHeight: 800,
+                convertSize: 500000,
+                success: function (compressed) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) { resolve(e.target.result); };
+                    reader.onerror = function () { reject(new Error('فشل قراءة الملف المضغوط')); };
+                    reader.readAsDataURL(compressed);
+                },
+                error: function (err) { reject(err); }
+            });
+        } else {
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+function filesToBase64(files, maxCount) {
+    maxCount = maxCount || 10;
+    var valid = [];
+    for (var i = 0; i < files.length; i++) {
+        if (files[i].type.startsWith('image/')) valid.push(files[i]);
+    }
+    var limited = valid.slice(0, maxCount);
+    var results = [];
+    var chain = Promise.resolve();
+    limited.forEach(function (file) {
+        chain = chain.then(function () {
+            return fileToBase64(file).then(function (b64) {
+                results.push(b64);
+            }).catch(function () {});
+        });
+    });
+    return chain.then(function () { return results; });
+}
+
+function showToast(message, type) {
+    var container = document.getElementById('toastContainer');
+    if (!container) { console.log(message); return; }
+    var toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-' + (type || 'info') + ' border-0';
+    toast.role = 'alert';
+    toast.innerHTML = '<div class="d-flex"><div class="toast-body">' + message + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+    container.appendChild(toast);
+    var bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    setTimeout(function () { toast.remove(); }, 5000);
 }
 
 // ============================================
@@ -60,6 +120,7 @@ let dropoffCoords = null;
 let radiusCircle = null;
 let mapClickMode = 'pickup'; // 'pickup' or 'dropoff'
 let allDrivers = [];
+let allCustomers = [];
 let allRides = [];
 let ridesListUnsubscribe = null;
 let currentPage = 'map';
@@ -224,8 +285,13 @@ updateClock();
 const pageTitles = {
     map: 'تتبع مباشر للسائقين',
     drivers: 'إدارة السائقين',
+    customers: 'إدارة الزبائن',
     rides: 'سجل الرحلات',
-    settings: 'الإعدادات'
+    settings: 'الإعدادات',
+    messages: 'الرسائل',
+    admins: 'إدارة المشرفين',
+    promotions: 'العروض والنشاطات',
+    products: 'المتجر والمنتجات'
 };
 
 function navigateToPage(page) {
@@ -243,8 +309,13 @@ function navigateToPage(page) {
     currentPage = page;
     if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page === 'drivers') loadDriversList();
+    if (page === 'customers') loadCustomersList();
     if (page === 'rides') loadRidesList();
     if (page === 'settings') loadCommission();
+    if (page === 'admins') loadAdminsList();
+    if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); }
+    if (page === 'promotions') loadPromotionsList();
+    if (page === 'products') loadProductsList();
 }
 
 document.querySelectorAll('.sidebar-link').forEach(item => {
@@ -611,7 +682,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
 async function loadDriversList() {
     if (!requireDb()) return;
     const tbody = document.getElementById('driversTableBody');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل السائقين...</div></td></tr>';
     try {
         const snapshot = await db.collection('drivers').get();
         allDrivers = [];
@@ -619,7 +690,7 @@ async function loadDriversList() {
         renderDriversList(allDrivers);
     } catch (err) {
         console.error('Load drivers error:', err);
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
@@ -627,7 +698,7 @@ function renderDriversList(drivers) {
     const tbody = document.getElementById('driversTableBody');
     document.getElementById('totalDriversCount').textContent = drivers.length;
     if (drivers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا يوجد سائقون</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">لا يوجد سائقون</td></tr>';
         return;
     }
     tbody.innerHTML = drivers.map(d => {
@@ -638,12 +709,14 @@ function renderDriversList(drivers) {
         return `<tr>
             <td><strong>${d.name || '-'}</strong></td>
             <td>${d.phone || '-'}</td>
+            <td><span class="text-muted">${d.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPasswordModal('${d.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
             <td><strong>${d.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
             <td>
                 <div class="d-flex gap-1 flex-wrap">
                     <button class="btn-action btn-action-edit" onclick="openEditModal('${d.id}','${safeName}','${d.phone||''}','${d.disabled?"disabled":"active"}')">تعديل</button>
                     <button class="btn-action btn-action-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>
+                    <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${d.id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
                     <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>
                     <button class="btn-action btn-action-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>
                 </div>
@@ -672,11 +745,166 @@ function filterDrivers() {
 }
 
 // ============================================
+// CUSTOMERS LIST
+// ============================================
+async function loadCustomersList() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('customersTableBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الزبائن...</div></td></tr>';
+    try {
+        const snapshot = await db.collection('customers').get();
+        allCustomers = [];
+        snapshot.forEach(doc => allCustomers.push({ id: doc.id, ...doc.data() }));
+        renderCustomersList(allCustomers);
+    } catch (err) {
+        console.error('Load customers error:', err);
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
+}
+
+function renderCustomersList(customers) {
+    const tbody = document.getElementById('customersTableBody');
+    document.getElementById('totalCustomersCount').textContent = customers.length;
+    if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا يوجد زبائن</td></tr>';
+        return;
+    }
+    tbody.innerHTML = customers.map(c => {
+        const status = c.isOnline ? 'online' : 'offline';
+        const label = c.isOnline ? 'متصل' : 'غير متصل';
+        const badgeClass = `badge bg-${status === 'online' ? 'success' : 'secondary'}`;
+        const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `<tr>
+            <td><strong>${c.name || '-'}</strong></td>
+            <td>${c.phone || '-'}</td>
+            <td>${c.whatsapp || '-'}</td>
+            <td><span class="text-muted">${c.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openCustomerPasswordModal('${c.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
+            <td><strong>${c.credit || 0}</strong> MRU</td>
+            <td><span class="${badgeClass}">${label}</span></td>
+            <td>${c.totalRides || 0}</td>
+            <td>
+                <div class="d-flex gap-1 flex-wrap">
+                    <button class="btn-action btn-action-edit" onclick="openEditCustomerModal('${c.id}','${safeName}','${c.phone||''}','${c.whatsapp||''}')">تعديل</button>
+                    <button class="btn-action btn-action-credit" onclick="openCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">شحن</button>
+                    <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">تعديل الرصيد</button>
+                    <button class="btn-action btn-action-delete" onclick="openDeleteCustomerModal('${c.id}','${safeName}')">حذف</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+document.getElementById('searchCustomers').addEventListener('input', filterCustomers);
+document.getElementById('filterCustomerStatus').addEventListener('change', filterCustomers);
+
+function filterCustomers() {
+    const query = document.getElementById('searchCustomers').value;
+    const statusFilter = document.getElementById('filterCustomerStatus').value;
+    renderCustomersList(allCustomers.filter(c => {
+        const name = (c.name || '');
+        const phone = (c.phone || '');
+        const matchQ = !query || name.includes(query) || phone.includes(query) ||
+            name.localeCompare(query, 'ar', { sensitivity: 'base' }) === 0;
+        let matchS = true;
+        if (statusFilter === 'online') matchS = c.isOnline;
+        else if (statusFilter === 'offline') matchS = !c.isOnline;
+        return matchQ && matchS;
+    }));
+}
+
+// Register customer
+document.getElementById('registerCustomerBtn').addEventListener('click', async () => {
+    const statusEl = 'registerCustomerStatus';
+    if (!requireDb(statusEl)) return;
+    const name = document.getElementById('newCustomerName').value.trim();
+    const phone = document.getElementById('newCustomerPhone').value.trim();
+    const whatsapp = document.getElementById('newCustomerWhatsapp').value.trim();
+    const password = document.getElementById('newCustomerPassword').value.trim();
+    const credit = parseFloat(document.getElementById('newCustomerCredit').value) || 0;
+
+    if (!name) { showStatus(statusEl, 'أدخل اسم الزبون', 'error'); return; }
+    if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
+    if (!password) { showStatus(statusEl, 'أدخل كلمة السر', 'error'); return; }
+
+    const btn = document.getElementById('registerCustomerBtn');
+    btn.disabled = true; btn.textContent = 'جاري التسجيل...';
+    try {
+        await db.collection('customers').add({
+            name, phone, whatsapp, password, credit,
+            lat: 18.0735, lng: -15.9582, geohash: '',
+            isOnline: false, totalRides: 0, fcmToken: '', deviceId: '',
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus(statusEl, 'تم التسجيل بنجاح!', 'success');
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerPhone').value = '';
+        document.getElementById('newCustomerWhatsapp').value = '';
+        document.getElementById('newCustomerPassword').value = '';
+        document.getElementById('newCustomerCredit').value = '0';
+        loadCustomersList();
+    } catch (err) {
+        showStatus(statusEl, 'خطأ: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'تسجيل الزبون';
+});
+
+// ============================================
 // BOOTSTRAP MODALS
 // ============================================
 const editModal = new bootstrap.Modal(document.getElementById('editDriverModal'));
 const creditModal = new bootstrap.Modal(document.getElementById('creditModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+const editCreditModal = new bootstrap.Modal(document.getElementById('editCreditModal'));
+
+// Customer modals
+const editCustomerModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));
+const customerCreditModal = new bootstrap.Modal(document.getElementById('customerCreditModal'));
+const deleteCustomerModal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
+const customerPasswordModal = new bootstrap.Modal(document.getElementById('customerPasswordModal'));
+const editCustomerCreditModal = new bootstrap.Modal(document.getElementById('editCustomerCreditModal'));
+
+window.openPasswordModal = function(id, name) {
+    document.getElementById('passwordDriverId').value = id;
+    document.getElementById('passwordDriverName').textContent = name;
+    document.getElementById('newPasswordValue').value = '';
+    passwordModal.show();
+};
+
+document.getElementById('savePasswordBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('passwordDriverId').value;
+    const newPass = document.getElementById('newPasswordValue').value.trim();
+    if (!newPass) { alert('أدخل كلمة السور الجديدة'); return; }
+    try {
+        await db.collection('drivers').doc(id).update({ password: newPass });
+        passwordModal.hide();
+        loadDriversList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
+
+window.openEditCreditModal = function(id, name, current) {
+    document.getElementById('editCreditDriverId').value = id;
+    document.getElementById('editCreditDriverName').textContent = name;
+    document.getElementById('editCreditCurrent').textContent = current;
+    document.getElementById('editCreditNewValue').value = current;
+    editCreditModal.show();
+};
+
+document.getElementById('confirmEditCreditBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCreditDriverId').value;
+    const newVal = parseFloat(document.getElementById('editCreditNewValue').value);
+    if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
+        alert('أدخل رصيد صحيح'); return;
+    }
+    try {
+        await db.collection('drivers').doc(id).update({ credit: newVal });
+        editCreditModal.hide();
+        loadDriversList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
 
 window.openEditModal = function(id, name, phone, status) {
     document.getElementById('editDriverId').value = id;
@@ -743,6 +971,116 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
         loadDriversList();
     } catch (err) { console.error('Delete error:', err); }
 });
+
+window.openCustomerPasswordModal = function(id, name) {
+    document.getElementById('customerPasswordId').value = id;
+    document.getElementById('customerPasswordName').textContent = name;
+    document.getElementById('newCustomerPasswordValue').value = '';
+    customerPasswordModal.show();
+};
+
+document.getElementById('saveCustomerPasswordBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('customerPasswordId').value;
+    const newPass = document.getElementById('newCustomerPasswordValue').value.trim();
+    if (!newPass) { alert('أدخل كلمة السر الجديدة'); return; }
+    try {
+        await db.collection('customers').doc(id).update({ password: newPass });
+        customerPasswordModal.hide();
+        loadCustomersList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
+
+window.openEditCustomerCreditModal = function(id, name, current) {
+    document.getElementById('editCustomerCreditId').value = id;
+    document.getElementById('editCustomerCreditName').textContent = name;
+    document.getElementById('editCustomerCreditCurrent').textContent = current;
+    document.getElementById('editCustomerCreditNewValue').value = current;
+    editCustomerCreditModal.show();
+};
+
+document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCustomerCreditId').value;
+    const newVal = parseFloat(document.getElementById('editCustomerCreditNewValue').value);
+    if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
+        alert('أدخل رصيد صحيح'); return;
+    }
+    try {
+        await db.collection('customers').doc(id).update({ credit: newVal });
+        editCustomerCreditModal.hide();
+        loadCustomersList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+});
+
+window.openEditCustomerModal = function(id, name, phone, whatsapp) {
+    document.getElementById('editCustomerId').value = id;
+    document.getElementById('editCustomerName').value = name;
+    document.getElementById('editCustomerPhone').value = phone;
+    document.getElementById('editCustomerWhatsapp').value = whatsapp;
+    editCustomerModal.show();
+};
+
+document.getElementById('saveEditCustomerBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCustomerId').value;
+    const name = document.getElementById('editCustomerName').value.trim();
+    const phone = document.getElementById('editCustomerPhone').value.trim();
+    const whatsapp = document.getElementById('editCustomerWhatsapp').value.trim();
+    if (!name) return;
+    try {
+        await db.collection('customers').doc(id).update({ name, phone, whatsapp });
+        editCustomerModal.hide();
+        loadCustomersList();
+    } catch (err) { console.error('Edit customer error:', err); }
+});
+
+window.openCustomerCreditModal = function(id, name, current) {
+    document.getElementById('customerCreditId').value = id;
+    document.getElementById('customerCreditName').textContent = name;
+    document.getElementById('customerCreditCurrent').textContent = current;
+    document.getElementById('customerCreditAmount').value = '';
+    customerCreditModal.show();
+};
+
+document.getElementById('confirmCustomerCreditBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('customerCreditId').value;
+    const amount = parseFloat(document.getElementById('customerCreditAmount').value);
+    if (!amount || amount <= 0) return;
+    try {
+        await db.collection('customers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
+        customerCreditModal.hide();
+        loadCustomersList();
+    } catch (err) { console.error('Customer credit error:', err); }
+});
+
+window.openDeleteCustomerModal = function(id, name) {
+    document.getElementById('deleteCustomerId').value = id;
+    document.getElementById('deleteCustomerName').textContent = name;
+    deleteCustomerModal.show();
+};
+
+document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('deleteCustomerId').value;
+    try {
+        await db.collection('customers').doc(id).delete();
+        deleteCustomerModal.hide();
+        loadCustomersList();
+    } catch (err) { console.error('Delete customer error:', err); }
+});
+
+// Export customers CSV
+window.exportCustomersCSV = function () {
+    if (allCustomers.length === 0) { alert('لا يوجد زبائن للتصدير'); return; }
+    let csv = '\uFEFF' + 'الاسم,الهاتف,الواتساب,الرصيد,الحالة,الرحلات\n';
+    allCustomers.forEach(c => {
+        const status = c.isOnline ? 'متصل' : 'غير متصل';
+        csv += `${c.name||''},${c.phone||''},${c.whatsapp||''},${c.credit||0},${status},${c.totalRides||0}\n`;
+    });
+    downloadCSV(csv, 'ARAVA_customers.csv');
+};
 
 // ============================================
 // RIDES LIST
@@ -864,16 +1202,23 @@ async function loadStats() {
         let totalComm = 0;
         let totalRidesCount = 0;
         let activeCount = 0;
+        let completedCount = 0;
         const allRidesSnap = await db.collection('rides').get();
         allRidesSnap.forEach(doc => {
             const r = doc.data();
             totalRidesCount++;
-            if (r.status === 'completed' && r.commissionAmount) totalComm += r.commissionAmount;
+            if (r.status === 'completed') {
+                completedCount++;
+                if (r.commissionAmount) totalComm += r.commissionAmount;
+            }
             if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
         });
         document.getElementById('statTotalRides').textContent = totalRidesCount;
         document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>`;
         document.getElementById('statActiveRides').textContent = activeCount;
+
+        const custSnap = await db.collection('customers').get();
+        document.getElementById('statTotalCustomers').textContent = custSnap.size;
     } catch (e) {
         console.error('Stats load error:', e);
     }
@@ -1038,6 +1383,571 @@ function showStatus(elId, msg, type) {
 }
 
 // ============================================
+// MESSAGING SYSTEM
+// ============================================
+let selectedMsgDrivers = [];
+
+function initMsgTypeSwitch() {
+    const typeEl = document.getElementById('msgType');
+    if (!typeEl) return;
+    typeEl.addEventListener('change', () => {
+        const t = typeEl.value;
+        document.getElementById('msgTextGroup').classList.toggle('d-none', t !== 'text');
+        document.getElementById('msgImageGroup').classList.toggle('d-none', t !== 'image');
+        document.getElementById('msgAudioGroup').classList.toggle('d-none', t !== 'audio');
+    });
+
+    const imgFile = document.getElementById('msgImageFile');
+    if (imgFile) imgFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500000) { alert('الصورة كبيرة جداً. الحد الأقصى 500KB'); e.target.value = ''; return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('msgImagePreview').innerHTML =
+                `<img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;" class="img-fluid">`;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    const audioFile = document.getElementById('msgAudioFile');
+    if (audioFile) audioFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 500000) { alert('الملف الصوتي كبير جداً. الحد الأقصى 500KB'); e.target.value = ''; return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('msgAudioPreview').innerHTML =
+                `<audio controls src="${ev.target.result}" style="width:100%;"></audio>`;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+initMsgTypeSwitch();
+
+async function loadMsgRecipients() {
+    if (!requireDb()) return;
+    const sel = document.getElementById('msgRecipients');
+    if (!sel) return;
+    sel.innerHTML = '<option value="all">جميع السائقين</option>';
+    try {
+        const snap = await db.collection('drivers').get();
+        snap.forEach(doc => {
+            const d = doc.data();
+            sel.innerHTML += `<option value="${doc.id}">${d.name || 'سائق'} (${d.phone || ''})</option>`;
+        });
+    } catch (e) { console.log('Recipients load error'); }
+}
+
+document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
+    if (!requireDb('msgSendStatus')) return;
+    const type = document.getElementById('msgType').value;
+    const recipientsSel = document.getElementById('msgRecipients');
+    const recipientIds = Array.from(recipientsSel.selectedOptions).map(o => o.value);
+    const senderName = sessionStorage.getItem('ARAVA_admin_name') || 'المدير';
+    const msg = { type, sentBy: senderName, readBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+
+    if (recipientIds.includes('all')) {
+        const snap = await db.collection('drivers').get();
+        msg.recipients = snap.docs.map(d => d.id);
+        msg.recipientLabel = 'جميع السائقين';
+    } else {
+        msg.recipients = recipientIds;
+        msg.recipientLabel = `${recipientIds.length} سائق`;
+    }
+
+    if (msg.recipients.length === 0) {
+        showStatus('msgSendStatus', 'لا يوجد مستلمون', 'error');
+        return;
+    }
+
+    if (type === 'text') {
+        msg.content = document.getElementById('msgText').value.trim();
+        if (!msg.content) { showStatus('msgSendStatus', 'اكتب نص الرسالة', 'error'); return; }
+    } else if (type === 'image') {
+        const fileInput = document.getElementById('msgImageFile');
+        if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر صورة', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            msg.content = ev.target.result;
+            await sendMsgToFirestore(msg);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+        return;
+    } else if (type === 'audio') {
+        const fileInput = document.getElementById('msgAudioFile');
+        if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر ملف صوتي', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            msg.content = ev.target.result;
+            await sendMsgToFirestore(msg);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+        return;
+    }
+
+    await sendMsgToFirestore(msg);
+});
+
+async function sendMsgToFirestore(msg) {
+    try {
+        await db.collection('messages').add(msg);
+        showStatus('msgSendStatus', `تم إرسال الرسالة لـ ${msg.recipientLabel} بنجاح!`, 'success');
+        document.getElementById('msgText').value = '';
+        document.getElementById('msgImageFile').value = '';
+        document.getElementById('msgAudioFile').value = '';
+        document.getElementById('msgImagePreview').innerHTML = '';
+        document.getElementById('msgAudioPreview').innerHTML = '';
+        loadSentMessages();
+    } catch (err) {
+        showStatus('msgSendStatus', 'خطأ: ' + err.message, 'error');
+    }
+}
+
+async function loadSentMessages() {
+    if (!requireDb()) return;
+    const container = document.getElementById('msgListContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-4"><div class="ARAVA-spinner"></div></div>';
+
+    try {
+        const snap = await db.collection('messages').orderBy('timestamp', 'desc').limit(50).get();
+        document.getElementById('msgCount').textContent = snap.size;
+
+        if (snap.empty) {
+            container.innerHTML = '<div class="text-center text-muted py-4 small">لا توجد رسائل بعد</div>';
+            return;
+        }
+
+        const typeIcons = { text: 'bi-chat-left-text-fill', image: 'bi-image-fill', audio: 'bi-mic-fill' };
+        const typeLabels = { text: 'نص', image: 'صورة', audio: 'صوت' };
+
+        container.innerHTML = snap.docs.map(doc => {
+            const m = doc.data();
+            const time = m.timestamp?.toDate ? new Date(m.timestamp.toDate()).toLocaleString('ar-MA') : '';
+            const readCount = (m.readBy || []).length;
+            const totalCount = (m.recipients || []).length;
+            const allRead = readCount >= totalCount;
+
+            let contentPreview = '';
+            if (m.type === 'text') {
+                contentPreview = `<p class="mb-1">${m.content || ''}</p>`;
+            } else if (m.type === 'image') {
+                contentPreview = `<img src="${m.content}" style="max-width:120px;max-height:80px;border-radius:6px;" class="img-fluid">`;
+            } else if (m.type === 'audio') {
+                contentPreview = `<audio controls src="${m.content}" style="height:32px;max-width:200px;"></audio>`;
+            }
+
+            return `<div class="log-entry p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="badge bg-info"><i class="bi ${typeIcons[m.type] || 'bi-envelope'}"></i> ${typeLabels[m.type] || m.type}</span>
+                    <small class="text-muted">${time}</small>
+                </div>
+                <div class="mb-1">${contentPreview}</div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted"><i class="bi bi-people"></i> ${m.recipientLabel || totalCount + ' سائق'} | <i class="bi bi-eye"></i> ${readCount}/${totalCount} قراءة</small>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSentMsg('${doc.id}')"><i class="bi bi-trash"></i></button>
+                </div>
+                ${allRead && totalCount > 0 ? '<div class="mt-1"><span class="badge bg-success">تمت القراءة من الجميع</span></div>' : ''}
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<div class="text-center text-danger py-4">خطأ في تحميل الرسائل</div>';
+    }
+}
+
+window.deleteSentMsg = async function(id) {
+    if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('messages').doc(id).delete();
+        loadSentMessages();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+window.clearOldMessages = async function() {
+    if (!confirm('حذف جميع الرسائل القديمة؟')) return;
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('messages').get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        loadSentMessages();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+// ============================================
+// ADMINS MANAGEMENT
+// ============================================
+async function loadAdminsList() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('adminsTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل المشرفين...</div></td></tr>';
+    try {
+        const snapshot = await db.collection('admins').get();
+        const admins = [];
+        snapshot.forEach(doc => admins.push({ id: doc.id, ...doc.data() }));
+        document.getElementById('totalAdminsCount').textContent = admins.length;
+        if (admins.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">لا يوجد مشرفون</td></tr>';
+            return;
+        }
+        const roleLabels = { admin: 'مدير عام', supervisor: 'مشرف' };
+        const roleBadge = { admin: 'bg-primary', supervisor: 'bg-secondary' };
+        tbody.innerHTML = admins.map(a => `<tr>
+            <td><strong>${a.name || '-'}</strong></td>
+            <td>${a.username || '-'}</td>
+            <td><span class="badge ${roleBadge[a.role] || 'bg-secondary'}">${roleLabels[a.role] || a.role}</span></td>
+            <td>
+                <button class="btn-action btn-action-delete" onclick="deleteAdmin('${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">حذف</button>
+            </td>
+        </tr>`).join('');
+    } catch (err) {
+        console.error('Load admins error:', err);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
+}
+
+window.addAdmin = async function () {
+    if (!requireDb('addAdminStatus')) return;
+    const username = document.getElementById('newAdminUsername').value.trim();
+    const name = document.getElementById('newAdminName').value.trim();
+    const password = document.getElementById('newAdminPassword').value.trim();
+    const role = document.getElementById('newAdminRole').value;
+
+    if (!username) { showStatus('addAdminStatus', 'أدخل اسم المستخدم', 'error'); return; }
+    if (!name) { showStatus('addAdminStatus', 'أدخل الاسم الكامل', 'error'); return; }
+    if (!password) { showStatus('addAdminStatus', 'أدخل كلمة المرور', 'error'); return; }
+
+    try {
+        const existing = await db.collection('admins').where('username', '==', username).get();
+        if (!existing.empty) {
+            showStatus('addAdminStatus', 'اسم المستخدم مستخدم بالفعل', 'error');
+            return;
+        }
+        await db.collection('admins').add({
+            username, name, password, role,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus('addAdminStatus', 'تم إضافة المشرف بنجاح!', 'success');
+        document.getElementById('newAdminUsername').value = '';
+        document.getElementById('newAdminName').value = '';
+        document.getElementById('newAdminPassword').value = '';
+        loadAdminsList();
+    } catch (err) {
+        showStatus('addAdminStatus', 'خطأ: ' + err.message, 'error');
+    }
+};
+
+window.deleteAdmin = async function (id, name) {
+    if (!confirm(`هل أنت متأكد من حذف المشرف "${name}"؟`)) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('admins').doc(id).delete();
+        loadAdminsList();
+    } catch (err) {
+        alert('خطأ: ' + err.message);
+    }
+};
+
+// ============================================
+// ROLE-BASED VISIBILITY
+// ============================================
+function applyRoleVisibility() {
+    const role = sessionStorage.getItem('ARAVA_admin_role') || 'admin';
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = role === 'admin' ? '' : 'none';
+    });
+}
+
+// ============================================
+// PROMOTIONS MANAGEMENT
+// ============================================
+let promoImageFiles = [];
+
+document.getElementById('promoImages')?.addEventListener('change', function(e) {
+    promoImageFiles = Array.from(e.target.files);
+    const preview = document.getElementById('promoImagesPreview');
+    preview.innerHTML = promoImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removePromoImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+});
+
+window.removePromoImage = function(idx) {
+    promoImageFiles.splice(idx, 1);
+    const dt = new DataTransfer();
+    promoImageFiles.forEach(f => dt.items.add(f));
+    document.getElementById('promoImages').files = dt.files;
+    const preview = document.getElementById('promoImagesPreview');
+    preview.innerHTML = promoImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removePromoImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+};
+
+window.addPromotion = async function() {
+    if (!requireDb('addPromoStatus')) return;
+    const title = document.getElementById('promoTitle').value.trim();
+    const type = document.getElementById('promoType').value;
+    const description = document.getElementById('promoDescription').value.trim();
+    const videoUrl = document.getElementById('promoVideo').value.trim();
+
+    if (!title) { showStatus('addPromoStatus', 'أدخل عنوان العرض', 'error'); return; }
+
+    const btn = document.getElementById('btnAddPromotion');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+    try {
+        const images = [];
+        const urlText = document.getElementById('promoImageUrls')?.value.trim();
+        if (urlText) {
+            urlText.split('\n').map(u => u.trim()).filter(u => u).forEach(u => images.push(u));
+        }
+        if (promoImageFiles.length > 0) {
+            try {
+                const base64Images = await filesToBase64(promoImageFiles, 10);
+                base64Images.forEach(function (u) { images.push(u); });
+                showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+            } catch (convErr) {
+                console.warn('Image conversion failed:', convErr.message);
+                showToast('فشل معالجة بعض الصور، جرب صوراً أصغر', 'warning');
+            }
+        }
+
+        await db.collection('promotions').add({
+            title, type, description, videoUrl, images,
+            active: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showStatus('addPromoStatus', 'تم إضافة العرض بنجاح!', 'success');
+        document.getElementById('promoTitle').value = '';
+        document.getElementById('promoDescription').value = '';
+        document.getElementById('promoVideo').value = '';
+        document.getElementById('promoImages').value = '';
+        document.getElementById('promoImagesPreview').innerHTML = '';
+        if (document.getElementById('promoImageUrls')) document.getElementById('promoImageUrls').value = '';
+        promoImageFiles = [];
+        loadPromotionsList();
+    } catch (err) {
+        showStatus('addPromoStatus', 'خطأ: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة العرض';
+};
+
+async function loadPromotionsList() {
+    if (!requireDb()) return;
+    const list = document.getElementById('promotionsList');
+    list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
+    try {
+        const snap = await db.collection('promotions').orderBy('createdAt', 'desc').get();
+        document.getElementById('promoCount').textContent = snap.size;
+        if (snap.empty) {
+            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد عروض</div>';
+            return;
+        }
+        const typeLabels = { promotion: 'عرض', activity: 'نشاط', offer: 'تخفيض' };
+        const typeColors = { promotion: 'bg-primary', activity: 'bg-success', offer: 'bg-danger' };
+        list.innerHTML = snap.docs.map(doc => {
+            const p = doc.data();
+            const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
+            const imgHtml = p.images && p.images.length > 0
+                ? `<div class="d-flex gap-2 mb-2 flex-wrap">${p.images.map(u => `<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">`).join('')}</div>`
+                : '';
+            const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
+            return `<div class="col-md-4 col-sm-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="fw-bold mb-1">${p.title}</h6>
+                            <span class="badge ${typeColors[p.type] || 'bg-secondary'}">${typeLabels[p.type] || p.type}</span>
+                        </div>
+                        ${imgHtml}
+                        <p class="small text-muted mb-1">${p.description || ''}</p>
+                        <div class="d-flex gap-2 align-items-center">
+                            ${videoHtml}
+                            <button class="btn btn-sm btn-outline-danger" onclick="deletePromotion('${doc.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <small class="text-muted">${time}</small>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        list.innerHTML = '<div class="col-12 text-center text-danger py-4">خطأ في التحميل</div>';
+    }
+}
+
+window.deletePromotion = async function(id) {
+    if (!confirm('حذف هذا العرض؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('promotions').doc(id).delete();
+        loadPromotionsList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+// ============================================
+// PRODUCTS MANAGEMENT
+// ============================================
+let prodImageFiles = [];
+
+document.getElementById('prodImages')?.addEventListener('change', function(e) {
+    prodImageFiles = Array.from(e.target.files);
+    const preview = document.getElementById('prodImagesPreview');
+    preview.innerHTML = prodImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removeProdImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+});
+
+window.removeProdImage = function(idx) {
+    prodImageFiles.splice(idx, 1);
+    const dt = new DataTransfer();
+    prodImageFiles.forEach(f => dt.items.add(f));
+    document.getElementById('prodImages').files = dt.files;
+    const preview = document.getElementById('prodImagesPreview');
+    preview.innerHTML = prodImageFiles.map((f, i) =>
+        `<div class="position-relative" style="width:100px;height:100px;">
+            <img src="${URL.createObjectURL(f)}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;">
+            <button class="btn btn-sm btn-danger position-absolute top-0 end-0" style="padding:0 4px;font-size:10px;" onclick="removeProdImage(${i})">&times;</button>
+        </div>`
+    ).join('');
+};
+
+window.addProduct = async function() {
+    if (!requireDb('addProductStatus')) return;
+    const name = document.getElementById('prodName').value.trim();
+    const type = document.getElementById('prodType').value;
+    const price = parseFloat(document.getElementById('prodPrice').value) || 0;
+    const phone = document.getElementById('prodPhone').value.trim();
+    const description = document.getElementById('prodDescription').value.trim();
+    const videoUrl = document.getElementById('prodVideo').value.trim();
+
+    if (!name) { showStatus('addProductStatus', 'أدخل اسم المنتج', 'error'); return; }
+    if (!phone) { showStatus('addProductStatus', 'أدخل رقم هاتف البائع', 'error'); return; }
+
+    const btn = document.getElementById('btnAddProduct');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+    try {
+        const images = [];
+        const urlText = document.getElementById('prodImageUrls')?.value.trim();
+        if (urlText) {
+            urlText.split('\n').map(u => u.trim()).filter(u => u).forEach(u => images.push(u));
+        }
+        if (prodImageFiles.length > 0) {
+            try {
+                const base64Images = await filesToBase64(prodImageFiles, 10);
+                base64Images.forEach(function (u) { images.push(u); });
+                showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+            } catch (convErr) {
+                console.warn('Image conversion failed:', convErr.message);
+                showToast('فشل معالجة بعض الصور، جرب صوراً أصغر', 'warning');
+            }
+        }
+
+        await db.collection('products').add({
+            name, type, price, phone, description, videoUrl, images,
+            active: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        showStatus('addProductStatus', 'تم إضافة المنتج بنجاح!', 'success');
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        document.getElementById('prodPhone').value = '';
+        document.getElementById('prodDescription').value = '';
+        document.getElementById('prodVideo').value = '';
+        document.getElementById('prodImages').value = '';
+        document.getElementById('prodImagesPreview').innerHTML = '';
+        if (document.getElementById('prodImageUrls')) document.getElementById('prodImageUrls').value = '';
+        prodImageFiles = [];
+        loadProductsList();
+    } catch (err) {
+        showStatus('addProductStatus', 'خطأ: ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة المنتج';
+};
+
+async function loadProductsList() {
+    if (!requireDb()) return;
+    const list = document.getElementById('productsList');
+    list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
+    try {
+        const snap = await db.collection('products').orderBy('createdAt', 'desc').get();
+        document.getElementById('productCount').textContent = snap.size;
+        if (snap.empty) {
+            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات</div>';
+            return;
+        }
+        const typeLabels = { car: 'سيارة', motorcycle: 'دراجة نارية', other: 'أخرى' };
+        const typeIcons = { car: 'bi-car-front-fill', motorcycle: 'bi-bicycle', other: 'bi-box-seam' };
+        list.innerHTML = snap.docs.map(doc => {
+            const p = doc.data();
+            const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
+            const imgHtml = p.images && p.images.length > 0
+                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.src='data:image/svg+xml,%253Csvg%2520xmlns%253D%2522http://www.w3.org/2000/svg%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%253E%253Crect%2520fill%253D%2522%2523f0f0f0%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%252F%253E%253Ctext%2520x%253D%252250%2525%2522%2520y%253D%252250%2525%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522%2523999%2522%2520font-size%253D%252240%2522%253E%25F0%259F%2596%25BC%253C%252Ftext%253E%253C%252Fsvg%253E'">`
+                : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="${typeIcons[p.type] || 'bi-box'} fs-1 text-muted"></i></div>`;
+            const moreImages = p.images && p.images.length > 1
+                ? `<div class="d-flex gap-1 mb-2">${p.images.slice(1, 5).map(u => `<img src="${u}" style="width:50px;height:50px;object-fit:cover;border-radius:6px;" onerror="this.style.display='none'">`).join('')}</div>`
+                : '';
+            const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
+            return `<div class="col-md-4 col-sm-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <span class="badge ${p.type === 'car' ? 'bg-warning text-dark' : 'bg-info'} mb-1"><i class="${typeIcons[p.type]}"></i> ${typeLabels[p.type] || p.type}</span>
+                        ${imgHtml}
+                        ${moreImages}
+                        <h6 class="fw-bold mb-1">${p.name}</h6>
+                        <p class="small text-muted mb-1">${p.description || ''}</p>
+                        <h5 class="text-gold fw-bold mb-2">${p.price || 0} MRU</h5>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button onclick="callPhone('${p.phone||''}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>
+                            <button onclick="openWhatsApp('222${(p.phone||'').replace(/^0+/, '')}','${encodeURIComponent(p.name||'')}')" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</button>
+                            ${videoHtml}
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${doc.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <small class="text-muted d-block mt-2">${time}</small>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        list.innerHTML = '<div class="col-12 text-center text-danger py-4">خطأ في التحميل</div>';
+    }
+}
+
+window.deleteProduct = async function(id) {
+    if (!confirm('حذف هذا المنتج؟')) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('products').doc(id).delete();
+        loadProductsList();
+    } catch (err) { alert('خطأ: ' + err.message); }
+};
+
+function callPhone(phone) {
+    if (!phone) return;
+    window.location.href = 'tel:' + phone;
+}
+
+function openWhatsApp(phone, name) {
+    if (!phone) return;
+    var text = 'مرحباً بخصوص ' + decodeURIComponent(name);
+    var intentUrl = 'intent://send?phone=' + phone + '&text=' + encodeURIComponent(text) + '#Intent;scheme=smsto;package=com.whatsapp;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.whatsapp;end';
+    window.location.href = intentUrl;
+}
+
+// ============================================
 // INIT
 // ============================================
 function initDashboard() {
@@ -1045,6 +1955,7 @@ function initDashboard() {
     loadCommission();
     loadStats();
     initRealtimeListeners();
+    applyRoleVisibility();
     setInterval(loadStats, 60000);
     addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }

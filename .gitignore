@@ -1,47 +1,5 @@
-# === KHALILY_APP .gitignore ===
-
-# --- Android / Gradle ---
-*.iml
-.gradle
-/local.properties
-/.idea
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-**/build/
-app/build/
-/google-services.json
-
-# --- Node.js / Admin Dashboard ---
 node_modules/
-npm-debug.log*
 .env
-.env.local
-dist/
-coverage/
-
-# --- Firebase service account key ---
-**/serviceAccountKey.json
-
-# --- Firebase emulator cache ---
-.firebase/
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-
-# --- OS files ---
-Thumbs.db
-Desktop.ini
-.DS_Store
-
-# --- IDE ---
-.vscode/
-*.swp
-*.swo
-
-# --- Logs ---
 *.log
-
-apk-hamada/
+.DS_Store
+Thumbs.db

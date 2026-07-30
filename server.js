@@ -332,6 +332,126 @@ app.delete('/api/delete-driver/:id', async (req, res) => {
     }
 });
 
+// API: Get all customers
+app.get('/api/customers', async (req, res) => {
+    try {
+        const snapshot = await db.collection('customers').get();
+        const customers = [];
+        snapshot.forEach(doc => {
+            customers.push({ id: doc.id, ...doc.data() });
+        });
+        res.json({ customers });
+    } catch (error) {
+        console.error('Get customers error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API: Register new customer
+app.post('/api/register-customer', async (req, res) => {
+    try {
+        const { name, phone, whatsapp, password, credit } = req.body;
+
+        if (!name || !phone || !password) {
+            return res.status(400).json({ error: 'Name, phone and password are required' });
+        }
+
+        const docRef = await db.collection('customers').add({
+            name,
+            phone,
+            whatsapp: whatsapp || '',
+            password,
+            credit: credit || 0,
+            lat: 18.0735,
+            lng: -15.9582,
+            geohash: '',
+            isOnline: false,
+            totalRides: 0,
+            fcmToken: '',
+            deviceId: '',
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        res.json({ success: true, customerId: docRef.id });
+    } catch (error) {
+        console.error('Register customer error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API: Update customer info
+app.put('/api/update-customer/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, phone, whatsapp, disabled } = req.body;
+
+        const updates = {};
+        if (name !== undefined) updates.name = name;
+        if (phone !== undefined) updates.phone = phone;
+        if (whatsapp !== undefined) updates.whatsapp = whatsapp;
+        if (disabled !== undefined) updates.disabled = disabled;
+
+        await db.collection('customers').doc(id).update(updates);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Update customer error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API: Delete customer
+app.delete('/api/delete-customer/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection('customers').doc(id).delete();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete customer error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API: Update customer credit (add)
+app.post('/api/update-customer-credit', async (req, res) => {
+    try {
+        const { customerId, amount } = req.body;
+
+        if (!customerId || typeof amount !== 'number' || amount <= 0) {
+            return res.status(400).json({ error: 'Missing customerId or invalid amount' });
+        }
+
+        await db.collection('customers').doc(customerId).update({
+            credit: admin.firestore.FieldValue.increment(amount)
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Update customer credit error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API: Set customer credit (overwrite)
+app.post('/api/set-customer-credit', async (req, res) => {
+    try {
+        const { customerId, amount } = req.body;
+
+        if (!customerId || typeof amount !== 'number' || amount < 0) {
+            return res.status(400).json({ error: 'Missing customerId or invalid amount' });
+        }
+
+        await db.collection('customers').doc(customerId).update({
+            credit: amount
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Set customer credit error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // API: Get all drivers
 app.get('/api/drivers', async (req, res) => {
     try {

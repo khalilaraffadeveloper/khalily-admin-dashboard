@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { serverTimestamp } = require("firebase/firestore");
 const { db } = require("../config/firebase");
 
 // GET /api/drivers - list all online drivers
@@ -45,7 +46,7 @@ router.post("/dispatch-ride", async (req, res) => {
       pickupAddress: pickupAddress || "",
       radiusKm: radiusKm || 3,
       status: "pending",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: serverTimestamp(),
     };
 
     const docRef = await db.collection("ride_requests").add(rideRequest);
