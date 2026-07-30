@@ -66,27 +66,51 @@ function requireDb(caller) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        if (typeof Compressor !== 'undefined') {
-            new Compressor(file, {
-                quality: 0.6,
-                maxWidth: 800,
-                maxHeight: 800,
-                convertSize: 500000,
-                success: function (compressed) {
-                    var reader = new FileReader();
-                    reader.onload = function (e) { resolve(e.target.result); };
-                    reader.onerror = function () { reject(new Error('فشل قراءة الملف المضغوط')); };
-                    reader.readAsDataURL(compressed);
-                },
-                error: function (err) { reject(err); }
-            });
-        } else {
+        compressImage(file, 800, 0.5, function (compressed) {
             var reader = new FileReader();
             reader.onload = function (e) { resolve(e.target.result); };
-            reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
-            reader.readAsDataURL(file);
-        }
+            reader.onerror = function () { reject(new Error('فشل قراءة الملف المضغوط')); };
+            reader.readAsDataURL(compressed);
+        }, function (err) {
+            reject(err);
+        });
     });
+}
+
+function compressImage(file, maxDim, quality, onSuccess, onError) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+            var ratio = Math.min(maxDim / w, maxDim / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function (blob) {
+            URL.revokeObjectURL(url);
+            if (blob) onSuccess(blob);
+            else onError(new Error('فشل الضغط'));
+        }, file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality);
+    };
+    img.onerror = function () {
+        URL.revokeObjectURL(url);
+        if (typeof Compressor !== 'undefined') {
+            new Compressor(file, {
+                quality: 0.5, maxWidth: 800, maxHeight: 800,
+                success: onSuccess,
+                error: onError
+            });
+        } else {
+            onError(new Error('فشل فتح الصورة'));
+        }
+    };
+    img.src = url;
 }
 
 function filesToBase64(files, maxCount) {
@@ -102,7 +126,9 @@ function filesToBase64(files, maxCount) {
         chain = chain.then(function () {
             return fileToBase64(file).then(function (b64) {
                 results.push(b64);
-            }).catch(function () {});
+            }).catch(function (e) {
+                console.warn('Image skip:', e?.message);
+            });
         });
     });
     return chain.then(function () { return results; });
@@ -1755,13 +1781,18 @@ window.addPromotion = async function() {
             urlText.split('\n').map(u => u.trim()).filter(u => u).forEach(u => images.push(u));
         }
         if (promoImageFiles.length > 0) {
+            showStatus('addPromoStatus', 'جاري معالجة ' + promoImageFiles.length + ' صور...', '');
             try {
                 const base64Images = await filesToBase64(promoImageFiles, 10);
                 base64Images.forEach(function (u) { images.push(u); });
-                showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+                if (base64Images.length > 0) {
+                    showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+                } else {
+                    showToast('لم يتم تحويل أي صورة', 'warning');
+                }
             } catch (convErr) {
                 console.warn('Image conversion failed:', convErr.message);
-                showToast('فشل معالجة بعض الصور، جرب صوراً أصغر', 'warning');
+                showToast('فشل معالجة الصور، جرب صوراً أصغر', 'warning');
             }
         }
 
@@ -1803,7 +1834,7 @@ async function loadPromotionsList() {
             const p = doc.data();
             const time = p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleString('ar-MA') : '';
             const imgHtml = p.images && p.images.length > 0
-                ? `<div class="d-flex gap-2 mb-2 flex-wrap">${p.images.map(u => `<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">`).join('')}</div>`
+                ? `<div class="d-flex gap-2 mb-2 flex-wrap">${p.images.map(u => `<img src="${u}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" onerror="this.src='data:image/svg+xml,%253Csvg%2520xmlns%253D%2522http://www.w3.org/2000/svg%2522%2520width%253D%252280%2522%2520height%253D%252280%2522%253E%253Crect%2520fill%253D%2522%2523f0f0f0%2522%2520width%253D%252280%2522%2520height%253D%252280%2522%252F%253E%253Ctext%2520x%253D%252250%2525%2522%2520y%253D%252250%2525%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522%2523999%2522%2520font-size%253D%252230%2522%253E%25E2%259D%258C%253C%252Ftext%253E%253C%252Fsvg%253E'">`).join('')}</div>`
                 : '';
             const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-play-circle"></i> فيديو</a>` : '';
             return `<div class="col-md-4 col-sm-6">
