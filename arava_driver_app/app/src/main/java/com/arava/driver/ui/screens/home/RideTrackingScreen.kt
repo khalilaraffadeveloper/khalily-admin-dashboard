@@ -3,6 +3,11 @@ package com.arava.driver.ui.screens.home
 import android.graphics.Color as AndroidColor
 import android.media.MediaPlayer
 import com.arava.driver.R
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -148,9 +152,9 @@ fun RideTrackingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -158,77 +162,141 @@ fun RideTrackingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = when (ridePhase) {
-                                RidePhase.NAVIGATING_TO_PICKUP -> "الوصول للزبون"
-                                RidePhase.AT_PICKUP -> "وصلت للزبون"
-                                RidePhase.NAVIGATING_TO_DROPOFF -> "الوجهة النهائية"
-                                RidePhase.COMPLETED -> "اكتملت الرحلة"
-                            },
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ARAVANavy
-                        )
-                        Text(
-                            text = passengerName,
-                            fontSize = 13.sp,
-                            color = ARAVATextSecondary
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        AnimatedContent(targetState = ridePhase, label = "phaseIcon", transitionSpec = { fadeIn() togetherWith fadeOut() }) { phase ->
+                            Box(
+                                modifier = Modifier.size(40.dp).background(
+                                    when (phase) {
+                                        RidePhase.NAVIGATING_TO_PICKUP -> ARAVATurquoiseSurface
+                                        RidePhase.AT_PICKUP -> ARAVAGreenSurface
+                                        RidePhase.NAVIGATING_TO_DROPOFF -> ARAVAGoldLight
+                                        RidePhase.COMPLETED -> ARAVAGreenSurface
+                                    },
+                                    RoundedCornerShape(12.dp)
+                                ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = when (phase) {
+                                        RidePhase.NAVIGATING_TO_PICKUP -> Icons.Default.Navigation
+                                        RidePhase.AT_PICKUP -> Icons.Default.PersonPin
+                                        RidePhase.NAVIGATING_TO_DROPOFF -> Icons.Default.Place
+                                        RidePhase.COMPLETED -> Icons.Default.CheckCircle
+                                    },
+                                    contentDescription = null,
+                                    tint = when (phase) {
+                                        RidePhase.NAVIGATING_TO_PICKUP -> ARAVATurquoise
+                                        RidePhase.AT_PICKUP -> ARAVAGreen
+                                        RidePhase.NAVIGATING_TO_DROPOFF -> ARAVAGold
+                                        RidePhase.COMPLETED -> ARAVAGreen
+                                    },
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            AnimatedContent(targetState = ridePhase, label = "phaseTitle", transitionSpec = { fadeIn() togetherWith fadeOut() }) { phase ->
+                                Text(
+                                    text = when (phase) {
+                                        RidePhase.NAVIGATING_TO_PICKUP -> "الوصول للزبون"
+                                        RidePhase.AT_PICKUP -> "وصلت للزبون"
+                                        RidePhase.NAVIGATING_TO_DROPOFF -> "الوجهة النهائية"
+                                        RidePhase.COMPLETED -> "اكتملت الرحلة"
+                                    },
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ARAVANavy
+                                )
+                            }
+                            Text(text = passengerName, fontSize = 12.sp, color = ARAVATextSecondary)
+                        }
                     }
 
                     if (ridePhase != RidePhase.COMPLETED) {
                         val minutes = timeRemaining / 60
                         val seconds = timeRemaining % 60
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = timerColor.copy(alpha = 0.12f)
-                            )
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = timerColor.copy(alpha = 0.1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = "%d:%02d".format(minutes, seconds),
-                                    fontSize = 22.sp,
+                                    fontSize = 24.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = timerColor
                                 )
                                 Text(
-                                    text = "المتبقي",
-                                    fontSize = 10.sp,
+                                    text = "متبقي",
+                                    fontSize = 9.sp,
                                     color = timerColor,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
                         }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(ARAVAGreenSurface, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(28.dp))
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = Color(0xFFEEEEEE))
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(pickupAddress.ifEmpty { "نقطة الانطلاق" }, fontSize = 12.sp, color = ARAVATextSecondary)
+                    Box(
+                        modifier = Modifier.size(28.dp).background(ARAVATurquoiseSurface, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(14.dp))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text("نقطة الانطلاق", fontSize = 10.sp, color = ARAVATextSecondary)
+                        Text(pickupAddress.ifEmpty { "موقع الزبون" }, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = ARAVATextPrimary)
+                    }
                 }
                 if (dropoffAddress.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Place, contentDescription = null, tint = ARAVAError, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(dropoffAddress, fontSize = 12.sp, color = ARAVATextSecondary)
+                        Box(
+                            modifier = Modifier.size(28.dp).background(ARAVAErrorSurface, RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Place, contentDescription = null, tint = ARAVAError, modifier = Modifier.size(14.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("الوجهة", fontSize = 10.sp, color = ARAVATextSecondary)
+                            Text(dropoffAddress, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = ARAVATextPrimary)
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("السعر: $fare MRU", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ARAVAGreen)
-                    Text("العمولة: $commission MRU", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ARAVAError)
+                    Column {
+                        Text("السعر", fontSize = 10.sp, color = ARAVATextSecondary)
+                        Text("$fare MRU", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = ARAVAGreen)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("العمولة", fontSize = 10.sp, color = ARAVATextSecondary)
+                        Text("$commission MRU", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = ARAVAError)
+                    }
                 }
             }
         }
@@ -324,207 +392,203 @@ fun RideTrackingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 if (ridePhase != RidePhase.COMPLETED && timeRemaining <= REMINDER_WARN_SEC) {
-                    Card(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFF3E0)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF6C00), modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "الوقت ينفد! ${
-                                    if (timeRemaining <= REMINDER_URGENT_SEC) "بضع دقائق متبقية فقط"
-                                    else "باقي ${timeRemaining / 60} دقائق"
-                                }",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF6C00)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-
-                when (ridePhase) {
-                    RidePhase.NAVIGATING_TO_PICKUP -> {
-                        Button(
-                            onClick = {
-                                val uri = android.net.Uri.parse("google.navigation:q=$pickupLat,$pickupLng&mode=d")
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                                intent.setPackage("com.google.android.apps.maps")
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    val webIntent = android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$pickupLat,$pickupLng")
-                                    )
-                                    context.startActivity(webIntent)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
-                        ) {
-                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("الملاحة لنقطة الانطلاق", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        if (passengerPhone.isNotEmpty()) {
-                            OutlinedButton(
-                                onClick = {
-                                    val intent = android.content.Intent(
-                                        android.content.Intent.ACTION_DIAL,
-                                        android.net.Uri.parse("tel:$passengerPhone")
-                                    )
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier.fillMaxWidth().height(44.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ARAVATurquoise)
-                            ) {
-                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("اتصل بالزبون (هاتف)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                        if (onVoipCall != null) {
-                            Button(
-                                onClick = onVoipCall,
-                                modifier = Modifier.fillMaxWidth().height(44.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreen)
-                            ) {
-                                Icon(Icons.Default.VoiceChat, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("اتصال صوتي (VoIP)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-
-                        Button(
-                            onClick = { ridePhase = RidePhase.AT_PICKUP },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = ARAVAGold)
-                        ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("وصلت للزبون", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-
-                    RidePhase.AT_PICKUP -> {
-                        Text(
-                            text = "مرحباً بالزبون $passengerName",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ARAVATextPrimary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = { ridePhase = RidePhase.NAVIGATING_TO_DROPOFF },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreen)
-                        ) {
-                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("ابدأ الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-
-                    RidePhase.NAVIGATING_TO_DROPOFF -> {
-                        Text(
-                            text = "الوصول إلى: $dropoffAddress",
-                            fontSize = 13.sp,
-                            color = ARAVATextSecondary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = {
-                                val uri = android.net.Uri.parse("google.navigation:q=$dropoffLat,$dropoffLng&mode=d")
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                                intent.setPackage("com.google.android.apps.maps")
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    val webIntent = android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$dropoffLat,$dropoffLng")
-                                    )
-                                    context.startActivity(webIntent)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
-                        ) {
-                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("الملاحة للوجهة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = {
-                                ridePhase = RidePhase.COMPLETED
-                                onRideCompleted(fare, commission)
-                            },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreenLight)
-                        ) {
-                            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("إنهاء الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-
-                    RidePhase.COMPLETED -> {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
                             Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .background(ARAVAGreenSurface, RoundedCornerShape(16.dp)),
+                                modifier = Modifier.size(32.dp).background(Color(0xFFEF6C00).copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(36.dp))
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF6C00), modifier = Modifier.size(18.dp))
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("تم إنهاء الرحلة بنجاح!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ARAVAGreen)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("السعر: $fare MRU | العمولة: $commission MRU", fontSize = 13.sp, color = ARAVATextSecondary)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = onDismiss,
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = ARAVATurquoise)
-                            ) {
-                                Text("العودة للخريطة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text("الوقت ينفد!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF6C00))
+                                Text(
+                                    if (timeRemaining <= REMINDER_URGENT_SEC) "بضع دقائق متبقية فقط" else "باقي ${timeRemaining / 60} دقائق",
+                                    fontSize = 11.sp, color = Color(0xFFEF6C00).copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                AnimatedContent(targetState = ridePhase, label = "phaseActions", transitionSpec = { fadeIn() togetherWith fadeOut() }) { phase ->
+                    Column {
+                        when (phase) {
+                            RidePhase.NAVIGATING_TO_PICKUP -> {
+                                Button(
+                                    onClick = {
+                                        val uri = android.net.Uri.parse("google.navigation:q=$pickupLat,$pickupLng&mode=d")
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                        intent.setPackage("com.google.android.apps.maps")
+                                        try { context.startActivity(intent) } catch (_: Exception) {
+                                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$pickupLat,$pickupLng")))
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                                ) {
+                                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("الملاحة لنقطة الانطلاق", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+
+                                if (passengerPhone.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$passengerPhone")))
+                                            },
+                                            modifier = Modifier.weight(1f).height(46.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ARAVATurquoise)
+                                        ) {
+                                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("اتصال", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                        if (onVoipCall != null) {
+                                            Button(
+                                                onClick = onVoipCall,
+                                                modifier = Modifier.weight(1f).height(46.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreen)
+                                            ) {
+                                                Icon(Icons.Default.VoiceChat, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("VoIP", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Button(
+                                    onClick = { ridePhase = RidePhase.AT_PICKUP },
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ARAVAGold),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("وصلت للزبون", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+
+                            RidePhase.AT_PICKUP -> {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().background(ARAVAGreenSurface, RoundedCornerShape(12.dp)).padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.PersonPin, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(24.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text("مرحباً بالزبون", fontSize = 12.sp, color = ARAVAGreen.copy(alpha = 0.7f))
+                                            Text(passengerName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Button(
+                                    onClick = { ridePhase = RidePhase.NAVIGATING_TO_DROPOFF },
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreenLight),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("ابدأ الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+
+                            RidePhase.NAVIGATING_TO_DROPOFF -> {
+                                Button(
+                                    onClick = {
+                                        val uri = android.net.Uri.parse("google.navigation:q=$dropoffLat,$dropoffLng&mode=d")
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                        intent.setPackage("com.google.android.apps.maps")
+                                        try { context.startActivity(intent) } catch (_: Exception) {
+                                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$dropoffLat,$dropoffLng")))
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                                ) {
+                                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("الملاحة للوجهة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Button(
+                                    onClick = {
+                                        ridePhase = RidePhase.COMPLETED
+                                        onRideCompleted(fare, commission)
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreenLight),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("إنهاء الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+
+                            RidePhase.COMPLETED -> {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(64.dp).background(ARAVAGreenSurface, RoundedCornerShape(18.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(40.dp))
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text("تم إنهاء الرحلة بنجاح!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ARAVAGreen)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("السعر: $fare MRU | العمولة: $commission MRU | الصافي: ${fare - commission} MRU", fontSize = 13.sp, color = ARAVATextSecondary)
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = onDismiss,
+                                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = ARAVATurquoise)
+                                    ) {
+                                        Text("العودة للخريطة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                }
                             }
                         }
                     }

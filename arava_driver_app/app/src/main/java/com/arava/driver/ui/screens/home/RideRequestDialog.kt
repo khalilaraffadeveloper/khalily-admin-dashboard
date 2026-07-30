@@ -2,7 +2,14 @@
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.MutableTransitionState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -36,17 +43,13 @@ fun RideRequestDialog(
 ) {
     val context = LocalContext.current
 
-    val scaleAnim = rememberInfiniteTransition(label = "scale")
-    val scale by scaleAnim.animateFloat(
-        initialValue = 0.95f, targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(tween(800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "scale"
-    )
+    val visible = remember { MutableTransitionState(false) }
+    visible.targetState = true
 
-    val pulseAnim = rememberInfiniteTransition(label = "pulse")
-    val pulseScale by pulseAnim.animateFloat(
-        initialValue = 1f, targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val anim = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by anim.animateFloat(
+        initialValue = 1f, targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "pulseScale"
     )
 
@@ -54,138 +57,112 @@ fun RideRequestDialog(
         onDismissRequest = { },
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(16.dp)
-                .scale(scale)
-                .shadow(16.dp, RoundedCornerShape(28.dp)),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+        AnimatedVisibility(
+            visibleState = visible,
+            enter = scaleIn(animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) + fadeIn(tween(300)),
+            exit = scaleOut(tween(200)) + fadeOut(tween(200))
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .padding(16.dp)
+                    .shadow(20.dp, RoundedCornerShape(28.dp)),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.horizontalGradient(listOf(ARAVAGold, ARAVAGoldDark)),
-                            RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-                        )
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .scale(pulseScale)
-                                .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                            contentAlignment = Alignment.Center
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.horizontalGradient(listOf(ARAVAGold, ARAVAGoldDark)),
+                                RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                            )
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .scale(pulseScale)
+                                    .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.TwoWheeler, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("طلب رحلة جديد!", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.TwoWheeler,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(40.dp)
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("المسافة", fontSize = 12.sp, color = ARAVATextSecondary)
+                                Text(
+                                    "${rideData["realDistanceKm"] ?: rideData["distanceKm"] ?: "0"} km",
+                                    fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = ARAVATextPrimary
+                                )
+                            }
+                            Box(Modifier.width(1.dp).height(40.dp).background(Color(0xFFE0E0E0)))
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("السعر", fontSize = 12.sp, color = ARAVATextSecondary)
+                                Text(
+                                    "${rideData["fare"] ?: rideData["estimatedFare"] ?: "0"} MRU",
+                                    fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = ARAVAGoldDark
+                                )
+                            }
                         }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                        RideInfoRow(icon = Icons.Default.PlayArrow, label = "الانطلاق", value = rideData["pickupAddress"]?.toString() ?: "موقع الزبون")
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "طلب رحلة جديد!",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
+                        RideInfoRow(icon = Icons.Default.Place, label = "الوجهة", value = rideData["dropoffAddress"]?.toString() ?: "المحدد لاحقاً")
 
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "المسافة",
-                                fontSize = 12.sp,
-                                color = ARAVATextSecondary
-                            )
-                            Text(
-                                text = "${rideData["realDistanceKm"] ?: rideData["distanceKm"] ?: "0"} km",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = ARAVATextPrimary
-                            )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = onAccept,
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ARAVAGreenLight,
+                                disabledContainerColor = Color(0xFF66BB6A)
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                            enabled = !isLoading
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.5.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("جاري القبول...", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            } else {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("قبول الرحلة", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
-                        Box(
-                            modifier = Modifier
-                                .width(1.dp)
-                                .height(40.dp)
-                                .background(Color(0xFFE0E0E0))
-                        )
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "السعر",
-                                fontSize = 12.sp,
-                                color = ARAVATextSecondary
-                            )
-                            Text(
-                                text = "${rideData["fare"] ?: rideData["estimatedFare"] ?: "0"} MRU",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = ARAVAGoldDark
-                            )
-                        }
-                    }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    RideInfoRow(icon = Icons.Default.PlayArrow, label = "الانطلاق", value = rideData["pickupAddress"]?.toString() ?: "موقع الزبون")
-                    Spacer(modifier = Modifier.height(12.dp))
-                    RideInfoRow(icon = Icons.Default.Place, label = "الوجهة", value = rideData["dropoffAddress"]?.toString() ?: "المحدد لاحقاً")
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = onAccept,
-                        modifier = Modifier.fillMaxWidth().height(54.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2E7D32),
-                            disabledContainerColor = Color(0xFF66BB6A)
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
-                        enabled = !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
+                        OutlinedButton(
+                            onClick = onDecline,
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ARAVAError)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("جاري القبول...", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        } else {
-                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("قبول الرحلة", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("رفض", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedButton(
-                        onClick = onDecline,
-                        modifier = Modifier.fillMaxWidth().height(54.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ARAVAError)
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(22.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("رفض", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -208,8 +185,8 @@ fun RideDetailDialog(
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp).shadow(16.dp, RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp).shadow(16.dp, RoundedCornerShape(24.dp)),
+            shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
@@ -221,21 +198,21 @@ fun RideDetailDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(ARAVAGreenSurface, CircleShape),
+                        modifier = Modifier.size(44.dp).background(ARAVAGreenSurface, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(26.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text("تم قبول الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
-                        Text(
-                            if (!hasArrived) "اتصل بالزبون ثم وصل لنقطة الانطلاق"
-                            else "أنت في نقطة الانطلاق، ابدأ الرحلة",
-                            fontSize = 12.sp, color = ARAVATextSecondary
-                        )
+                        AnimatedContent(targetState = hasArrived, label = "statusText") { arrived ->
+                            Text(
+                                if (!arrived) "اتصل بالزبون ثم توجّه لنقطة الانطلاق"
+                                else "أنت في نقطة الانطلاق، ابدأ الرحلة",
+                                fontSize = 12.sp, color = ARAVATextSecondary
+                            )
+                        }
                     }
                 }
 
@@ -289,31 +266,33 @@ fun RideDetailDialog(
                     Spacer(modifier = Modifier.height(10.dp))
                 }
 
-                Button(
-                    onClick = { hasArrived = true },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (hasArrived) Color(0xFFB0BEC5) else Color(0xFF1565C0)
-                    ),
-                    enabled = !hasArrived
-                ) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("وصلت للزبون", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
+                AnimatedContent(targetState = hasArrived, label = "arrivalButton") { arrived ->
+                    Column {
+                        Button(
+                            onClick = { hasArrived = true },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (!arrived) Color(0xFF1565C0) else Color(0xFFB0BEC5)),
+                            enabled = !arrived
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("وصلت للزبون", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
 
-                if (hasArrived) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = onStarted,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("بدأ الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        if (arrived) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = onStarted,
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreenLight)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("ابدأ الرحلة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
                     }
                 }
 

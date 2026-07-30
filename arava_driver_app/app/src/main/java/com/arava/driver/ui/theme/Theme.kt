@@ -40,6 +40,7 @@ fun ARAVATheme(content: @Composable () -> Unit) {
 
     MaterialTheme(
         colorScheme = ARAVAColorScheme,
+        typography = ARAVATypography,
         content = content
     )
 }

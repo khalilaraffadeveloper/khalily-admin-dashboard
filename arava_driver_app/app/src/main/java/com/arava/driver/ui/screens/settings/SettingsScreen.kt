@@ -207,7 +207,7 @@ fun SettingsScreen(
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "\u062D\u0645\u0627\u062F\u0647",
+                                text = "\u0639\u0631\u0641\u0647",
                                 fontSize = 30.sp,
                                 fontFamily = cairoFont,
                                 fontWeight = FontWeight.Bold,
@@ -389,141 +389,120 @@ private fun RideHistoryTab(rides: List<RideHistoryItem>, isLoading: Boolean) {
     ) {
         grouped.forEach { (date, dateRides) ->
             item {
-                Text(
-                    text = date,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ARAVANavy,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)
-                )
+                ) {
+                    Box(
+                        modifier = Modifier.size(4.dp).height(16.dp).background(ARAVAGold, RoundedCornerShape(2.dp))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = date, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                }
             }
             items(dateRides) { ride ->
+                val statusColor = when (ride.status) {
+                    "completed" -> StatusCompleted
+                    "cancelled" -> StatusCancelled
+                    "in_progress" -> StatusInProgress
+                    "accepted" -> StatusAccepted
+                    else -> Color(0xFFB0BEC5)
+                }
+                val statusBg = when (ride.status) {
+                    "completed" -> StatusCompletedBg
+                    "cancelled" -> StatusCancelledBg
+                    "in_progress" -> StatusInProgressBg
+                    "accepted" -> StatusAcceptedBg
+                    else -> Color(0xFFF5F5F5)
+                }
                 val cardBg = when (ride.status) {
-                    "completed" -> Color(0xFFF0F9F1)
-                    "cancelled" -> Color(0xFFFFF3F3)
-                    "in_progress" -> Color(0xFFFFFBF0)
+                    "completed" -> Color(0xFFF8FCF9)
+                    "cancelled" -> Color(0xFFFFF8F8)
+                    "in_progress" -> Color(0xFFFFFCF5)
                     else -> Color(0xFFF8F8FA)
                 }
+
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(8.dp, RoundedCornerShape(20.dp)),
-                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = cardBg)
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .width(5.dp)
-                                .fillMaxHeight()
-                                .background(
-                                    when (ride.status) {
-                                        "completed" -> Color(0xFF2E7D32)
-                                        "cancelled" -> Color(0xFFC62828)
-                                        "in_progress" -> ARAVAGold
-                                        else -> Color(0xFFB0BEC5)
-                                    }
-                                )
-                        )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(120.dp)
+                                    .background(statusColor)
+                            )
 
-                        Column(modifier = Modifier.padding(16.dp).weight(1f)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(ride.passengerName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ARAVATextPrimary)
-                                val statusText = when (ride.status) {
-                                    "completed" -> "مكتملة"
-                                    "cancelled" -> "ملغاة"
-                                    "in_progress" -> "جارية"
-                                    "accepted" -> "مقبولة"
-                                    else -> ride.status
-                                }
-                                Card(
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = when (ride.status) {
-                                            "completed" -> Color(0xFFE8F5E9)
-                                            "cancelled" -> Color(0xFFFFEBEE)
-                                            "in_progress" -> Color(0xFFFFF8E1)
-                                            else -> Color(0xFFF3E5F5)
-                                        }
-                                    )
+                            Column(modifier = Modifier.padding(start = 12.dp, end = 16.dp, top = 14.dp, bottom = 14.dp).weight(1f)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = statusText,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = when (ride.status) {
-                                            "completed" -> Color(0xFF2E7D32)
-                                            "cancelled" -> Color(0xFFC62828)
-                                            "in_progress" -> Color(0xFFEF6C00)
-                                            else -> Color(0xFF7B1FA2)
-                                        }
-                                    )
+                                    Text(ride.passengerName.ifEmpty { "زبون" }, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ARAVATextPrimary)
+                                    Surface(shape = RoundedCornerShape(8.dp), color = statusBg) {
+                                        Text(
+                                            text = when (ride.status) {
+                                                "completed" -> "مكتملة"
+                                                "cancelled" -> "ملغاة"
+                                                "in_progress" -> "جارية"
+                                                "accepted" -> "مقبولة"
+                                                else -> ride.status
+                                            },
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = statusColor
+                                        )
+                                    }
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(ride.pickupAddress.ifEmpty { "-" }, fontSize = 12.sp, color = ARAVATextSecondary)
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFFC62828), modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(ride.dropoffAddress.ifEmpty { "-" }, fontSize = 12.sp, color = ARAVATextSecondary)
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = Color(0xFFE0E0E0))
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("السعر:", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ARAVATextSecondary)
+                                    Box(Modifier.size(22.dp).background(ARAVATurquoiseSurface, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(12.dp))
+                                    }
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        "${ride.fare} MRU",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ARAVATextPrimary
-                                    )
+                                    Text(ride.pickupAddress.ifEmpty { "-" }, fontSize = 12.sp, color = ARAVATextSecondary, maxLines = 1)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("العمولة:", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ARAVATextSecondary)
+                                    Box(Modifier.size(22.dp).background(ARAVAErrorSurface, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Place, contentDescription = null, tint = ARAVAError, modifier = Modifier.size(12.dp))
+                                    }
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        "- ${ride.commission} MRU",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFC62828)
-                                    )
+                                    Text(ride.dropoffAddress.ifEmpty { "-" }, fontSize = 12.sp, color = ARAVATextSecondary, maxLines = 1)
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Column {
+                                        Text("السعر", fontSize = 10.sp, color = ARAVATextSecondary)
+                                        Text("${ride.fare} MRU", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ARAVATextPrimary)
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("العمولة", fontSize = 10.sp, color = ARAVATextSecondary)
+                                        Text("- ${ride.commission} MRU", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ARAVAError)
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("الصافي", fontSize = 10.sp, color = ARAVATextSecondary)
+                                        Text("${ride.fare - ride.commission} MRU", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = ARAVAGreen)
+                                    }
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("الصافي:", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ARAVATextSecondary)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    "${ride.fare - ride.commission} MRU",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF2E7D32)
-                                )
-                            }
+                        }
+                        if (ride.createdAtDate != null) {
+                            val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
+                            Text(
+                                sdf.format(ride.createdAtDate),
+                                fontSize = 10.sp, color = ARAVATextSecondary,
+                                modifier = Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 8.dp),
+                                textAlign = TextAlign.End
+                            )
                         }
                     }
                 }
@@ -758,55 +737,50 @@ private fun AboutTab() {
     ) {
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(6.dp, RoundedCornerShape(20.dp)),
-                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = ARAVANavy)
             ) {
                 Column(
-                    modifier = Modifier.padding(28.dp),
+                    modifier = Modifier.padding(28.dp).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val cairoFont = FontFamily(Font(R.font.cairo_regular, FontWeight.Normal))
                     Box(
                         modifier = Modifier
-                            .size(150.dp)
-                            .shadow(10.dp, RoundedCornerShape(26.dp))
-                            .clip(RoundedCornerShape(26.dp))
-                            .border(4.dp, ARAVAGold, RoundedCornerShape(26.dp)),
+                            .size(130.dp)
+                            .shadow(12.dp, RoundedCornerShape(24.dp))
+                            .clip(RoundedCornerShape(24.dp))
+                            .border(3.dp, ARAVAGold, RoundedCornerShape(24.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.arava),
                             contentDescription = "ARAVA",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(22.dp))
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(21.dp))
                         )
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         "\u0639\u0631\u0641\u0647",
-                        fontSize = 38.sp,
-                        fontFamily = cairoFont,
-                        fontWeight = FontWeight.Bold,
-                        color = ARAVAGold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        fontSize = 36.sp, fontFamily = cairoFont, fontWeight = FontWeight.Bold,
+                        color = ARAVAGold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("\u0644\u0644\u062A\u0648\u0635\u064A\u0644", fontSize = 14.sp, fontFamily = cairoFont, fontWeight = FontWeight.Normal, color = Color.White.copy(alpha = 0.7f), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        "\u0644\u0644\u062A\u0648\u0635\u064A\u0644",
+                        fontSize = 14.sp, fontFamily = cairoFont, fontWeight = FontWeight.Normal,
+                        color = Color.White.copy(alpha = 0.7f), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Card(
+                    Surface(
                         shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                        color = Color.White.copy(alpha = 0.15f)
                     ) {
                         Text(
                             "الإصدار $versionName",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            fontSize = 12.sp,
-                            color = ARAVAGold,
-                            textAlign = TextAlign.Center
+                            fontSize = 12.sp, color = ARAVAGold, textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -815,15 +789,21 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("معلومات التطبيق", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(36.dp).background(ARAVATurquoiseSurface, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Info, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("معلومات التطبيق", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                     AboutInfoRow(icon = Icons.Default.Business, label = "الشركة", value = "\u0639\u0631\u0641\u0647 \u0644\u0644\u062A\u0648\u0635\u064A\u0644")
-                    AboutInfoRow(icon = Icons.Default.LocationOn, label = "المدينة", value = "نواكشط، موريتانيا")
+                    AboutInfoRow(icon = Icons.Default.LocationOn, label = "المدينة", value = "نواكشوط، موريتانيا")
                     AboutInfoRow(icon = Icons.Default.Phone, label = "التواصل", value = "47717983")
                     AboutInfoRow(icon = Icons.Default.Code, label = "الإصدار", value = versionName)
                 }
@@ -832,52 +812,68 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("رسالتنا", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        "في عرفه، نؤمن بأن خدمة الزبون وإرضائه هو جوهر عملنا. رضا الزبون يعني رضا السائق والشركة معاً — وهذا مصلحتنا جميعاً. نسعى لتقديم تجربة توصيل سريعة وآمنة تلبي تطلعاتكم، ونعمل باستمرار على تطوير خدماتنا لنكون الخيار الأمثل لكم.",
-                        fontSize = 13.sp, color = ARAVATextSecondary, lineHeight = 22.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(36.dp).background(Color(0xFFFFF3E0), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = ARAVAGold, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("رسالتنا", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier.fillMaxWidth().background(ARAVASand, RoundedCornerShape(12.dp)).padding(16.dp)
+                    ) {
+                        Text(
+                            "في عرفه، نؤمن بأن التوصيل ليس مجرد خدمة، بل تجربة ثقة ومسؤولية. نسعى كل يوم لنكون الجسر الذي يربط بين احتياجاتكم ووجهاتكم بأمان وموثوقية. رضاكم هو دافعنا، وثقتكم هي استثمارنا الأثمن.",
+                            fontSize = 13.sp, color = ARAVATextPrimary, lineHeight = 22.sp
+                        )
+                    }
                 }
             }
         }
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("تعهداتنا مع السائقين", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(36.dp).background(ARAVAGreenSurface, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("تعهداتنا مع السائقين", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     PolicyItem(
-                        icon = Icons.Default.Favorite,
+                        icon = Icons.Default.Favorite, iconColor = Color(0xFFE91E63),
                         title = "نقدّركم ونفخر بكم",
-                        text = "الشركة تقدّر السائقين وتعتبر بأن مصلحتهم ومصلحتها متكاملة. أنتم شركاء حقيقيون في هذا العمل."
+                        text = "أنتم العمود الفقري لخدمتنا، وشركاؤنا في النجاح. نعمل جاهدين لتوفير بيئة عمل تحترم جهودكم وتقدّر تضحياتكم."
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    PolicyDivider()
                     PolicyItem(
-                        icon = Icons.Default.Shield,
-                        title = "لن نطلب أي إجراء تعسفي",
-                        text = "لن نستخدم أي إجراءات تعسفية تهمّ حصل. نحترم طبيعة العمل وتحدياته، وسنبقى داعمين لهم في صفهم لمساعدتهم."
+                        icon = Icons.Default.GppGood, iconColor = ARAVATurquoise,
+                        title = "الشفافية في كل شيء",
+                        text = "نلتزم بالوضوح في جميع تعاملاتنا، من نظام العمولات إلى سياسات التقييم. لا مفاجآت — فقط شراكة شفافة مبنية على الاحترام المتبادل."
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    PolicyDivider()
                     PolicyItem(
-                        icon = Icons.Default.SupportAgent,
-                        title = "ندعمكم في كل الظروف",
-                        text = "الشركة مستعدة داعمة لمساعدة السائقين في تعيين خسائرهم إلزماً لزم الأثر. نحن شركاء في النجاح وسنحتشد الصعوبات معاً."
+                        icon = Icons.Default.SupportAgent, iconColor = Color(0xFF1565C0),
+                        title = "الدعم الحقيقي",
+                        text = "فريقنا مستعد لمساعدتكم في أي وقت، لأي استفسار أو مشكلة. أنتم لستم وحدكم — نحن هنا لدعمكم وتذليل العقبات التي تواجهكم."
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    PolicyDivider()
                     PolicyItem(
-                        icon = Icons.Default.Handshake,
-                        title = "نفهم طبيعة عملكم",
-                        text = "ندرك أن العمل في التوصيل يحمل تحديات كثيرة، ونحن متفهّمون لذلك بعد. هدفنا أن نسهّل عليكم العمل ونحيل مصالحتكم."
+                        icon = Icons.Default.Handshake, iconColor = ARAVAGold,
+                        title = "الاحترام والتقدير",
+                        text = "نفهم طبيعة عملكم الشاقة ونقدّر التزامكم. نضمن عدم اتخاذ أي إجراءات تعسفية ضدكم، ونؤمن بأن معاملتكم بكرامة هي أساس شراكتنا."
                     )
                 }
             }
@@ -885,29 +881,35 @@ private fun AboutTab() {
 
         item {
             Card(
-                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp)),
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("منشورات وتنبيهات", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(36.dp).background(ARAVAErrorSurface, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Notifications, contentDescription = null, tint = ARAVAError, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("منشورات وتنبيهات", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ARAVANavy)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     PolicyItem(
-                        icon = Icons.Default.Warning,
-                        title = "اللطف في الإجراءات",
-                        text = "نذكرك بلطف بأن الإجراءات في أي من إجراءات التتبع أو محولة خضاع النظام. جمع العمليات مراعاة لحقوق الزبون والሳائقين والشركة معاً. أي محولة ستؤدي إلى اتخاذ إجراءات لحماية الجميع."
+                        icon = Icons.Default.VolunteerActivism, iconColor = Color(0xFFE91E63),
+                        title = "اللطف في التعامل",
+                        text = "نذكركم بلطف بأن الالتزام بقوانين التوصيل يحمي حقوق الجميع — الزبون، السائق، والشركة. الدقة في الإجراءات تضمان تجربة سلسة للجميع."
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    PolicyDivider()
                     PolicyItem(
-                        icon = Icons.Default.Timer,
+                        icon = Icons.Default.Timer, iconColor = StatusPending,
                         title = "الالتزام بالمواعيد",
-                        text = "يُرجى إكمال إجراءات الرحلة في الوقت المحدد. إذا حدث شيء غير متوقع، يُرجى التواصل مع الإدارة فوراً. نحن هنا لمساعدتكم وليس لمهاجمتكم."
+                        text = "نرجو منكم الالتزام بالمواعيد المحددة لإتمام الرحلات. في حال وجود ظرف طارئ، تواصلوا مع الإدارة فوراً — نحن هنا لدعمكم وليس لمحاسبتكم."
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    PolicyDivider()
                     PolicyItem(
-                        icon = Icons.Default.VerifiedUser,
+                        icon = Icons.Default.Security, iconColor = ARAVAGreen,
                         title = "النزاهة والثقة",
-                        text = "الثقة هي أساس عملنا. نثق بكم ونرجو أن تكونون عند حسن ظننا جميعاً. الخدمة المخلصة للزبون هي مفتاح نجاحنا المشترك."
+                        text = "الثقة هي أساس عملنا. تعاملوا مع الزبائن بإخلاص واحترام، وكونوا عند حسن ظن الجميع. الخدمة المخلصة هي طريقنا المشترك نحو النجاح."
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -921,8 +923,16 @@ private fun AboutTab() {
 }
 
 @Composable
+private fun PolicyDivider() {
+    Spacer(modifier = Modifier.height(8.dp))
+    HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.padding(start = 44.dp))
+    Spacer(modifier = Modifier.height(8.dp))
+}
+
+@Composable
 private fun PolicyItem(
     icon: ImageVector,
+    iconColor: Color = ARAVATurquoise,
     title: String,
     text: String
 ) {
@@ -930,10 +940,10 @@ private fun PolicyItem(
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .background(ARAVATurquoise.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
+                .background(iconColor.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -954,10 +964,11 @@ private fun AboutInfoRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(20.dp))
+        Box(Modifier.size(28.dp).background(ARAVATurquoiseSurface, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = ARAVATurquoise, modifier = Modifier.size(16.dp))
+        }
         Spacer(modifier = Modifier.width(10.dp))
-        Text(label, fontSize = 13.sp, color = ARAVATextSecondary)
-        Spacer(modifier = Modifier.width(8.dp))
+        Text(label, fontSize = 13.sp, color = ARAVATextSecondary, modifier = Modifier.width(70.dp))
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ARAVATextPrimary)
     }
 }

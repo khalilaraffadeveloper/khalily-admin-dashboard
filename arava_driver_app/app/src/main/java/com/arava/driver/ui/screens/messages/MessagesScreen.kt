@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.util.Base64
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.arava.driver.ui.theme.*
@@ -178,170 +179,161 @@ private fun MessageCard(msg: DriverMessage, onDelete: () -> Unit = {}) {
         "audio" -> "رسالة صوتية"
         else -> "نص"
     }
-    val typeBadgeColor = when (msg.type) {
+    val typeColor = when (msg.type) {
         "image" -> Color(0xFF2196F3)
         "audio" -> Color(0xFF9C27B0)
-        else -> Color(0xFF00838F)
+        else -> ARAVATurquoise
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(18.dp))
             .animateContentSize(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = typeBadgeColor
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(typeColor.copy(alpha = 0.5f))
+            )
+
+            Column(modifier = Modifier.padding(start = 12.dp, end = 16.dp, top = 14.dp, bottom = 14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = typeBadgeText,
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-                Text(
-                    text = timeText,
-                    fontSize = 11.sp,
-                    color = ARAVATextSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            when (msg.type) {
-                "image" -> {
-                    var showFullImage by remember { mutableStateOf(false) }
-                    val bitmap = remember(msg.content) {
-                        try {
-                            val base64Str = if (msg.content.contains(",")) {
-                                msg.content.substringAfter(",", msg.content)
-                            } else {
-                                msg.content
-                            }
-                            val bytes = Base64.decode(base64Str, Base64.DEFAULT)
-                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "صورة",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showFullImage = true }
-                        )
-                        if (showFullImage) {
-                            Dialog(onDismissRequest = { showFullImage = false }) {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = Color.Black
-                                ) {
-                                    Column {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                            horizontalArrangement = Arrangement.End
-                                        ) {
-                                            IconButton(onClick = { showFullImage = false }) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "إغلاق",
-                                                    tint = Color.White
-                                                )
-                                            }
-                                        }
-                                        Image(
-                                            bitmap = bitmap.asImageBitmap(),
-                                            contentDescription = "صورة كاملة",
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f)
-                                                .padding(4.dp),
-                                            contentScale = ContentScale.Fit
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = typeColor.copy(alpha = 0.12f)
+                    ) {
                         Text(
-                            text = "الصورة غير متوفرة",
-                            color = ARAVATextSecondary,
-                            fontSize = 13.sp
+                            text = typeBadgeText,
+                            color = typeColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
-                }
-                "audio" -> {
-                    AudioPlayerView(base64Content = msg.content)
-                }
-                else -> {
                     Text(
-                        text = msg.content,
-                        fontSize = 15.sp,
-                        color = ARAVATextPrimary,
-                        fontWeight = FontWeight.Medium,
-                        lineHeight = 24.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "من: ${msg.sentBy.ifEmpty { "الإدارة" }}",
+                        text = timeText,
                         fontSize = 11.sp,
                         color = ARAVATextSecondary
                     )
-                    val readCount = msg.readBy.size
-                    val totalCount = msg.recipients.size
-                    if (readCount >= totalCount && totalCount > 0) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF4CAF50)
-                        ) {
-                            Text(
-                                text = "تمت القراءة",
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                when (msg.type) {
+                    "image" -> {
+                        var showFullImage by remember { mutableStateOf(false) }
+                        val bitmap = remember(msg.content) {
+                            try {
+                                val base64Str = if (msg.content.contains(",")) msg.content.substringAfter(",") else msg.content
+                                val bytes = Base64.decode(base64Str, Base64.DEFAULT)
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            } catch (_: Exception) { null }
+                        }
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "صورة",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 220.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { showFullImage = true },
+                                contentScale = ContentScale.Crop
                             )
+                            if (showFullImage) {
+                                Dialog(
+                                    onDismissRequest = { showFullImage = false },
+                                    properties = DialogProperties(usePlatformDefaultWidth = false)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black)
+                                            .clickable { showFullImage = false },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Image(
+                                            bitmap = bitmap.asImageBitmap(),
+                                            contentDescription = "صورة كاملة",
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                        IconButton(
+                                            onClick = { showFullImage = false },
+                                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Close, contentDescription = "إغلاق", tint = Color.White)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text("الصورة غير متوفرة", color = ARAVATextSecondary, fontSize = 13.sp)
                         }
                     }
+                    "audio" -> AudioPlayerView(base64Content = msg.content)
+                    else -> {
+                        Text(
+                            text = msg.content,
+                            fontSize = 14.sp,
+                            color = ARAVATextPrimary,
+                            lineHeight = 22.sp
+                        )
+                    }
                 }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "حذف",
-                        tint = Color(0xFFE53935),
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "من: ${msg.sentBy.ifEmpty { "الإدارة" }}",
+                            fontSize = 11.sp,
+                            color = ARAVATextSecondary
+                        )
+                        val readCount = msg.readBy.size
+                        val totalCount = msg.recipients.size
+                        if (readCount >= totalCount && totalCount > 0) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = ARAVAGreenSurface
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.DoneAll, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(12.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("مقروءة", color = ARAVAGreen, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "حذف",
+                            tint = Color(0xFFE53935).copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -354,6 +346,13 @@ private fun AudioPlayerView(base64Content: String) {
     var isPlaying by remember { mutableStateOf(false) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
 
+    val pulseAnim = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by pulseAnim.animateFloat(
+        initialValue = 0.3f, targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(tween(600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pulseAlpha"
+    )
+
     DisposableEffect(Unit) {
         onDispose {
             try { mediaPlayer?.release() } catch (_: Exception) {}
@@ -362,58 +361,84 @@ private fun AudioPlayerView(base64Content: String) {
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = Color(0xFFF3E5F5),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = {
-                    try {
-                        if (isPlaying) {
-                            mediaPlayer?.stop()
-                            mediaPlayer?.release()
-                            mediaPlayer = null
-                            isPlaying = false
-                        } else {
-                            val bytes = Base64.decode(base64Content, Base64.DEFAULT)
-                            val tempFile = java.io.File.createTempFile("audio", ".mp3", context.cacheDir)
-                            tempFile.writeBytes(bytes)
-                            val mp = MediaPlayer()
-                            mp.setDataSource(tempFile.absolutePath)
-                            mp.prepare()
-                            mp.start()
-                            mp.setOnCompletionListener { player ->
-                                isPlaying = false
-                                player.release()
-                                mediaPlayer = null
-                                tempFile.delete()
-                            }
-                            mediaPlayer = mp
-                            isPlaying = true
-                        }
-                    } catch (_: Exception) {}
-                },
+            Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF9C27B0))
+                    .clickable {
+                        try {
+                            if (isPlaying) {
+                                mediaPlayer?.stop()
+                                mediaPlayer?.release()
+                                mediaPlayer = null
+                                isPlaying = false
+                            } else {
+                                val bytes = Base64.decode(base64Content, Base64.DEFAULT)
+                                val tempFile = java.io.File.createTempFile("audio", ".mp3", context.cacheDir)
+                                tempFile.writeBytes(bytes)
+                                val mp = MediaPlayer()
+                                mp.setDataSource(tempFile.absolutePath)
+                                mp.prepare()
+                                mp.start()
+                                mp.setOnCompletionListener {
+                                    isPlaying = false
+                                    it.release()
+                                    mediaPlayer = null
+                                    tempFile.delete()
+                                }
+                                mediaPlayer = mp
+                                isPlaying = true
+                            }
+                        } catch (_: Exception) {}
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "إيقاف" else "تشغيل",
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isPlaying) "جاري التشغيل..." else "رسالة صوتية",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF7B1FA2)
+                )
+                if (isPlaying) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        repeat(4) {
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .height(16.dp)
+                                    .padding(end = 3.dp)
+                                    .background(Color(0xFF9C27B0).copy(alpha = pulseAlpha), RoundedCornerShape(2.dp))
+                            )
+                        }
+                    }
+                }
+            }
+
             Text(
-                text = if (isPlaying) "جاري التشغيل..." else "اضغط للاستماع",
-                fontSize = 13.sp,
-                color = Color(0xFF7B1FA2),
+                text = if (isPlaying) "إيقاف" else "تشغيل",
+                fontSize = 11.sp,
+                color = Color(0xFF9C27B0),
                 fontWeight = FontWeight.Medium
             )
         }
