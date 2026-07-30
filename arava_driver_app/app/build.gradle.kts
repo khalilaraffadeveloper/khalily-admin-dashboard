@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.khalily.driver"
+    namespace = "com.arava.driver"
     compileSdk = 35
 
     defaultConfig {
@@ -44,7 +44,7 @@ android {
     androidComponents {
         onVariants { variant ->
             variant.outputs.forEach { output ->
-                output.outputFileName.set("Hamada_Driver.apk")
+                output.outputFileName.set("ARAVA_Driver.apk")
             }
         }
     }
@@ -97,4 +97,7 @@ dependencies {
 
     // Gson
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // WebRTC for VoIP calls (Stream's maintained fork on Maven Central)
+    implementation("io.getstream:stream-webrtc-android:1.3.9")
 }

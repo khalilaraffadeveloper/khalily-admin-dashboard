@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver
+﻿package com.arava.driver
 
 import android.app.Application
 import android.app.NotificationChannel
@@ -14,12 +14,13 @@ class ARAVAApp : Application() {
     companion object {
         const val RIDE_REQUEST_CHANNEL = "ride_request_channel"
         const val LOCATION_SERVICE_CHANNEL = "location_service_channel"
+        const val CALL_CHANNEL = "call_channel"
 
         // Firestore emulator host (Android emulator → host machine)
         private const val EMULATOR_HOST = "10.0.2.2:8080"
 
         // Dashboard URL — same project as the admin dashboard
-        const val DASHBOARD_URL = "https://khalilaraffadeveloper.github.io/ARAVA-admin-dashboard/"
+        const val DASHBOARD_URL = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/"
 
         fun isEmulator(): Boolean {
             return (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
@@ -88,5 +89,23 @@ class ARAVAApp : Application() {
 
         manager.createNotificationChannel(rideChannel)
         manager.createNotificationChannel(locationChannel)
+
+        val callChannel = NotificationChannel(
+            CALL_CHANNEL,
+            "المكالمات الصوتية",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "تنبيهات المكالمات الواردة"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 500, 300, 500)
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+        }
+        manager.createNotificationChannel(callChannel)
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.screens.home
+﻿package com.arava.driver.ui.screens.home
 
 import android.content.Intent
 import android.net.Uri
@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.ARAVA.driver.ui.theme.*
-import com.ARAVA.driver.util.NumberFormatter
+import com.arava.driver.ui.theme.*
+import com.arava.driver.util.NumberFormatter
 
 @Composable
 fun RideRequestDialog(

@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.service
+﻿package com.arava.driver.service
 
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -8,16 +8,18 @@ import android.media.RingtoneManager
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import com.ARAVA.driver.ARAVAApp
-import com.ARAVA.driver.MainActivity
-import com.ARAVA.driver.util.PrefsManager
-import com.ARAVA.driver.util.SoundPlayer
+import com.arava.driver.ARAVAApp
+import com.arava.driver.MainActivity
+import com.arava.driver.util.PrefsManager
+import com.arava.driver.util.SoundPlayer
 import kotlin.random.Random
 
 class ARAVAFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         var onRideRequestReceived: ((rideData: Map<String, Any>) -> Unit)? = null
+        var onIncomingCall: ((rideId: String, callerName: String) -> Unit)? = null
+        var onCallEnded: ((rideId: String) -> Unit)? = null
     }
 
     override fun onNewToken(token: String) {
@@ -33,6 +35,8 @@ class ARAVAFirebaseMessagingService : FirebaseMessagingService() {
         when (data["type"]) {
             "ride_request" -> handleRideRequest(data)
             "ride_cancelled" -> handleRideCancelled(data)
+            "call_ringing" -> handleIncomingCall(data)
+            "call_ended" -> handleCallEnded(data)
             else -> showGenericNotification(
                 title = message.notification?.title ?: "\u062D\u0645\u0627\u062F\u0647",
                 body = message.notification?.body ?: "لديك إشعار جديد"
@@ -68,6 +72,44 @@ class ARAVAFirebaseMessagingService : FirebaseMessagingService() {
             title = "تم إلغاء الرحلة",
             body = "تم إلغاء الرحلة من قبل الزبون"
         )
+    }
+
+    private fun handleIncomingCall(data: Map<String, String>) {
+        val rideId = data["rideId"] ?: return
+        val callerName = data["callerName"] ?: "الزبون"
+        onIncomingCall?.invoke(rideId, callerName)
+        showCallNotification(callerName)
+    }
+
+    private fun handleCallEnded(data: Map<String, String>) {
+        val rideId = data["rideId"] ?: return
+        onCallEnded?.invoke(rideId)
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancelAll()
+    }
+
+    private fun showCallNotification(callerName: String) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(this, ARAVAApp.CALL_CHANNEL)
+            .setContentTitle("مكالمة واردة")
+            .setContentText("مكالمة من $callerName")
+            .setSmallIcon(android.R.drawable.ic_menu_call)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
+            .setVibrate(longArrayOf(0, 500, 300, 500, 300, 500))
+            .setOngoing(true)
+            .build()
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(10001, notification)
     }
 
     private fun showRideNotification(data: Map<String, String>, notificationId: Int) {

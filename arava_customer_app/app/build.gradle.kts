@@ -12,8 +12,8 @@ android {
         applicationId = "com.arava.customer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "2.0.0"
     }
 
     signingConfigs {
@@ -52,7 +52,7 @@ android {
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
-            output.outputFileName.set("Arava_Customer.apk")
+            output.outputFileName.set("ARAVA_Customer.apk")
         }
     }
 }
@@ -77,8 +77,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx")
 
     implementation("com.google.android.material:material:1.12.0")
-    implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("io.getstream:stream-webrtc-android:1.3.9")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.google.code.gson:gson:2.11.0")
 }

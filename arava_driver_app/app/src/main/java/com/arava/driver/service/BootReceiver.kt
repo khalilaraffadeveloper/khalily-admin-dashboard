@@ -1,9 +1,9 @@
-﻿package com.ARAVA.driver.service
+﻿package com.arava.driver.service
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.util.PrefsManager
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

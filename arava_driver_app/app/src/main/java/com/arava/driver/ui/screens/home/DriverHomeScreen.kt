@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.screens.home
+package com.arava.driver.ui.screens.home
 
 import android.Manifest
 import android.content.Intent
@@ -29,13 +29,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.ARAVA.driver.R
-import com.ARAVA.driver.service.DriverLocationService
+import com.arava.driver.R
+import com.arava.driver.service.DriverLocationService
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.ARAVA.driver.ui.theme.*
-import com.ARAVA.driver.util.NumberFormatter
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.ui.theme.*
+import com.arava.driver.util.NumberFormatter
+import com.arava.driver.util.PrefsManager
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -152,7 +152,7 @@ fun DriverHomeScreen(
             colors = CardDefaults.cardColors(containerColor = ARAVANavy)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(
@@ -161,9 +161,9 @@ fun DriverHomeScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(50.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .border(2.dp, ARAVAGold, RoundedCornerShape(14.dp))
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(2.dp, ARAVAGold, RoundedCornerShape(12.dp))
                             .background(Color.White),
                         contentAlignment = Alignment.Center
                     ) {
@@ -171,8 +171,8 @@ fun DriverHomeScreen(
                             painter = painterResource(id = R.drawable.arava),
                             contentDescription = "ARAVA",
                             modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -184,118 +184,118 @@ fun DriverHomeScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = ARAVAGold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "الرصيد: ",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "${NumberFormatter.format(driverCredit)} MRU",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (driverCredit > 0) Color(0xFF81C784) else Color(0xFFEF9A9A)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SignalCellularAlt,
+                        contentDescription = null,
+                        tint = if (isOnline) Color(0xFF81C784) else Color(0xFFEF9A9A),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isOnline) "متصل — جاهز للرحلات" else "غير متصل",
+                        fontSize = 13.sp,
+                        color = if (isOnline) Color(0xFF81C784) else Color(0xFFEF9A9A),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Box {
+                        IconButton(onClick = onNavigateToMessages) {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = "الرسائل",
+                                tint = ARAVAGold,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        if (unreadCount > 0) {
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(end = 2.dp, top = 2.dp)
+                                    .size(16.dp),
+                                shape = CircleShape,
+                                color = Color(0xFFE53935)
+                            ) {
+                                Text(
+                                    text = if (unreadCount > 9) "9+" else "$unreadCount",
+                                    color = Color.White,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+                        }
+                    }
+                    IconButton(onClick = onNavigateToPromotions) {
                         Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = null,
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "العروض",
                             tint = ARAVAGold,
                             modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "الرصيد: ",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                        Text(
-                            text = "${NumberFormatter.format(driverCredit)} MRU",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (driverCredit > 0) Color(0xFF81C784) else Color(0xFFEF9A9A)
-                        )
                     }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateToShop) {
                         Icon(
-                            imageVector = Icons.Default.SignalCellularAlt,
-                            contentDescription = null,
-                            tint = if (isOnline) Color(0xFF81C784) else Color(0xFFEF9A9A),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isOnline) "متصل — جاهز للرحلات" else "غير متصل",
-                            fontSize = 14.sp,
-                            color = if (isOnline) Color(0xFF81C784) else Color(0xFFEF9A9A),
-                            fontWeight = FontWeight.SemiBold
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = "المتجر",
+                            tint = ARAVAGold,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-
-                    Row {
-                        // Messages icon with badge
-                        Box {
-                            IconButton(onClick = onNavigateToMessages) {
-                                Icon(
-                                    imageVector = Icons.Default.Email,
-                                    contentDescription = "الرسائل",
-                                    tint = ARAVAGold,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            if (unreadCount > 0) {
-                                Surface(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(end = 2.dp, top = 2.dp)
-                                        .size(16.dp),
-                                    shape = CircleShape,
-                                    color = Color(0xFFE53935)
-                                ) {
-                                    Text(
-                                        text = if (unreadCount > 9) "9+" else "$unreadCount",
-                                        color = Color.White,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.align(Alignment.Center)
-                                    )
-                                }
-                            }
-                        }
-                        IconButton(onClick = onNavigateToPromotions) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "العروض",
-                                tint = ARAVAGold,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        IconButton(onClick = onNavigateToShop) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = "المتجر",
-                                tint = ARAVAGold,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "الإعدادات",
-                                tint = ARAVAGold,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "الإعدادات",
+                            tint = ARAVAGold,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
             }

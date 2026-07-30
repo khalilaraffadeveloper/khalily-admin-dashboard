@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.service
+package com.arava.driver.service
 
 import android.app.Notification
 import android.app.PendingIntent
@@ -16,12 +16,12 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.firebase.firestore.FirebaseFirestore
-import com.ARAVA.driver.ARAVAApp
-import com.ARAVA.driver.MainActivity
-import com.ARAVA.driver.R
-import com.ARAVA.driver.util.GeoHashUtil
-import com.ARAVA.driver.util.NetworkUtil
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.ARAVAApp
+import com.arava.driver.MainActivity
+import com.arava.driver.R
+import com.arava.driver.util.GeoHashUtil
+import com.arava.driver.util.NetworkUtil
+import com.arava.driver.util.PrefsManager
 import java.util.concurrent.TimeUnit
 
 class DriverLocationService : Service() {

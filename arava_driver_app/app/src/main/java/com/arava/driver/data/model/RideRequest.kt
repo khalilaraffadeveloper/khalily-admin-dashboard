@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.data.model
+﻿package com.arava.driver.data.model
 
 data class RideRequest(
     val rideId: String = "",

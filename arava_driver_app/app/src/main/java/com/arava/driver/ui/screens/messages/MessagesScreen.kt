@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.screens.messages
+﻿package com.arava.driver.ui.screens.messages
 
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
@@ -31,8 +31,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.ARAVA.driver.ui.theme.*
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.ui.theme.*
+import com.arava.driver.util.PrefsManager
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*

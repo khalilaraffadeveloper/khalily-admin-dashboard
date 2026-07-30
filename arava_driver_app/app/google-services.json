@@ -1,15 +1,15 @@
 ﻿{
   "project_info": {
     "project_number": "384215858598",
-    "project_id": "ARAVA-app",
-    "storage_bucket": "ARAVA-app.firebasestorage.app"
+    "project_id": "khalily-app",
+    "storage_bucket": "khalily-app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
         "mobilesdk_app_id": "1:384215858598:android:placeholder",
         "android_client_info": {
-          "package_name": "com.ARAVA.driver"
+          "package_name": "com.khalily.driver"
         }
       },
       "oauth_client": [],

@@ -135,7 +135,7 @@
 
         function loadProducts() {
             const container = document.getElementById('productsContainer');
-            db.collection('products').where('active', '==', true).orderBy('createdAt', 'desc')
+            db.collection('products').where('active', '==', true)
                 .get()
                 .then(snapshot => {
                     if (snapshot.empty) {
@@ -144,6 +144,11 @@
                         return;
                     }
                     allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    allProducts.sort((a, b) => {
+                        const tA = a.createdAt?.toMillis?.() ?? 0;
+                        const tB = b.createdAt?.toMillis?.() ?? 0;
+                        return tB - tA;
+                    });
                     renderProducts(currentFilter);
                 })
                 .catch(err => {

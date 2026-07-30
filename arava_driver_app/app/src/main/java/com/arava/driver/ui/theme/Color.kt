@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.theme
+﻿package com.arava.driver.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

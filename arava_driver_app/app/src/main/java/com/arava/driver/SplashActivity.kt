@@ -1,4 +1,4 @@
-﻿package com.arava.driver
+package com.arava.driver
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -29,8 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ARAVA.driver.R
-import com.ARAVA.driver.ui.theme.*
+import com.arava.driver.R
+import com.arava.driver.ui.theme.*
+import com.arava.driver.MainActivity
 
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : ComponentActivity() {

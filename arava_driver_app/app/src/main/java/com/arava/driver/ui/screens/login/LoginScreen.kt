@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.screens.login
+package com.arava.driver.ui.screens.login
 
 import android.os.Build
 import android.telephony.TelephonyManager
@@ -40,9 +40,9 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
-import com.ARAVA.driver.R
-import com.ARAVA.driver.ui.theme.*
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.R
+import com.arava.driver.ui.theme.*
+import com.arava.driver.util.PrefsManager
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {

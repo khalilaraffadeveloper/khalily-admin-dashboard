@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.util
+package com.arava.driver.util
 
 import android.content.Context
 import android.media.AudioAttributes
@@ -7,7 +7,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import com.ARAVA.driver.R
+import com.arava.driver.R
 
 object SoundPlayer {
     private var mediaPlayer: MediaPlayer? = null

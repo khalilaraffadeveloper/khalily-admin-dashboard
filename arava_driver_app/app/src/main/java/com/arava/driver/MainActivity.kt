@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver
+﻿package com.arava.driver
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -7,11 +7,24 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -21,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -30,19 +44,27 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.ARAVA.driver.service.ARAVAFirebaseMessagingService
-import com.ARAVA.driver.service.DriverLocationService
-import com.ARAVA.driver.util.SoundPlayer
-import com.ARAVA.driver.ui.screens.WebViewScreen
-import com.ARAVA.driver.ui.screens.home.DriverHomeScreen
-import com.ARAVA.driver.ui.screens.home.RideDetailDialog
-import com.ARAVA.driver.ui.screens.home.RideRequestDialog
-import com.ARAVA.driver.ui.screens.home.RideTrackingScreen
-import com.ARAVA.driver.ui.screens.settings.SettingsScreen
-import com.ARAVA.driver.ui.screens.login.LoginScreen
-import com.ARAVA.driver.ui.screens.messages.MessagesScreen
-import com.ARAVA.driver.ui.theme.ARAVATheme
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.service.ARAVAFirebaseMessagingService
+import com.arava.driver.service.DriverLocationService
+import com.arava.driver.util.SoundPlayer
+import com.arava.driver.ui.screens.WebViewScreen
+import com.arava.driver.ui.screens.home.DriverHomeScreen
+import com.arava.driver.ui.screens.home.RideDetailDialog
+import com.arava.driver.ui.screens.home.RideRequestDialog
+import com.arava.driver.ui.screens.home.RideTrackingScreen
+import com.arava.driver.ui.screens.settings.SettingsScreen
+import com.arava.driver.ui.screens.login.LoginScreen
+import com.arava.driver.ui.screens.messages.MessagesScreen
+import com.arava.driver.ui.theme.ARAVATheme
+import com.arava.driver.ui.theme.ARAVAGreen
+import com.arava.driver.util.PrefsManager
+import com.arava.driver.voip.CallSignaling
+import com.arava.driver.voip.WebRTCEngine
+import com.arava.driver.voip.CallState
+import com.arava.driver.voip.CallConnectionState
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 
 class MainActivity : ComponentActivity() {
 
@@ -61,6 +83,20 @@ class MainActivity : ComponentActivity() {
     private var isLoggedIn by mutableStateOf(false)
     private var commissionPercent by mutableDoubleStateOf(10.0)
     private var showAcceptLoading by mutableStateOf(false)
+
+    // VoIP state
+    private var isCallActive by mutableStateOf(false)
+    private var isIncomingCall by mutableStateOf(false)
+    private var incomingCallerName by mutableStateOf("")
+    private var incomingRideId by mutableStateOf("")
+    private var callStateText by mutableStateOf("")
+    private var isMuted by mutableStateOf(false)
+    private var isSpeakerOn by mutableStateOf(false)
+    private var callDurationSec by mutableIntStateOf(0)
+    private var callTimerHandler: Handler? = null
+
+    private var webRTCEngine: WebRTCEngine? = null
+    private var callSignaling: CallSignaling? = null
 
     private val db = FirebaseFirestore.getInstance()
     private var rideListener: ListenerRegistration? = null
@@ -96,6 +132,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        ARAVAFirebaseMessagingService.onIncomingCall = { rideId, callerName ->
+            incomingRideId = rideId
+            incomingCallerName = callerName
+            isIncomingCall = true
+        }
+
+        ARAVAFirebaseMessagingService.onCallEnded = { rideId ->
+            if (isCallActive) {
+                endVoipCall()
+            }
+        }
+
         handleIntent(intent)
 
         setContent {
@@ -112,14 +160,14 @@ class MainActivity : ComponentActivity() {
                         }
                         showPromotions -> {
                             WebViewScreen(
-                                url = "https://khalilaraffadeveloper.github.io/ARAVA-admin-dashboard/promotions.html",
+                                url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/promotions.html",
                                 title = "العروض والنشاطات",
                                 onBack = { showPromotions = false }
                             )
                         }
                         showShop -> {
                             WebViewScreen(
-                                url = "https://khalilaraffadeveloper.github.io/ARAVA-admin-dashboard/shop.html",
+                                url = "https://khalilaraffadeveloper.github.io/khalily-admin-dashboard/shop.html",
                                 title = "المتجر",
                                 onBack = { showShop = false }
                             )
@@ -156,6 +204,11 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onDismiss = {
                                     showRideTracking = false
+                                },
+                                onVoipCall = {
+                                    val rideId = currentRideData["rideId"]?.toString() ?: return@RideTrackingScreen
+                                    val passengerName = currentRideData["passengerName"]?.toString() ?: "الزبون"
+                                    startVoipCall(rideId, passengerName)
                                 }
                             )
                         }
@@ -241,6 +294,30 @@ class MainActivity : ComponentActivity() {
                                 loadCommission()
                             })
                         }
+                    }
+
+                    if (isIncomingCall) {
+                        IncomingCallDialog(
+                            callerName = incomingCallerName,
+                            onAccept = { acceptIncomingCall(incomingRideId, incomingCallerName) },
+                            onDecline = {
+                                isIncomingCall = false
+                                callSignaling?.cleanup()
+                                callSignaling = null
+                            }
+                        )
+                    }
+
+                    if (isCallActive) {
+                        ActiveCallScreen(
+                            callStateText = callStateText,
+                            durationSec = callDurationSec,
+                            isMuted = isMuted,
+                            isSpeakerOn = isSpeakerOn,
+                            onToggleMute = { toggleMute() },
+                            onToggleSpeaker = { toggleSpeaker() },
+                            onEndCall = { endVoipCall() }
+                        )
                     }
                 }
             }
@@ -504,5 +581,218 @@ class MainActivity : ComponentActivity() {
         if (notGranted.isNotEmpty()) {
             permissionLauncher.launch(notGranted.toTypedArray())
         }
+    }
+
+    // ===================== VoIP Methods =====================
+
+    private fun startVoipCall(rideId: String, targetName: String) {
+        callSignaling = CallSignaling(db, rideId, "driver")
+        callSignaling?.initiateCall()
+        webRTCEngine = WebRTCEngine(
+            context = applicationContext,
+            signaling = callSignaling!!,
+            onStateChange = { state ->
+                when (state) {
+                    CallConnectionState.CONNECTED -> {
+                        callStateText = "المكالمة متصلة"
+                    }
+                    CallConnectionState.DISCONNECTED -> {
+                        endVoipCall()
+                    }
+                    CallConnectionState.FAILED -> {
+                        callStateText = "فشل الاتصال"
+                        Toast.makeText(this, "فشل الاتصال الصوتي", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {}
+                }
+            }
+        )
+        webRTCEngine?.initialize()
+        callStateText = "جارٍ الاتصال..."
+        isCallActive = true
+        isMuted = false
+        isSpeakerOn = false
+        startCallTimer()
+        webRTCEngine?.startCall()
+        callSignaling?.listenForAnswer { answer ->
+            webRTCEngine?.setRemoteSdp(answer)
+        }
+        callSignaling?.listenForIceCandidates { candidate ->
+            webRTCEngine?.addIceCandidate(candidate)
+        }
+    }
+
+    private fun acceptIncomingCall(rideId: String, callerName: String) {
+        isIncomingCall = false
+        callSignaling = CallSignaling(db, rideId, "driver")
+        callSignaling?.acceptCall()
+        webRTCEngine = WebRTCEngine(
+            context = applicationContext,
+            signaling = callSignaling!!,
+            onStateChange = { state ->
+                when (state) {
+                    CallConnectionState.CONNECTED -> {
+                        callStateText = "المكالمة متصلة"
+                    }
+                    CallConnectionState.DISCONNECTED -> {
+                        endVoipCall()
+                    }
+                    CallConnectionState.FAILED -> {
+                        callStateText = "فشل الاتصال"
+                        Toast.makeText(this, "فشل الاتصال الصوتي", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {}
+                }
+            }
+        )
+        webRTCEngine?.initialize()
+        callStateText = "المكالمة متصلة"
+        isCallActive = true
+        isMuted = false
+        isSpeakerOn = false
+        startCallTimer()
+        callSignaling?.listenForOffer { offer ->
+            webRTCEngine?.answerCall(offer)
+        }
+        callSignaling?.listenForIceCandidates { candidate ->
+            webRTCEngine?.addIceCandidate(candidate)
+        }
+    }
+
+    private fun endVoipCall() {
+        callTimerHandler?.removeCallbacksAndMessages(null)
+        callTimerHandler = null
+        callDurationSec = 0
+        webRTCEngine?.release()
+        webRTCEngine = null
+        callSignaling?.cleanup()
+        callSignaling = null
+        isCallActive = false
+        isIncomingCall = false
+        callStateText = ""
+        isMuted = false
+        isSpeakerOn = false
+    }
+
+    private fun toggleMute() {
+        isMuted = webRTCEngine?.toggleMute() ?: false
+    }
+
+    private fun toggleSpeaker() {
+        isSpeakerOn = webRTCEngine?.toggleSpeaker() ?: false
+    }
+
+    private fun startCallTimer() {
+        callDurationSec = 0
+        callTimerHandler = Handler(Looper.getMainLooper())
+        callTimerHandler?.post(object : Runnable {
+            override fun run() {
+                callDurationSec++
+                callTimerHandler?.postDelayed(this, 1000)
+            }
+        })
+    }
+
+    @Composable
+    private fun IncomingCallDialog(callerName: String, onAccept: () -> Unit, onDecline: () -> Unit) {
+        AlertDialog(
+            onDismissRequest = onDecline,
+            icon = {
+                Icon(Icons.Default.Phone, contentDescription = null, tint = ARAVAGreen, modifier = Modifier.size(48.dp))
+            },
+            title = { Text("مكالمة واردة", fontWeight = FontWeight.Bold) },
+            text = { Text("مكالمة من $callerName") },
+            confirmButton = {
+                Button(onClick = onAccept, colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreen)) {
+                    Icon(Icons.Default.Call, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("رد", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                Button(onClick = onDecline, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                    Icon(Icons.Default.CallEnd, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("إنهاء", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            containerColor = Color.White
+        )
+    }
+
+    @Composable
+    private fun ActiveCallScreen(
+        callStateText: String,
+        durationSec: Int,
+        isMuted: Boolean,
+        isSpeakerOn: Boolean,
+        onToggleMute: () -> Unit,
+        onToggleSpeaker: () -> Unit,
+        onEndCall: () -> Unit
+    ) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = {
+                Text(
+                    text = "المكالمة الصوتية",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val minutes = durationSec / 60
+                    val seconds = durationSec % 60
+                    Text(
+                        text = "%02d:%02d".format(minutes, seconds),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (callStateText == "المكالمة متصلة") ARAVAGreen else Color.Gray
+                    )
+                    Text(text = callStateText, fontSize = 14.sp, color = Color.Gray)
+                    Spacer(Modifier.height(20.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = onToggleMute,
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isMuted) Color.Red else Color.Gray),
+                            modifier = Modifier.size(56.dp),
+                            shape = CircleShape
+                        ) {
+                            Icon(if (isMuted) Icons.Default.MicOff else Icons.Default.Mic, contentDescription = null, tint = Color.White)
+                        }
+                        Button(
+                            onClick = onToggleSpeaker,
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isSpeakerOn) ARAVAGreen else Color.Gray),
+                            modifier = Modifier.size(56.dp),
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                if (isSpeakerOn) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
+                                contentDescription = null, tint = Color.White
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onEndCall,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    Icon(Icons.Default.CallEnd, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(6.dp))
+                    Text("إنهاء المكالمة", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            containerColor = Color.White
+        )
     }
 }

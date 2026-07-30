@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.screens.settings
+package com.arava.driver.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.FirebaseFirestore
-import com.ARAVA.driver.R
-import com.ARAVA.driver.ui.theme.*
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.ui.theme.*
+import com.arava.driver.util.PrefsManager
+import com.arava.driver.R
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch

@@ -1,7 +1,8 @@
-﻿package com.ARAVA.driver.ui.screens.home
+package com.arava.driver.ui.screens.home
 
 import android.graphics.Color as AndroidColor
 import android.media.MediaPlayer
+import com.arava.driver.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,9 +26,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.firestore.FirebaseFirestore
-import com.ARAVA.driver.R
-import com.ARAVA.driver.ui.theme.*
-import com.ARAVA.driver.util.PrefsManager
+import com.arava.driver.ui.theme.*
+import com.arava.driver.util.PrefsManager
 import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -53,7 +53,8 @@ private const val REMINDER_URGENT_SEC = 2 * 60
 fun RideTrackingScreen(
     rideData: Map<String, Any>,
     onRideCompleted: (fare: Double, commission: Double) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onVoipCall: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var ridePhase by remember { mutableStateOf(RidePhase.AT_PICKUP) }
@@ -396,7 +397,20 @@ fun RideTrackingScreen(
                             ) {
                                 Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("اتصل بالزبون", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("اتصل بالزبون (هاتف)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        if (onVoipCall != null) {
+                            Button(
+                                onClick = onVoipCall,
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ARAVAGreen)
+                            ) {
+                                Icon(Icons.Default.VoiceChat, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("اتصال صوتي (VoIP)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                         }

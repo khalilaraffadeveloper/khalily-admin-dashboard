@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.util
+﻿package com.arava.driver.util
 
 object GeoHashUtil {
 

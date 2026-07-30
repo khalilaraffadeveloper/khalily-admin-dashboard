@@ -60,15 +60,21 @@
 
         function loadPromotions() {
             const container = document.getElementById('promotionsContainer');
-            db.collection('promotions').where('active', '==', true).orderBy('createdAt', 'desc')
+            db.collection('promotions').where('active', '==', true)
                 .get()
                 .then(snapshot => {
                     if (snapshot.empty) {
                         container.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-megaphone text-muted"></i><p>لا توجد عروض حالياً</p></div></div>';
                         return;
                     }
-                    container.innerHTML = snapshot.docs.map(doc => {
-                        const p = doc.data();
+                    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    docs.sort((a, b) => {
+                        const tA = a.createdAt?.toMillis?.() ?? 0;
+                        const tB = b.createdAt?.toMillis?.() ?? 0;
+                        return tB - tA;
+                    });
+                    container.innerHTML = docs.map(doc => {
+                        const p = doc;
                         const imgs = p.images && p.images.length > 0 ? p.images : [];
                         const imgHtml = imgs.length > 0
                             ? `<div id="carousel-${doc.id}" class="carousel slide" data-bs-ride="carousel">

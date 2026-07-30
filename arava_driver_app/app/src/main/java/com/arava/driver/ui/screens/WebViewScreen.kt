@@ -1,4 +1,4 @@
-﻿package com.ARAVA.driver.ui.screens
+﻿package com.arava.driver.ui.screens
 
 import android.graphics.Bitmap
 import android.view.ViewGroup
@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
-import com.ARAVA.driver.ui.theme.ARAVAGold
-import com.ARAVA.driver.ui.theme.ARAVANavy
+import com.arava.driver.ui.theme.ARAVAGold
+import com.arava.driver.ui.theme.ARAVANavy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
