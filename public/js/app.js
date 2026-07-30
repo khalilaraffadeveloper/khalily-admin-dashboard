@@ -62,6 +62,50 @@ function requireDb(caller) {
 }
 
 // ============================================
+// CUSTOM MODAL (replace alert/confirm)
+// ============================================
+function ARAalert(message, type) {
+    return new Promise(function (resolve) {
+        var overlay = document.getElementById('araModalOverlay');
+        if (!overlay) { console.log(message); resolve(); return; }
+        var icon = document.getElementById('araModalIcon');
+        var title = document.getElementById('araModalTitle');
+        var msg = document.getElementById('araModalMessage');
+        var btns = document.getElementById('araModalButtons');
+        var types = { info: ['info', 'bi-info-circle'], warning: ['warning', 'bi-exclamation-triangle'], error: ['error', 'bi-x-circle'], success: ['success', 'bi-check-circle'] };
+        var t = types[type] || types.info;
+        icon.className = 'ara-modal-icon ' + t[0];
+        icon.innerHTML = '<i class="bi ' + t[1] + '"></i>';
+        title.textContent = type === 'error' ? 'خطأ' : type === 'success' ? 'تم بنجاح' : type === 'warning' ? 'تنبيه' : 'معلومات';
+        msg.textContent = message;
+        btns.innerHTML = '<button class="btn btn-ok" id="araModalOk">حسناً</button>';
+        overlay.classList.add('show');
+        document.getElementById('araModalOk').onclick = function () { overlay.classList.remove('show'); resolve(); };
+        overlay.onclick = function (e) { if (e.target === overlay) { overlay.classList.remove('show'); resolve(); } };
+    });
+}
+
+function ARAconfirm(message) {
+    return new Promise(function (resolve) {
+        var overlay = document.getElementById('araModalOverlay');
+        if (!overlay) { resolve(confirm(message)); return; }
+        var icon = document.getElementById('araModalIcon');
+        var title = document.getElementById('araModalTitle');
+        var msg = document.getElementById('araModalMessage');
+        var btns = document.getElementById('araModalButtons');
+        icon.className = 'ara-modal-icon question';
+        icon.innerHTML = '<i class="bi bi-question-circle"></i>';
+        title.textContent = 'تأكيد';
+        msg.textContent = message;
+        btns.innerHTML = '<button class="btn btn-cancel" id="araModalCancel">إلغاء</button><button class="btn btn-ok" id="araModalConfirm">تأكيد</button>';
+        overlay.classList.add('show');
+        document.getElementById('araModalConfirm').onclick = function () { overlay.classList.remove('show'); resolve(true); };
+        document.getElementById('araModalCancel').onclick = function () { overlay.classList.remove('show'); resolve(false); };
+        overlay.onclick = function (e) { if (e.target === overlay) { overlay.classList.remove('show'); resolve(false); } };
+    });
+}
+
+// ============================================
 // IMAGE TO BASE64 HELPERS
 // ============================================
 function fileToBase64(file) {
@@ -537,16 +581,16 @@ window.saveCommission = async function () {
     if (!requireDb()) return;
     const val = parseFloat(document.getElementById('newCommission').value);
     if (isNaN(val) || val < 0 || val > 100) {
-        alert('يرجى إدخال نسبة صحيحة (0-100)');
+        ARAalert('يرجى إدخال نسبة صحيحة (0-100)', 'warning');
         return;
     }
     try {
         await db.collection('settings').doc('app_config').set({ commissionPercent: val }, { merge: true });
         commissionPercent = val;
         document.getElementById('currentCommission').textContent = `${val}%`;
-        alert('تم حفظ النسبة بنجاح');
+        ARAalert('تم حفظ النسبة بنجاح', 'success');
     } catch (e) {
-        alert('خطأ: ' + e.message);
+        ARAalert('خطأ: ' + e.message, 'error');
     }
 };
 
@@ -556,7 +600,7 @@ window.saveCommission = async function () {
 window.searchDriverByPhone = async function () {
     if (!requireDb()) return;
     const phone = document.getElementById('searchDriverPhone').value.trim();
-    if (!phone) { alert('أدخل رقم الهاتف'); return; }
+    if (!phone) { ARAalert('أدخل رقم الهاتف', 'warning'); return; }
     const resultEl = document.getElementById('searchDriverResult');
     resultEl.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> جاري البحث...</div>';
 
@@ -584,16 +628,16 @@ window.searchDriverByPhone = async function () {
 
 window.quickAddCredit = async function (driverId) {
     const amount = parseFloat(document.getElementById('quickCreditAmount').value);
-    if (!amount || amount <= 0) { alert('أدخل مبلغ صحيح'); return; }
+    if (!amount || amount <= 0) { ARAalert('أدخل مبلغ صحيح', 'warning'); return; }
     try {
         await db.collection('drivers').doc(driverId).update({
             credit: firebase.firestore.FieldValue.increment(amount)
         });
-        alert(`تم شحن ${amount} MRU بنجاح`);
+        ARAalert(`تم شحن ${amount} MRU بنجاح`, 'success');
         searchDriverByPhone();
         if (currentPage === 'drivers') loadDriversList();
     } catch (e) {
-        alert('خطأ: ' + e.message);
+        ARAalert('خطأ: ' + e.message, 'error');
     }
 };
 
@@ -912,12 +956,12 @@ document.getElementById('savePasswordBtn').addEventListener('click', async () =>
     if (!requireDb()) return;
     const id = document.getElementById('passwordDriverId').value;
     const newPass = document.getElementById('newPasswordValue').value.trim();
-    if (!newPass) { alert('أدخل كلمة السور الجديدة'); return; }
+    if (!newPass) { ARAalert('أدخل كلمة السر الجديدة', 'warning'); return; }
     try {
         await db.collection('drivers').doc(id).update({ password: newPass });
         passwordModal.hide();
         loadDriversList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
 window.openEditCreditModal = function(id, name, current) {
@@ -933,13 +977,13 @@ document.getElementById('confirmEditCreditBtn').addEventListener('click', async 
     const id = document.getElementById('editCreditDriverId').value;
     const newVal = parseFloat(document.getElementById('editCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
-        alert('أدخل رصيد صحيح'); return;
+        ARAalert('أدخل رصيد صحيح', 'warning'); return;
     }
     try {
         await db.collection('drivers').doc(id).update({ credit: newVal });
         editCreditModal.hide();
         loadDriversList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
 window.openEditModal = function(id, name, phone, status) {
@@ -1019,12 +1063,12 @@ document.getElementById('saveCustomerPasswordBtn').addEventListener('click', asy
     if (!requireDb()) return;
     const id = document.getElementById('customerPasswordId').value;
     const newPass = document.getElementById('newCustomerPasswordValue').value.trim();
-    if (!newPass) { alert('أدخل كلمة السر الجديدة'); return; }
+    if (!newPass) { ARAalert('أدخل كلمة السر الجديدة', 'warning'); return; }
     try {
         await db.collection('customers').doc(id).update({ password: newPass });
         customerPasswordModal.hide();
         loadCustomersList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
 window.openEditCustomerCreditModal = function(id, name, current) {
@@ -1040,13 +1084,13 @@ document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click'
     const id = document.getElementById('editCustomerCreditId').value;
     const newVal = parseFloat(document.getElementById('editCustomerCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
-        alert('أدخل رصيد صحيح'); return;
+        ARAalert('أدخل رصيد صحيح', 'warning'); return;
     }
     try {
         await db.collection('customers').doc(id).update({ credit: newVal });
         editCustomerCreditModal.hide();
         loadCustomersList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
 window.openEditCustomerModal = function(id, name, phone, whatsapp) {
@@ -1109,7 +1153,7 @@ document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', as
 
 // Export customers CSV
 window.exportCustomersCSV = function () {
-    if (allCustomers.length === 0) { alert('لا يوجد زبائن للتصدير'); return; }
+    if (allCustomers.length === 0) { ARAalert('لا يوجد زبائن للتصدير', 'info'); return; }
     let csv = '\uFEFF' + 'الاسم,الهاتف,الواتساب,الرصيد,الحالة,الرحلات\n';
     allCustomers.forEach(c => {
         const status = c.isOnline ? 'متصل' : 'غير متصل';
@@ -1201,12 +1245,12 @@ function renderRidesList(rides) {
 }
 
 window.cancelRide = async function (rideId) {
-    if (!confirm('هل أنت متأكد من إلغاء هذه الرحلة؟')) return;
+    if (!(await ARAconfirm('هل أنت متأكد من إلغاء هذه الرحلة؟'))) return;
     if (!requireDb()) return;
     try {
         await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
         if (currentPage === 'rides') loadRidesList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
 document.getElementById('filterRideStatus').addEventListener('change', () => {
@@ -1264,7 +1308,7 @@ async function loadStats() {
 // EXPORT CSV
 // ============================================
 window.exportDriversCSV = function () {
-    if (allDrivers.length === 0) { alert('لا يوجد سائقون للتصدير'); return; }
+    if (allDrivers.length === 0) { ARAalert('لا يوجد سائقون للتصدير', 'info'); return; }
     let csv = '\uFEFF' + 'الاسم,الهاتف,الرصيد,الحالة,المجموعات\n';
     allDrivers.forEach(d => {
         const status = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
@@ -1274,7 +1318,7 @@ window.exportDriversCSV = function () {
 };
 
 window.exportRidesCSV = function () {
-    if (allRides.length === 0) { alert('لا توجد رحلات للتصدير'); return; }
+    if (allRides.length === 0) { ARAalert('لا توجد رحلات للتصدير', 'info'); return; }
     let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,الحالة,التاريخ\n';
     allRides.forEach(r => {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '';
@@ -1354,8 +1398,8 @@ window.clearNotifLog = function () {
 };
 
 window.confirmResetAllData = function () {
-    if (!confirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟')) return;
-    if (!confirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟')) return;
+    if (!(await ARAconfirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟'))) return;
+    if (!(await ARAconfirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟'))) return;
     const status = document.getElementById('resetStatus');
     status.innerHTML = '<span class="text-danger"><i class="bi bi-hourglass-split me-1"></i>جاري مسح البيانات...</span>';
     requireDb('resetStatus');
@@ -1437,7 +1481,7 @@ function initMsgTypeSwitch() {
     if (imgFile) imgFile.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 500000) { alert('الصورة كبيرة جداً. الحد الأقصى 500KB'); e.target.value = ''; return; }
+        if (file.size > 500000) { ARAalert('الصورة كبيرة جداً. الحد الأقصى 500KB', 'warning'); e.target.value = ''; return; }
         const reader = new FileReader();
         reader.onload = (ev) => {
             document.getElementById('msgImagePreview').innerHTML =
@@ -1450,7 +1494,7 @@ function initMsgTypeSwitch() {
     if (audioFile) audioFile.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 500000) { alert('الملف الصوتي كبير جداً. الحد الأقصى 500KB'); e.target.value = ''; return; }
+        if (file.size > 500000) { ARAalert('الملف الصوتي كبير جداً. الحد الأقصى 500KB', 'warning'); e.target.value = ''; return; }
         const reader = new FileReader();
         reader.onload = (ev) => {
             document.getElementById('msgAudioPreview').innerHTML =
@@ -1593,16 +1637,16 @@ async function loadSentMessages() {
 }
 
 window.deleteSentMsg = async function(id) {
-    if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
+    if (!(await ARAconfirm('هل تريد حذف هذه الرسالة؟'))) return;
     if (!requireDb()) return;
     try {
         await db.collection('messages').doc(id).delete();
         loadSentMessages();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
 window.clearOldMessages = async function() {
-    if (!confirm('حذف جميع الرسائل القديمة؟')) return;
+    if (!(await ARAconfirm('حذف جميع الرسائل القديمة؟'))) return;
     if (!requireDb()) return;
     try {
         const snap = await db.collection('messages').get();
@@ -1610,7 +1654,7 @@ window.clearOldMessages = async function() {
         snap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
         loadSentMessages();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
 // ============================================
@@ -1690,7 +1734,7 @@ window.addAdmin = async function () {
 };
 
 window.deleteAdmin = async function (id, name) {
-    if (!confirm(`هل أنت متأكد من حذف المشرف "${name}"؟`)) return;
+    if (!(await ARAconfirm(`هل أنت متأكد من حذف المشرف "${name}"؟`))) return;
     if (!requireDb()) return;
 
     // Prevent deleting the last admin
@@ -1703,7 +1747,7 @@ window.deleteAdmin = async function (id, name) {
         if (targetDoc && targetDoc.role === 'admin') {
             const otherAdmins = admins.filter(a => a.id !== id && a.role === 'admin');
             if (otherAdmins.length === 0) {
-                alert('لا يمكن حذف آخر مشرف بصلاحية مدير عام. يجب أن يبقى مشرف واحد على الأقل بصلاحية كاملة.');
+                ARAalert('لا يمكن حذف آخر مشرف بصلاحية مدير عام. يجب أن يبقى مشرف واحد على الأقل بصلاحية كاملة.', 'warning');
                 return;
             }
         }
@@ -1715,7 +1759,7 @@ window.deleteAdmin = async function (id, name) {
         await db.collection('admins').doc(id).delete();
         loadAdminsList();
     } catch (err) {
-        alert('خطأ: ' + err.message);
+        ARAalert('خطأ: ' + err.message, 'error');
     }
 };
 
@@ -1867,12 +1911,12 @@ async function loadPromotionsList() {
 }
 
 window.deletePromotion = async function(id) {
-    if (!confirm('حذف هذا العرض؟')) return;
+    if (!(await ARAconfirm('حذف هذا العرض؟'))) return;
     if (!requireDb()) return;
     try {
         await db.collection('promotions').doc(id).delete();
         loadPromotionsList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
 // ============================================
@@ -2022,12 +2066,12 @@ async function loadProductsList() {
 }
 
 window.deleteProduct = async function(id) {
-    if (!confirm('حذف هذا المنتج؟')) return;
+    if (!(await ARAconfirm('حذف هذا المنتج؟'))) return;
     if (!requireDb()) return;
     try {
         await db.collection('products').doc(id).delete();
         loadProductsList();
-    } catch (err) { alert('خطأ: ' + err.message); }
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
 function callPhone(phone) {
