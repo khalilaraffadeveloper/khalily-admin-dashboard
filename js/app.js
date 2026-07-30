@@ -66,49 +66,34 @@ function requireDb(caller) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        var r = new FileReader();
-        r.onload = function (e) {
+        var reader = new FileReader();
+        reader.onload = function (e) {
             var dataUrl = e.target.result;
-            // If Compressor is available AND file > 100KB, compress
-            if (typeof Compressor !== 'undefined' && file.size > 100000 && dataUrl.startsWith('data:image/')) {
-                new Compressor(file, {
-                    quality: 0.4, maxWidth: 800, maxHeight: 800, convertSize: 300000,
-                    success: function (blob) {
-                        if (blob && blob.size > 0) {
-                            var r2 = new FileReader();
-                            r2.onload = function (ev) { resolve(ev.target.result); };
-                            r2.readAsDataURL(blob);
-                        } else { resolve(dataUrl); }
-                    },
-                    error: function () { resolve(dataUrl); }
-                });
-            } else {
-                resolve(dataUrl);
-            }
+            resolve(dataUrl);
         };
-        r.onerror = function () { reject(new Error('فشل قراءة الملف')); };
-        r.readAsDataURL(file);
+        reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+        reader.readAsDataURL(file);
     });
 }
 
 function filesToBase64(files, maxCount) {
     maxCount = maxCount || 10;
-    var valid = [];
-    for (var i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) valid.push(files[i]);
-    }
-    var limited = valid.slice(0, maxCount);
     var results = [];
     var chain = Promise.resolve();
-    limited.forEach(function (file) {
-        chain = chain.then(function () {
-            return fileToBase64(file).then(function (b64) {
-                results.push(b64);
-            }).catch(function (e) {
-                console.warn('Image skip:', e?.message);
+    var count = Math.min(files.length, maxCount);
+    for (var i = 0; i < count; i++) {
+        (function (file, idx) {
+            chain = chain.then(function () {
+                console.log('Converting image ' + (idx + 1) + '/' + count + ' name=' + file.name + ' size=' + file.size);
+                return fileToBase64(file).then(function (b64) {
+                    results.push(b64);
+                    console.log('Image ' + (idx + 1) + ' converted OK, length=' + b64.length);
+                }).catch(function (e) {
+                    console.warn('Image ' + (idx + 1) + ' failed:', e ? e.message : 'unknown error');
+                });
             });
-        });
-    });
+        })(files[i], i);
+    }
     return chain.then(function () { return results; });
 }
 
@@ -1826,7 +1811,10 @@ async function loadPromotionsList() {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
                             <h6 class="fw-bold mb-1">${p.title}</h6>
-                            <span class="badge ${typeColors[p.type] || 'bg-secondary'}">${typeLabels[p.type] || p.type}</span>
+                            <div class="d-flex gap-1 align-items-center">
+                                <span class="badge ${typeColors[p.type] || 'bg-secondary'}">${typeLabels[p.type] || p.type}</span>
+                                <span class="badge bg-info">${p.images ? p.images.length : 0} صور</span>
+                            </div>
                         </div>
                         ${imgHtml}
                         <p class="small text-muted mb-1">${p.description || ''}</p>
@@ -1908,11 +1896,21 @@ window.addProduct = async function() {
             try {
                 const base64Images = await filesToBase64(prodImageFiles, 10);
                 base64Images.forEach(function (u) { images.push(u); });
-                showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+                if (base64Images.length > 0) {
+                    showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
+                } else {
+                    showToast('لم يتم تحويل أي صورة', 'warning');
+                }
             } catch (convErr) {
                 console.warn('Image conversion failed:', convErr.message);
                 showToast('فشل معالجة بعض الصور، جرب صوراً أصغر', 'warning');
             }
+        }
+
+        if (prodImageFiles.length > 0 && images.length === 0) {
+            showStatus('addProductStatus', 'فشل رفع الصور. جرب صوراً أصغر أو استخدم رابط مباشر.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة المنتج';
+            return;
         }
 
         await db.collection('products').add({
@@ -1964,7 +1962,10 @@ async function loadProductsList() {
             return `<div class="col-md-4 col-sm-6">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body">
-                        <span class="badge ${p.type === 'car' ? 'bg-warning text-dark' : 'bg-info'} mb-1"><i class="${typeIcons[p.type]}"></i> ${typeLabels[p.type] || p.type}</span>
+                        <div class="d-flex gap-1 align-items-center mb-1">
+                            <span class="badge ${p.type === 'car' ? 'bg-warning text-dark' : 'bg-info'}"><i class="${typeIcons[p.type]}"></i> ${typeLabels[p.type] || p.type}</span>
+                            <span class="badge bg-info">${p.images ? p.images.length : 0} صور</span>
+                        </div>
                         ${imgHtml}
                         ${moreImages}
                         <h6 class="fw-bold mb-1">${p.name}</h6>
