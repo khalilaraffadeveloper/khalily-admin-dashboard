@@ -89,6 +89,16 @@ async function doLogin() {
     }
 
     if (matched) {
+        if (!matched.isFirebase && db && typeof firebase.auth === 'function') {
+            try {
+                const email = `${user}@khalily.app`;
+                await firebase.auth().createUserWithEmailAndPassword(email, pass);
+            } catch (e) {
+                if (e.code === 'auth/email-already-in-use') {
+                    try { await firebase.auth().signInWithEmailAndPassword(email, pass); } catch (e2) {}
+                }
+            }
+        }
         sessionStorage.setItem('ARAVA_admin_logged_in', 'true');
         sessionStorage.setItem('ARAVA_admin_name', matched.name || matched.username || user);
         window.location.href = 'dashboard.html';

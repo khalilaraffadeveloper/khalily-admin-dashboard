@@ -1645,13 +1645,20 @@ window.addPromotion = async function() {
 
     try {
         const images = [];
-        const storage = firebase.storage();
-        for (let i = 0; i < promoImageFiles.length; i++) {
-            const file = promoImageFiles[i];
-            const ref = storage.ref(`promotions/${Date.now()}_${file.name}`);
-            await ref.put(file);
-            const url = await ref.getDownloadURL();
-            images.push(url);
+        if (promoImageFiles.length > 0) {
+            try {
+                const storage = firebase.storage();
+                for (let i = 0; i < promoImageFiles.length; i++) {
+                    const file = promoImageFiles[i];
+                    const ref = storage.ref(`promotions/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    images.push(url);
+                }
+            } catch (storageErr) {
+                showStatus('addPromoStatus', 'تم حفظ العرض لكن فشل رفع الصور: ' + storageErr.message, 'warning');
+                await new Promise(r => setTimeout(r, 2000));
+            }
         }
 
         await db.collection('promotions').add({
@@ -1660,7 +1667,7 @@ window.addPromotion = async function() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        showStatus('addPromoStatus', 'تم إضافة العرض بنجاح!', 'success');
+        showStatus('addPromoStatus', images.length > 0 || promoImageFiles.length === 0 ? 'تم إضافة العرض بنجاح!' : 'تم إضافة العرض بدون صور', 'success');
         document.getElementById('promoTitle').value = '';
         document.getElementById('promoDescription').value = '';
         document.getElementById('promoVideo').value = '';
@@ -1773,13 +1780,20 @@ window.addProduct = async function() {
 
     try {
         const images = [];
-        const storage = firebase.storage();
-        for (let i = 0; i < prodImageFiles.length; i++) {
-            const file = prodImageFiles[i];
-            const ref = storage.ref(`products/${Date.now()}_${file.name}`);
-            await ref.put(file);
-            const url = await ref.getDownloadURL();
-            images.push(url);
+        if (prodImageFiles.length > 0) {
+            try {
+                const storage = firebase.storage();
+                for (let i = 0; i < prodImageFiles.length; i++) {
+                    const file = prodImageFiles[i];
+                    const ref = storage.ref(`products/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    images.push(url);
+                }
+            } catch (storageErr) {
+                showStatus('addProductStatus', 'تم حفظ المنتج لكن فشل رفع الصور: ' + storageErr.message, 'warning');
+                await new Promise(r => setTimeout(r, 2000));
+            }
         }
 
         await db.collection('products').add({
