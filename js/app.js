@@ -1860,7 +1860,7 @@ async function loadProductsList() {
                         <h5 class="text-gold fw-bold mb-2">${p.price || 0} MRU</h5>
                         <div class="d-flex gap-2 flex-wrap">
                             <a href="tel:${p.phone}" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</a>
-                            <a href="https://wa.me/${p.phone.replace(/^0+/, '222')}" target="_blank" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</a>
+                            <a href="https://wa.me/${(p.phone||'').replace(/^0+/, '222')}" target="_blank" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</a>
                             ${videoHtml}
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${doc.id}')"><i class="bi bi-trash"></i></button>
                         </div>
