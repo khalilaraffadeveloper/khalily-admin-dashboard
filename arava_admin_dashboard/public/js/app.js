@@ -51,63 +51,29 @@ function requireDb(caller) {
 // ============================================
 // IMAGE TO BASE64 HELPERS
 // ============================================
-function compressImageToBase64(file, maxWidth, maxHeight, quality) {
+function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        if (!file.type.startsWith('image/')) {
-            reject(new Error('الملف ليس صورة'));
-            return;
-        }
-        if (file.size < 200 * 1024) {
-            var reader = new FileReader();
-            reader.onload = function (e) { resolve(e.target.result); };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-            return;
-        }
-        try {
-            new Compressor(file, {
-                maxWidth: maxWidth || 1024,
-                maxHeight: maxHeight || 1024,
-                quality: quality || 0.7,
-                mimeType: 'image/jpeg',
-                success: function (result) {
-                    var reader = new FileReader();
-                    reader.onload = function (e) { resolve(e.target.result); };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(result);
-                },
-                error: function () {
-                    var reader = new FileReader();
-                    reader.onload = function (e) { resolve(e.target.result); };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                }
-            });
-        } catch (err) {
-            var reader = new FileReader();
-            reader.onload = function (e) { resolve(e.target.result); };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        }
+        var reader = new FileReader();
+        reader.onload = function (e) { resolve(e.target.result); };
+        reader.onerror = function () { reject(new Error('فشل قراءة الملف')); };
+        reader.readAsDataURL(file);
     });
 }
 
-function processImagesToBase64(files, maxImages) {
-    maxImages = maxImages || 10;
-    var validFiles = [];
+function filesToBase64(files, maxCount) {
+    maxCount = maxCount || 10;
+    var valid = [];
     for (var i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) validFiles.push(files[i]);
+        if (files[i].type.startsWith('image/')) valid.push(files[i]);
     }
-    var limited = validFiles.slice(0, maxImages);
+    var limited = valid.slice(0, maxCount);
     var results = [];
     var chain = Promise.resolve();
     limited.forEach(function (file) {
         chain = chain.then(function () {
-            return compressImageToBase64(file, 1024, 1024, 0.7).then(function (base64) {
-                results.push(base64);
-            }).catch(function (err) {
-                console.warn('Image failed:', file.name, err);
-            });
+            return fileToBase64(file).then(function (b64) {
+                results.push(b64);
+            }).catch(function () {});
         });
     });
     return chain.then(function () { return results; });
@@ -1729,7 +1695,7 @@ window.addPromotion = async function() {
         }
         if (promoImageFiles.length > 0) {
             try {
-                const base64Images = await processImagesToBase64(promoImageFiles, 10);
+                const base64Images = await filesToBase64(promoImageFiles, 10);
                 base64Images.forEach(function (u) { images.push(u); });
                 showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
             } catch (convErr) {
@@ -1864,7 +1830,7 @@ window.addProduct = async function() {
         }
         if (prodImageFiles.length > 0) {
             try {
-                const base64Images = await processImagesToBase64(prodImageFiles, 10);
+                const base64Images = await filesToBase64(prodImageFiles, 10);
                 base64Images.forEach(function (u) { images.push(u); });
                 showToast('تم رفع ' + base64Images.length + ' صورة', 'success');
             } catch (convErr) {
