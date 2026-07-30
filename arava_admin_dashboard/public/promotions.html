@@ -20,6 +20,7 @@
         .header-logo img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
         .empty-state { text-align: center; padding: 60px 20px; color: #999; }
         .empty-state i { font-size: 60px; margin-bottom: 15px; }
+        .video-modal iframe { width: 100%; height: 56.25vw; max-height: 70vh; border: none; border-radius: 12px; }
     </style>
 </head>
 <body>
@@ -41,9 +42,43 @@
         </div>
     </div>
 
+    <!-- Video embed modal -->
+    <div class="modal fade video-modal" id="videoModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 bg-dark shadow-none">
+                <div class="modal-body p-2 text-center position-relative">
+                    <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-1" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                    <div id="videoPlayerContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script>
+        function getYouTubeId(url) {
+            if (!url) return null;
+            const patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+                /^([a-zA-Z0-9_-]{11})$/
+            ];
+            for (const p of patterns) {
+                const m = url.match(p);
+                if (m) return m[1];
+            }
+            return null;
+        }
+        function playVideo(videoUrl) {
+            const id = getYouTubeId(videoUrl);
+            if (!id) { window.open(videoUrl, '_blank'); return; }
+            const container = document.getElementById('videoPlayerContainer');
+            container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&controls=1&fs=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+            const modal = new bootstrap.Modal(document.getElementById('videoModal'));
+            document.getElementById('videoModal').addEventListener('hidden.bs.modal', function () { container.innerHTML = ''; }, { once: true });
+            modal.show();
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyAkYQEb-aHo0Oft41tOAegVAyzH1fCmJWM",
             authDomain: "khalily-app.firebaseapp.com",
@@ -82,7 +117,7 @@
                                 ${imgs.length > 1 ? `<button class="carousel-control-prev" type="button" data-bs-target="#carousel-${doc.id}" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#carousel-${doc.id}" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>` : ''}
                               </div>`
                             : `<div style="height:200px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;"><i class="bi bi-megaphone" style="font-size:40px;color:#bbb;"></i></div>`;
-                        const videoHtml = p.videoUrl ? `<a href="${p.videoUrl}" target="_blank" class="video-btn"><i class="bi bi-play-fill"></i> فيديو</a>` : '';
+                        const videoHtml = p.videoUrl ? `<button class="video-btn" onclick="playVideo('${p.videoUrl.replace(/'/g, "\\'")}')"><i class="bi bi-play-fill"></i> فيديو</button>` : '';
                         const descHtml = p.description ? `<p class="text-muted small mb-1" style="font-size:14px;">${p.description}</p>` : '';
                         return `<div class="col-md-4 col-sm-6">
                             <div class="promo-card position-relative">
