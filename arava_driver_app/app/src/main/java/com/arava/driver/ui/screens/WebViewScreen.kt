@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -69,6 +71,7 @@ fun WebViewScreen(
                         settings.useWideViewPort = true
                         settings.builtInZoomControls = true
                         settings.displayZoomControls = false
+                        settings.javaScriptCanOpenWindowsAutomatically = true
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                 isLoading = true
@@ -85,35 +88,47 @@ fun WebViewScreen(
                                 return handleCustomUrl(view, url ?: return false)
                             }
                             private fun handleCustomUrl(view: WebView?, url: String): Boolean {
-                                val appContext = view?.context?.applicationContext ?: return false
-                                return when {
+                                val ctx = view?.context ?: return false
+                                val handled = when {
                                     url.startsWith("tel:") -> {
-                                        appContext.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                                        Handler(Looper.getMainLooper()).post {
+                                            try {
+                                                ctx.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                                            } catch (_: Exception) {}
+                                        }
                                         true
                                     }
                                     url.startsWith("whatsapp://") -> {
-                                        try {
-                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                        } catch (_: ActivityNotFoundException) {
-                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                        Handler(Looper.getMainLooper()).post {
+                                            try {
+                                                ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                            } catch (_: ActivityNotFoundException) {
+                                                try {
+                                                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                                } catch (_: Exception) {}
+                                            } catch (_: Exception) {}
                                         }
                                         true
                                     }
                                     url.startsWith("https://wa.me/") || url.startsWith("http://wa.me/") -> {
-                                        try {
-                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url.replace("https://wa.me/", "whatsapp://send/?phone=").replace("http://wa.me/", "whatsapp://send/?phone="))))
-                                        } catch (_: ActivityNotFoundException) {
-                                            appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                        Handler(Looper.getMainLooper()).post {
+                                            try {
+                                                ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url.replace("https://wa.me/", "whatsapp://send/?phone=").replace("http://wa.me/", "whatsapp://send/?phone="))))
+                                            } catch (_: ActivityNotFoundException) {
+                                                try {
+                                                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                                } catch (_: Exception) {}
+                                            } catch (_: Exception) {}
                                         }
                                         true
                                     }
                                     url.startsWith("intent://") -> {
                                         try {
-                                            appContext.startActivity(Intent.parseUri(url, Intent.URI_INTENT_SCHEME))
+                                            ctx.startActivity(Intent.parseUri(url, Intent.URI_INTENT_SCHEME))
                                         } catch (_: Exception) {
                                             if (url.contains("com.whatsapp")) {
                                                 try {
-                                                    appContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
+                                                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.whatsapp")))
                                                 } catch (_: Exception) {}
                                             }
                                         }
@@ -121,6 +136,7 @@ fun WebViewScreen(
                                     }
                                     else -> false
                                 }
+                                return handled
                             }
                         }
                         webChromeClient = WebChromeClient()

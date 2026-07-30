@@ -142,13 +142,13 @@
 
         function callPhone(phone) {
             if (!phone) return;
-            window.location.href = 'tel:' + phone;
+            window.open('tel:' + phone, '_system');
         }
 
         function openWhatsApp(phone, name) {
             if (!phone) return;
             var text = encodeURIComponent('مرحباً بخصوص ' + decodeURIComponent(name));
-            window.location.href = 'whatsapp://send/?phone=' + phone + '&text=' + text;
+            window.open('whatsapp://send/?phone=' + phone + '&text=' + text, '_system');
         }
 
         function renderProducts(filter) {
