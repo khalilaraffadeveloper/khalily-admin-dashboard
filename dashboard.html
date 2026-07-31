@@ -29,6 +29,9 @@
             <a href="#" class="sidebar-link" data-page="customers">
                 <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
             </a>
+            <a href="#" class="sidebar-link" data-page="unregistered-customers">
+                <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
+            </a>
             <a href="#" class="sidebar-link" data-page="rides">
                 <i class="bi bi-journal-text"></i> سجل الرحلات
             </a>
@@ -84,6 +87,9 @@
                     </a>
                     <a href="#" class="sidebar-link" data-page="customers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="unregistered-customers" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
                     </a>
                     <a href="#" class="sidebar-link" data-page="rides" data-bs-dismiss="offcanvas">
                         <i class="bi bi-journal-text"></i> سجل الرحلات
@@ -233,7 +239,7 @@
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الرصيد (MRU)</label>
-                                            <input type="number" class="form-control" id="newDriverCredit" value="" min="0" placeholder="0" autocomplete="off">
+                                            <input type="text" class="form-control" id="newDriverCredit" value="" inputmode="numeric" placeholder="0" autocomplete="off">
                                         </div>
                                     </div>
                                     <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerDriverBtn">
@@ -321,7 +327,7 @@
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الرصيد (MRU)</label>
-                                            <input type="number" class="form-control" id="newCustomerCredit" value="" min="0" placeholder="0" autocomplete="off">
+                                            <input type="text" class="form-control" id="newCustomerCredit" value="" inputmode="numeric" placeholder="0" autocomplete="off">
                                         </div>
                                     </div>
                                     <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerCustomerBtn">
@@ -369,6 +375,48 @@
                                         </thead>
                                         <tbody id="customersTableBody">
                                             <tr><td colspan="8" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الزبائن...</div></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UNREGISTERED CUSTOMERS PAGE -->
+        <div class="page-content d-none" id="page-unregistered-customers">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-x-fill me-2 text-gold"></i>الزبناء غير المسجلين (<span id="totalUnregCustomersCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-dark-blue" onclick="exportUnregisteredCustomersCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-8 col-7">
+                                        <input type="text" class="form-control" id="searchUnregCustomers" placeholder="بحث بالاسم أو الهاتف...">
+                                    </div>
+                                    <div class="col-md-4 col-5 d-flex align-items-center">
+                                        <small class="text-muted">زبائن ظهروا في سجلات الرحلات دون حساب مسجل</small>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-dark-blue text-white">
+                                            <tr>
+                                                <th>الاسم</th>
+                                                <th>الهاتف</th>
+                                                <th>عدد الرحلات</th>
+                                                <th>إجمالي المبالغ</th>
+                                                <th>آخر رحلة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="unregCustomersTableBody">
+                                            <tr><td colspan="5" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل البيانات...</div></td></tr>
                                         </tbody>
                                     </table>
                                 </div>

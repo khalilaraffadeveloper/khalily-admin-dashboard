@@ -431,6 +431,7 @@ const pageTitles = {
     map: 'تتبع مباشر للسائقين',
     drivers: 'إدارة السائقين',
     customers: 'إدارة الزبائن',
+    'unregistered-customers': 'الزبناء غير المسجلين',
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
@@ -455,6 +456,7 @@ function navigateToPage(page) {
     if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page === 'drivers') loadDriversList();
     if (page === 'customers') loadCustomersList();
+    if (page === 'unregistered-customers') loadUnregisteredCustomers();
     if (page === 'rides') loadRidesList();
     if (page === 'settings') loadCommission();
     if (page === 'admins') loadAdminsList();
@@ -659,9 +661,23 @@ window.saveCommission = async function () {
     }
 };
 
+const ARABIC_DIGIT_MAP = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9' };
+function normalizeDigits(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[٠-٩۰-۹]/g, ch => ARABIC_DIGIT_MAP[ch] || ch);
+}
+function parseNum(str) {
+    const cleaned = normalizeDigits(str).replace(/[^\d.\-]/g, '');
+    if (cleaned === '') return NaN;
+    const v = parseFloat(cleaned);
+    return isNaN(v) ? NaN : v;
+}
+
 // ============================================
 // DRIVER SEARCH
 // ============================================
+let lastSearchedDriverId = null;
+
 window.searchDriverByPhone = async function () {
     if (!requireDb()) return;
     const phone = document.getElementById('searchDriverPhone').value.trim();
@@ -672,38 +688,74 @@ window.searchDriverByPhone = async function () {
     try {
         const snapshot = await db.collection('drivers').where('phone', '==', phone).get();
         if (snapshot.empty) {
+            lastSearchedDriverId = null;
             resultEl.innerHTML = '<div class="alert alert-danger py-2">لم يتم العثور على سائق</div>';
             return;
         }
         const doc = snapshot.docs[0];
-        const d = doc.data();
-        resultEl.innerHTML = `
-            <div class="bg-light rounded-3 p-3">
-                <p class="fw-bold mb-1">${d.name || '-'}</p>
-                <p class="text-muted small mb-1">الهاتف: ${d.phone} | الرصيد: <strong class="text-gold">${d.credit || 0} MRU</strong></p>
-                <div class="input-group input-group-sm mt-2">
-                    <input type="number" class="form-control" id="quickCreditAmount" placeholder="المبلغ" min="1">
-                    <button class="btn btn-success text-white fw-bold" onclick="quickAddCredit('${doc.id}')">شحن</button>
-                </div>
-            </div>`;
+        lastSearchedDriverId = doc.id;
+        renderDriverSearchResult(doc.id, doc.data());
     } catch (e) {
         resultEl.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
     }
 };
 
+function renderDriverSearchResult(id, d) {
+    const resultEl = document.getElementById('searchDriverResult');
+    if (!resultEl) return;
+    const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const disabled = !!d.disabled;
+    resultEl.innerHTML = `
+        <div class="bg-light rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <p class="fw-bold mb-1">${d.name || '-'}</p>
+                    <p class="text-muted small mb-1">الهاتف: <span dir="ltr">${d.phone || '-'}</span> | الرصيد: <strong class="text-gold">${d.credit || 0} MRU</strong></p>
+                </div>
+                <span class="badge ${disabled ? 'bg-danger' : 'bg-success'}">${disabled ? 'معطّل' : 'مفعّل'}</span>
+            </div>
+            <div class="d-flex gap-1 flex-wrap mt-2">
+                <button class="btn-action btn-action-edit" onclick="openEditModal('${id}','${safeName}','${d.phone||''}','${disabled?"disabled":"active"}')">تعديل</button>
+                <button class="btn-action btn-action-credit" onclick="openCreditModal('${id}','${safeName}',${d.credit||0})">شحن</button>
+                <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
+                <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${id}',${disabled})">${disabled ? 'تفعيل' : 'تعطيل'}</button>
+                <button class="btn-action btn-action-delete" onclick="openDeleteModal('${id}','${safeName}')">حذف</button>
+            </div>
+            <div class="input-group input-group-sm mt-2" style="max-width:280px">
+                <input type="text" class="form-control" id="quickCreditAmount" placeholder="المبلغ (MRU)" inputmode="numeric">
+                <button class="btn btn-success text-white fw-bold" onclick="quickAddCredit('${id}')">شحن سريع</button>
+            </div>
+        </div>`;
+}
+
 window.quickAddCredit = async function (driverId) {
-    const amount = parseFloat(document.getElementById('quickCreditAmount').value);
+    const amount = parseNum(document.getElementById('quickCreditAmount').value);
     if (!amount || amount <= 0) { ARAalert('أدخل مبلغ صحيح', 'warning'); return; }
     try {
         await db.collection('drivers').doc(driverId).update({
             credit: firebase.firestore.FieldValue.increment(amount)
         });
         ARAalert(`تم شحن ${amount} MRU بنجاح`, 'success');
-        searchDriverByPhone();
+        refreshDriverSearchResult();
         if (currentPage === 'drivers') loadDriversList();
     } catch (e) {
         ARAalert('خطأ: ' + e.message, 'error');
     }
+};
+
+window.refreshDriverSearchResult = async function () {
+    if (!lastSearchedDriverId) return;
+    const resultEl = document.getElementById('searchDriverResult');
+    if (!resultEl) return;
+    try {
+        const snap = await db.collection('drivers').doc(lastSearchedDriverId).get();
+        if (snap.exists) {
+            renderDriverSearchResult(snap.id, snap.data());
+        } else {
+            lastSearchedDriverId = null;
+            resultEl.innerHTML = '<div class="alert alert-warning py-2">تم حذف هذا السائق من قاعدة البيانات</div>';
+        }
+    } catch (e) { console.error('Search refresh error:', e); }
 };
 
 // ============================================
@@ -792,7 +844,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
     const phone = document.getElementById('newDriverPhone').value.trim();
     const password = document.getElementById('newDriverPassword').value.trim();
     const vehicle = document.getElementById('newDriverVehicle')?.value || 'motorcycle';
-    const credit = parseFloat(document.getElementById('newDriverCredit').value) || 0;
+    const credit = parseNum(document.getElementById('newDriverCredit').value) || 0;
 
     if (!name) { showStatus(statusEl, 'أدخل اسم السائق', 'error'); return; }
     if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
@@ -860,7 +912,7 @@ function renderDriversList(drivers) {
         const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `<tr>
             <td><strong>${d.name || '-'}</strong></td>
-            <td>${d.phone || '-'}</td>
+            <td><span dir="ltr">${d.phone || '-'}</span></td>
             <td><span class="text-muted">${d.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPasswordModal('${d.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
             <td><strong>${d.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
@@ -897,6 +949,86 @@ function filterDrivers() {
 }
 
 // ============================================
+// UNREGISTERED CUSTOMERS
+// ============================================
+let allUnregisteredCustomers = [];
+
+async function loadUnregisteredCustomers() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('unregCustomersTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل البيانات...</div></td></tr>';
+    try {
+        const [ridesSnap, custSnap] = await Promise.all([
+            db.collection('rides').orderBy('createdAt', 'desc').limit(500).get(),
+            db.collection('customers').get()
+        ]);
+        const registered = new Set();
+        custSnap.forEach(c => {
+            const cc = c.data();
+            if (cc.phone) registered.add(normalizeDigits(cc.phone).replace(/[^\d]/g, ''));
+        });
+        const agg = {};
+        ridesSnap.forEach(doc => {
+            const r = doc.data();
+            const phone = normalizeDigits(r.passengerPhone || '').replace(/[^\d]/g, '');
+            if (!phone || registered.has(phone)) return;
+            if (!agg[phone]) agg[phone] = { name: r.passengerName || 'زبون', phone, rides: 0, total: 0, last: null };
+            agg[phone].rides++;
+            const fare = parseNum(r.fare);
+            agg[phone].total += (isNaN(fare) ? 0 : fare);
+            const t = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate() : null;
+            if (t && (!agg[phone].last || t > agg[phone].last)) {
+                agg[phone].last = t;
+                agg[phone].name = r.passengerName || agg[phone].name;
+            }
+        });
+        allUnregisteredCustomers = Object.values(agg).sort((a, b) => b.rides - a.rides);
+        renderUnregisteredCustomers(allUnregisteredCustomers);
+    } catch (err) {
+        console.error('Load unregistered customers error:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
+}
+
+function renderUnregisteredCustomers(list) {
+    const tbody = document.getElementById('unregCustomersTableBody');
+    document.getElementById('totalUnregCustomersCount').textContent = list.length;
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا يوجد زبناء غير مسجلين</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(c => `<tr>
+        <td><strong>${c.name || '-'}</strong></td>
+        <td><span dir="ltr">${c.phone}</span></td>
+        <td>${c.rides}</td>
+        <td><strong>${c.total || 0}</strong> MRU</td>
+        <td><small>${c.last ? c.last.toLocaleString('ar-MA') : '-'}</small></td>
+    </tr>`).join('');
+}
+
+document.getElementById('searchUnregCustomers').addEventListener('input', () => {
+    const q = document.getElementById('searchUnregCustomers').value.trim();
+    renderUnregisteredCustomers(allUnregisteredCustomers.filter(c => {
+        return !q || (c.name || '').includes(q) || c.phone.includes(q) ||
+            (c.name || '').localeCompare(q, 'ar', { sensitivity: 'base' }) === 0;
+    }));
+});
+
+window.exportUnregisteredCustomersCSV = function () {
+    if (!allUnregisteredCustomers.length) { ARAalert('لا توجد بيانات للتصدير', 'warning'); return; }
+    const rows = [['الاسم', 'الهاتف', 'عدد الرحلات', 'إجمالي المبالغ', 'آخر رحلة']];
+    allUnregisteredCustomers.forEach(c => {
+        rows.push([c.name || '', c.phone, c.rides, c.total || 0, c.last ? c.last.toLocaleString('ar-MA') : '']);
+    });
+    const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'unregistered_customers.csv';
+    a.click();
+};
+
+// ============================================
 // CUSTOMERS LIST
 // ============================================
 async function loadCustomersList() {
@@ -928,8 +1060,8 @@ function renderCustomersList(customers) {
         const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `<tr>
             <td><strong>${c.name || '-'}</strong></td>
-            <td>${c.phone || '-'}</td>
-            <td>${c.whatsapp || '-'}</td>
+            <td><span dir="ltr">${c.phone || '-'}</span></td>
+            <td><span dir="ltr">${c.whatsapp || '-'}</span></td>
             <td><span class="text-muted">${c.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openCustomerPasswordModal('${c.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
             <td><strong>${c.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
@@ -972,7 +1104,7 @@ document.getElementById('registerCustomerBtn').addEventListener('click', async (
     const phone = document.getElementById('newCustomerPhone').value.trim();
     const whatsapp = document.getElementById('newCustomerWhatsapp').value.trim();
     const password = document.getElementById('newCustomerPassword').value.trim();
-    const credit = parseFloat(document.getElementById('newCustomerCredit').value) || 0;
+    const credit = parseNum(document.getElementById('newCustomerCredit').value) || 0;
 
     if (!name) { showStatus(statusEl, 'أدخل اسم الزبون', 'error'); return; }
     if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
@@ -1047,7 +1179,7 @@ window.openEditCreditModal = function(id, name, current) {
 document.getElementById('confirmEditCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('editCreditDriverId').value;
-    const newVal = parseFloat(document.getElementById('editCreditNewValue').value);
+    const newVal = parseNum(document.getElementById('editCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
         ARAalert('أدخل رصيد صحيح', 'warning'); return;
     }
@@ -1055,6 +1187,7 @@ document.getElementById('confirmEditCreditBtn').addEventListener('click', async 
         await db.collection('drivers').doc(id).update({ credit: newVal });
         editCreditModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
@@ -1084,6 +1217,7 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
         await db.collection('drivers').doc(id).update({ name, phone, disabled: status === 'disabled' });
         editModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Edit error:', err); }
 });
 
@@ -1098,12 +1232,13 @@ window.openCreditModal = function(id, name, current) {
 document.getElementById('confirmCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('creditDriverId').value;
-    const amount = parseFloat(document.getElementById('creditAmount').value);
+    const amount = parseNum(document.getElementById('creditAmount').value);
     if (!amount || amount <= 0) return;
     try {
         await db.collection('drivers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
         creditModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Credit error:', err); }
 });
 
@@ -1112,6 +1247,7 @@ window.toggleDriverStatus = async function(id, currentlyDisabled) {
     try {
         await db.collection('drivers').doc(id).update({ disabled: !currentlyDisabled, isOnline: false });
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Toggle error:', err); }
 };
 
@@ -1128,6 +1264,7 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
         await db.collection('drivers').doc(id).delete();
         deleteModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Delete error:', err); }
 });
 
@@ -1161,7 +1298,7 @@ window.openEditCustomerCreditModal = function(id, name, current) {
 document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('editCustomerCreditId').value;
-    const newVal = parseFloat(document.getElementById('editCustomerCreditNewValue').value);
+    const newVal = parseNum(document.getElementById('editCustomerCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
         ARAalert('أدخل رصيد صحيح', 'warning'); return;
     }
