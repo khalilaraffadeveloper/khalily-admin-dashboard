@@ -224,9 +224,26 @@ function calculateFare(distanceKm) {
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([18.0735, -15.9582], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap', maxZoom: 19
-    }).addTo(map);
+    });
+    const esriStreetsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri', maxZoom: 19
+    });
+    const esriImageryLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Imagery © Esri', maxZoom: 19
+    });
+
+    esriStreetsLayer.addTo(map);
+
+    L.control.layers({
+        'الشوارع (Esri)': esriStreetsLayer,
+        'الخريطة العادية (OSM)': osmLayer,
+        'الأقمار الصناعية (Esri)': esriImageryLayer
+    }, null, { position: 'topright' }).addTo(map);
+
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
 
     map.on('click', (e) => {
         const { lat, lng } = e.latlng;
@@ -250,6 +267,53 @@ function initMap() {
         updateDispatchBtn();
     });
 }
+
+let searchResultMarker = null;
+
+function bindMapSearch() {
+    const input = document.getElementById('mapSearchInput');
+    const btn = document.getElementById('mapSearchBtn');
+    const resultsBox = document.getElementById('mapSearchResults');
+    if (!input || !btn || !resultsBox) return;
+
+    const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    async function doSearch() {
+        const q = input.value.trim();
+        if (!q) { resultsBox.innerHTML = ''; return; }
+        try {
+            const res = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) +
+                '&format=json&limit=6&accept-language=ar');
+            const data = await res.json();
+            if (!data.length) { resultsBox.innerHTML = '<div class="map-search-empty">لا توجد نتائج</div>'; return; }
+            resultsBox.innerHTML = data.map((r, i) =>
+                '<div class="map-search-result" data-i="' + i + '">' + escapeHtml(r.display_name) + '</div>').join('');
+            resultsBox.querySelectorAll('.map-search-result').forEach(el => {
+                el.onclick = () => {
+                    const r = data[parseInt(el.dataset.i)];
+                    map.flyTo([parseFloat(r.lat), parseFloat(r.lon)], 16);
+                    if (searchResultMarker) map.removeLayer(searchResultMarker);
+                    searchResultMarker = L.marker([parseFloat(r.lat), parseFloat(r.lon)]).addTo(map)
+                        .bindPopup(escapeHtml(r.display_name)).openPopup();
+                    resultsBox.innerHTML = '';
+                    input.value = '';
+                };
+            });
+        } catch (e) { console.error('Map search error:', e); }
+    }
+
+    btn.addEventListener('click', doSearch);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.map-search')) resultsBox.innerHTML = '';
+    });
+}
+
+document.getElementById('darkModeBtn').addEventListener('click', () => {
+    document.body.classList.toggle('map-dark');
+    const icon = document.querySelector('#darkModeBtn i');
+    if (icon) icon.className = document.body.classList.contains('map-dark') ? 'bi bi-brightness-high' : 'bi bi-moon-stars';
+});
 
 function setPickupPoint(lat, lng) {
     pickupCoords = { lat, lng };
@@ -2133,6 +2197,7 @@ function openWhatsApp(phone, name) {
 // ============================================
 function initDashboard() {
     initMap();
+    bindMapSearch();
     loadCommission();
     loadStats();
     initRealtimeListeners();

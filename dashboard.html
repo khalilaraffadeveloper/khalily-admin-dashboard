@@ -141,6 +141,9 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <span class="text-muted fw-semibold d-none d-sm-inline" id="currentTime"></span>
+                <button class="btn btn-outline-secondary btn-sm" id="darkModeBtn" title="الوضع الليلي">
+                    <i class="bi bi-moon-stars"></i><span class="d-none d-sm-inline ms-1">ليلي</span>
+                </button>
                 <button class="btn btn-outline-danger btn-sm" id="logoutBtn">
                     <i class="bi bi-box-arrow-left me-1"></i><span class="d-none d-sm-inline">خروج</span>
                 </button>
@@ -187,6 +190,13 @@
 
             <div class="map-wrapper position-relative">
                 <div id="map" class="w-100 h-100"></div>
+                <div class="map-search">
+                    <div class="map-search-bar">
+                        <input type="text" id="mapSearchInput" placeholder="ابحث عن مكان أو عنوان..." autocomplete="off">
+                        <button id="mapSearchBtn" title="بحث"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="mapSearchResults"></div>
+                </div>
             </div>
         </div>
 
