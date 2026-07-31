@@ -736,6 +736,13 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
     const btn = document.getElementById('registerDriverBtn');
     btn.disabled = true; btn.textContent = 'جاري التسجيل...';
     try {
+        const dup = await db.collection('drivers').where('phone', '==', phone).get();
+        if (!dup.empty) {
+            const existing = dup.docs[0].data().name || 'سائق آخر';
+            showStatus(statusEl, 'رقم الهاتف ' + phone + ' مسجل بالفعل للسائق: ' + existing, 'error');
+            btn.disabled = false; btn.textContent = 'تسجيل السائق';
+            return;
+        }
         await db.collection('drivers').add({
             name, phone, password, vehicleType: vehicle, credit,
             lat: 18.0735, lng: -15.9582, geohash: '',
@@ -1002,6 +1009,13 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const status = document.getElementById('editDriverStatus').value;
     if (!name) return;
     try {
+        const dup = await db.collection('drivers').where('phone', '==', phone).get();
+        const dupDoc = dup.docs.find(d => d.id !== id);
+        if (dupDoc) {
+            const existing = dupDoc.data().name || 'سائق آخر';
+            ARAalert('رقم الهاتف ' + phone + ' مسجل بالفعل للسائق: ' + existing, 'error');
+            return;
+        }
         await db.collection('drivers').doc(id).update({ name, phone, disabled: status === 'disabled' });
         editModal.hide();
         loadDriversList();

@@ -275,6 +275,12 @@ app.post('/api/register-driver', async (req, res) => {
             return res.status(400).json({ error: 'Name, phone and password are required' });
         }
 
+        const existing = await db.collection('drivers').where('phone', '==', phone).get();
+        if (!existing.empty) {
+            const owner = existing.docs[0].data().name || 'another driver';
+            return res.status(409).json({ error: 'Phone number ' + phone + ' is already registered to: ' + owner });
+        }
+
         const docRef = await db.collection('drivers').add({
             name,
             phone,
@@ -311,6 +317,15 @@ app.put('/api/update-driver/:id', async (req, res) => {
         if (name !== undefined) updates.name = name;
         if (phone !== undefined) updates.phone = phone;
         if (disabled !== undefined) updates.disabled = disabled;
+
+        if (phone !== undefined) {
+            const existing = await db.collection('drivers').where('phone', '==', phone).get();
+            const dupDoc = existing.docs.find(d => d.id !== id);
+            if (dupDoc) {
+                const owner = dupDoc.data().name || 'another driver';
+                return res.status(409).json({ error: 'Phone number ' + phone + ' is already registered to: ' + owner });
+            }
+        }
 
         await db.collection('drivers').doc(id).update(updates);
         res.json({ success: true });
