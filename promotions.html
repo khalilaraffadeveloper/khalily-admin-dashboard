@@ -20,7 +20,7 @@
         .header-logo img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
         .empty-state { text-align: center; padding: 60px 20px; color: #999; }
         .empty-state i { font-size: 60px; margin-bottom: 15px; }
-        .video-modal iframe { width: 100%; height: 56.25vw; max-height: 70vh; border: none; border-radius: 12px; }
+        .video-modal iframe { border: none; border-radius: 12px; }
     </style>
 </head>
 <body>
@@ -99,26 +99,26 @@
                 iframe.parentNode.insertBefore(blocker, iframe.nextSibling);
             }
 
-            function buildEmbed(iframeHtml) {
-                container.innerHTML = `<div style="position:relative;width:100%;">${iframeHtml}</div>`;
+            function buildEmbed(iframeHtml, centered) {
+                container.innerHTML = `<div style="position:relative;width:100%;${centered ? 'display:flex;justify-content:center;' : ''}">${iframeHtml}</div>`;
                 const iframe = container.querySelector('iframe');
                 let firstLoad = true;
                 iframe.addEventListener('load', function () {
                     if (firstLoad) { firstLoad = false; return; }
                     activateBlocker();
                 });
-                setTimeout(activateBlocker, 2500);
+                setTimeout(activateBlocker, 6000);
             }
 
             const ytId = getYouTubeId(videoUrl);
             if (ytId) {
-                buildEmbed(`<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&controls=1&fs=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`);
+                buildEmbed(`<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&controls=1&fs=0" style="width:100%;max-height:70vh;aspect-ratio:16/9;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`, false);
                 modal.show();
                 return;
             }
             const ttId = getTikTokId(videoUrl);
             if (ttId) {
-                buildEmbed(`<iframe src="https://www.tiktok.com/embed/v2/${ttId}" style="width:100%;height:70vh;border:none;border-radius:12px;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`);
+                buildEmbed(`<iframe src="https://www.tiktok.com/embed/v2/${ttId}" style="height:70vh;max-width:100%;aspect-ratio:9/16;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`, true);
                 modal.show();
                 return;
             }
