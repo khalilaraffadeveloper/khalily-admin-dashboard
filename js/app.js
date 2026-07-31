@@ -203,6 +203,7 @@ let allDrivers = [];
 let allCustomers = [];
 let allRides = [];
 let ridesListUnsubscribe = null;
+let driversInfoCache = {};
 let currentPage = 'map';
 
 // ============================================
@@ -1215,23 +1216,41 @@ async function loadRidesList() {
 
                 allRides = [];
                 snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
-                const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
-                if (currentFilter === 'all') renderRidesList(allRides);
-                else renderRidesList(allRides.filter(r => r.status === currentFilter));
+                enrichRidesWithDrivers(allRides, () => {
+                    const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
+                    if (currentFilter === 'all') renderRidesList(allRides);
+                    else renderRidesList(allRides.filter(r => r.status === currentFilter));
+                });
             }, err => {
                 console.error('Rides listener error:', err);
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
             });
     } catch (err) {
         console.error('Load rides error:', err);
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
+}
+
+async function enrichRidesWithDrivers(rides, done) {
+    const ids = [...new Set(rides.map(r => r.assignedDriverId).filter(Boolean))];
+    const missing = ids.filter(id => !driversInfoCache[id]);
+    for (let i = 0; i < missing.length; i += 10) {
+        const chunk = missing.slice(i, i + 10);
+        try {
+            const snap = await db.collection('drivers').where('__name__', 'in', chunk).get();
+            snap.forEach(d => {
+                const dd = d.data();
+                driversInfoCache[d.id] = { name: dd.name || 'سائق', phone: dd.phone || '-' };
+            });
+        } catch (e) { console.error('Driver lookup error:', e); }
+    }
+    if (done) done();
 }
 
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
@@ -1242,15 +1261,21 @@ function renderRidesList(rides) {
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
         const dist = r.realDistanceKm ? `${r.realDistanceKm} كم` : '-';
+        const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
+        const driverName = driver ? driver.name : (r.assignedDriverId ? '...' : '-');
+        const driverPhone = driver ? driver.phone : '-';
         const cancelBtn = canCancel.includes(r.status)
             ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>` : '';
         return `<tr>
             <td><strong>${r.passengerName || '-'}</strong></td>
+            <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
             <td><small>${dist}</small></td>
             <td><strong>${fare}</strong> MRU</td>
             <td><strong class="text-danger">${comm}</strong> MRU</td>
+            <td><strong>${driverName}</strong></td>
+            <td class="d-none d-lg-table-cell"><small dir="ltr">${driverPhone}</small></td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
             <td>${cancelBtn}</td>
@@ -1333,12 +1358,15 @@ window.exportDriversCSV = function () {
 
 window.exportRidesCSV = function () {
     if (allRides.length === 0) { ARAalert('لا توجد رحلات للتصدير', 'info'); return; }
-    let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,الحالة,التاريخ\n';
+    let csv = '\uFEFF' + 'الزبون,هاتف الزبون,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,اسم السائق,هاتف السائق,الحالة,التاريخ\n';
     allRides.forEach(r => {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
-        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${r.status||''},${created}\n`;
+        const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
+        const driverName = driver ? driver.name : '';
+        const driverPhone = driver ? driver.phone : '';
+        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${driverName},${driverPhone},${r.status||''},${created}\n`;
     });
     downloadCSV(csv, 'ARAVA_rides.csv');
 };
