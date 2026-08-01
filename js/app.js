@@ -536,6 +536,11 @@ dispatchFocusChain.forEach((id, i) => {
     });
 });
 
+document.getElementById('fareInput').addEventListener('input', (e) => {
+    const v = normalizeDigits(e.target.value).replace(/[^\d.]/g, '');
+    if (e.target.value !== v) e.target.value = v;
+});
+
 function resetDispatchForm() {
     if (pickupMarker) map.removeLayer(pickupMarker);
     if (dropoffMarker) map.removeLayer(dropoffMarker);
@@ -571,7 +576,7 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     const pickupAddress = document.getElementById('pickupAddress').value.trim();
     const dropoffAddress = document.getElementById('dropoffAddress').value.trim();
     const radius = parseInt(document.getElementById('searchRadius').value);
-    const fare = parseFloat(document.getElementById('fareInput').value) || BASE_FARE;
+    const fare = parseNum(document.getElementById('fareInput').value) || BASE_FARE;
 
     if (!passengerName || !passengerPhone) {
         showStatus('dispatchStatus', 'يرجى إدخال اسم الزبون ورقم هاتفه', 'error');
