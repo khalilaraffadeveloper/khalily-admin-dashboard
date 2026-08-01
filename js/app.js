@@ -253,7 +253,11 @@ function initMap() {
                 if (activeBatchPoint === 'pickup') leg.pickup = { lat, lng };
                 else leg.dropoff = { lat, lng };
                 activeBatchLegIndex = -1;
+                setMapPickMode(false);
+                hideBatchPickCancel();
+                setBatchPickHint(null);
                 renderBatchLegs();
+                map.panTo([lat, lng]);
             }
             return;
         }
@@ -514,6 +518,12 @@ function closeDispatchPanel() {
     document.getElementById('dispatchPanel').classList.remove('open');
     document.getElementById('dispatchOverlay').classList.remove('show');
     setTimeout(() => document.getElementById('dispatchOverlay').classList.add('d-none'), 300);
+    activeBatchLegIndex = -1;
+    setMapPickMode(false);
+    hideBatchPickCancel();
+    setBatchPickHint(null);
+    batchMarkers.forEach(m => map.removeLayer(m));
+    batchMarkers = [];
 }
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
@@ -567,6 +577,9 @@ document.getElementById('batchSearchRadius')?.addEventListener('input', (e) => {
 
 window.setDispatchMode = function (mode) {
     dispatchMode = mode;
+    activeBatchLegIndex = -1;
+    setMapPickMode(false);
+    hideBatchPickCancel();
     const singleBtn = document.getElementById('dispatchModeSingleBtn');
     const batchBtn = document.getElementById('dispatchModeBatchBtn');
     const singleForm = document.getElementById('singleRideForm');
@@ -601,12 +614,100 @@ window.batchLegField = function (i, field, el) {
     updateDispatchBatchBtn();
 };
 
+let batchMarkers = [];
+
+function setMapPickMode(on) {
+    const el = document.getElementById('map');
+    if (!el || !map) return;
+    el.classList.toggle('map-picking', on);
+    if (on) {
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        map.doubleClickZoom.disable();
+    } else {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        map.doubleClickZoom.enable();
+    }
+}
+
+function showBatchPickCancel() {
+    let chip = document.getElementById('batchPickCancel');
+    if (!chip) {
+        chip = document.createElement('button');
+        chip.id = 'batchPickCancel';
+        chip.type = 'button';
+        chip.className = 'btn btn-sm btn-danger';
+        chip.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;box-shadow:0 2px 10px rgba(0,0,0,0.35);';
+        chip.innerHTML = '<i class="bi bi-x-lg me-1"></i>إلغاء تحديد النقطة';
+        chip.onclick = () => cancelBatchPick();
+        document.getElementById('map').appendChild(chip);
+    }
+    chip.classList.remove('d-none');
+}
+
+function hideBatchPickCancel() {
+    const chip = document.getElementById('batchPickCancel');
+    if (chip) chip.classList.add('d-none');
+}
+
+function setBatchPickHint(text) {
+    const hint = document.getElementById('batchPickHint');
+    if (!hint) return;
+    if (!text) {
+        hint.classList.add('d-none');
+        return;
+    }
+    hint.textContent = text;
+    hint.classList.remove('d-none');
+    hint.style.background = '#FFF3E0';
+    hint.style.color = '#B26A00';
+    hint.style.border = '1px solid #FFD180';
+}
+
+window.cancelBatchPick = function () {
+    activeBatchLegIndex = -1;
+    setMapPickMode(false);
+    hideBatchPickCancel();
+    setBatchPickHint(null);
+    renderBatchLegs();
+};
+
+function drawBatchMarkers() {
+    batchMarkers.forEach(m => map.removeLayer(m));
+    batchMarkers = [];
+    batchLegs.forEach((leg, i) => {
+        if (leg.pickup) {
+            const m = L.circleMarker([leg.pickup.lat, leg.pickup.lng], {
+                radius: 8, color: '#0B1849', weight: 2, fillColor: '#D4A843', fillOpacity: 1
+            });
+            m.bindTooltip(`انطلاق محطة ${i + 1}`, { direction: 'top' });
+            batchMarkers.push(m.addTo(map));
+        }
+        if (leg.dropoff) {
+            const m = L.circleMarker([leg.dropoff.lat, leg.dropoff.lng], {
+                radius: 8, color: '#0B1849', weight: 2, fillColor: '#1E7A2E', fillOpacity: 1
+            });
+            m.bindTooltip(`وجهة محطة ${i + 1}`, { direction: 'top' });
+            batchMarkers.push(m.addTo(map));
+        }
+    });
+}
+
 window.batchPickCoords = function (i, point) {
     if (!batchLegs[i]) return;
     activeBatchLegIndex = i;
     activeBatchPoint = point;
+    setMapPickMode(true);
+    showBatchPickCancel();
     const label = point === 'pickup' ? 'الانطلاق' : 'الوجهة';
-    ARAalert(`انقر على الخريطة لتحديد ${label} لمحطة ${i + 1}`, 'info');
+    setBatchPickHint(`انقر على الخريطة لتحديد ${label} لمحطة ${i + 1} — أو استخدم زر "إلغاء تحديد النقطة" أعلى الخريطة`);
     renderBatchLegs();
 };
 
@@ -645,6 +746,7 @@ function renderBatchLegs() {
     }
     updateBatchTotals();
     updateDispatchBatchBtn();
+    drawBatchMarkers();
 }
 
 function updateBatchTotals() {
