@@ -131,7 +131,10 @@
 
 /* ============ MAP ============ */
 .map-wrapper { height: calc(100vh - 110px); position: relative; }
-#map { z-index: 1; width: 100%; height: 100%; }
+#map { z-index: 1; width: 100%; height: 100%; position: relative; }
+#map.map-picking { cursor: crosshair !important; }
+#map.map-picking .leaflet-container,
+#map.map-picking .leaflet-interactive { cursor: crosshair !important; }
 
 /* ============ MAP SEARCH ============ */
 .map-search { position: absolute; top: 12px; left: 12px; z-index: 1000; width: 280px; max-width: calc(100% - 24px); }
