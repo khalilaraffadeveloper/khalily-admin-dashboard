@@ -485,6 +485,12 @@ window.toggleDispatchPanel = function () {
     document.getElementById('dispatchPanel').classList.toggle('open', dispatchPanelOpen);
     document.getElementById('dispatchOverlay').classList.toggle('show', dispatchPanelOpen);
     document.getElementById('dispatchOverlay').classList.toggle('d-none', !dispatchPanelOpen);
+    if (dispatchPanelOpen) {
+        setTimeout(() => {
+            const f = document.getElementById('passengerName');
+            if (f) f.focus();
+        }, 350);
+    }
 };
 
 function closeDispatchPanel() {
@@ -517,6 +523,17 @@ document.getElementById('clearDropoff').addEventListener('click', () => {
 
 ['passengerName', 'passengerPhone', 'pickupAddress', 'dropoffAddress'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateDispatchBtn);
+});
+
+const dispatchFocusChain = ['passengerName', 'passengerPhone', 'pickupAddress', 'dropoffAddress'];
+dispatchFocusChain.forEach((id, i) => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const nextId = dispatchFocusChain[i + 1] || 'dispatchBtn';
+        const next = document.getElementById(nextId);
+        if (next) next.focus();
+    });
 });
 
 function resetDispatchForm() {
@@ -1556,6 +1573,7 @@ function renderRidesList(rides) {
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
     const colors = { pending: 'warning', accepted: 'primary', in_progress: 'success', completed: 'purple', cancelled: 'danger', no_drivers: 'secondary' };
     const canCancel = ['pending', 'accepted', 'in_progress'];
+    const canRelaunch = ['cancelled', 'no_drivers'];
     tbody.innerHTML = rides.map(r => {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '-';
         const fare = r.fare || 0;
@@ -1565,8 +1583,11 @@ function renderRidesList(rides) {
         const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
         const driverName = driver ? driver.name : (r.assignedDriverId ? '...' : '-');
         const driverPhone = driver ? driver.phone : '-';
-        const cancelBtn = canCancel.includes(r.status)
-            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>` : '';
+        const actionBtn = canCancel.includes(r.status)
+            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>`
+            : canRelaunch.includes(r.status)
+                ? `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button>`
+                : '';
         return `<tr>
             <td><strong>${r.passengerName || '-'}</strong></td>
             <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
@@ -1579,7 +1600,7 @@ function renderRidesList(rides) {
             <td class="d-none d-lg-table-cell"><small dir="ltr">${driverPhone}</small></td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
-            <td>${cancelBtn}</td>
+            <td>${actionBtn}</td>
         </tr>`;
     }).join('');
 }
@@ -1591,6 +1612,62 @@ window.cancelRide = async function (rideId) {
         await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
         if (currentPage === 'rides') loadRidesList();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.reLaunchRide = async function (rideId) {
+    if (!requireDb()) return;
+    if (!(await ARAconfirm('سيتم إطلاق نفس الرحلة مرة أخرى بنفس المعلومات وتنبيه السائقين القريبين. متابعة؟'))) return;
+    try {
+        const snap = await db.collection('rides').doc(rideId).get();
+        if (!snap.exists) { ARAalert('الرحلة غير موجودة', 'error'); return; }
+        const r = snap.data();
+        if (r.status !== 'cancelled' && r.status !== 'no_drivers') {
+            ARAalert('يمكن إعادة إطلاق الرحلات الملغاة فقط', 'warning');
+            return;
+        }
+        const radius = r.searchRadiusKm || 3;
+        const lat = r.pickupLat || 0;
+        const lng = r.pickupLng || 0;
+        const rideData = {
+            passengerName: r.passengerName || '',
+            passengerPhone: r.passengerPhone || '',
+            pickupLat: lat,
+            pickupLng: lng,
+            dropoffLat: r.dropoffLat || 0,
+            dropoffLng: r.dropoffLng || 0,
+            pickupAddress: r.pickupAddress || '',
+            dropoffAddress: r.dropoffAddress || '',
+            realDistanceKm: r.realDistanceKm || 0,
+            searchRadiusKm: radius,
+            fare: r.fare || BASE_FARE,
+            commissionPercent: r.commissionPercent || commissionPercent,
+            status: 'pending',
+            reLaunchedFrom: rideId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        const docRef = await db.collection('rides').add(rideData);
+        const nearby = await findNearbyDrivers(lat, lng, radius);
+        if (nearby.length === 0) {
+            await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
+            addNotifLog('dispatch', `فشل إعادة الإطلاق: لا يوجد سائقون في نطاق ${radius} كم`);
+            ARAalert('لا يوجد سائقون متاحون في النطاق. الرحلة جديدة الآن كرحلة بلا سائق.', 'error');
+        } else {
+            const nearbyIds = nearby.map(d => d.id);
+            const tokens = nearby.filter(d => d.fcmToken).map(d => d.fcmToken);
+            await db.collection('rides').doc(docRef.id).update({
+                notifiedDrivers: nearbyIds,
+                notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            if (tokens.length > 0) {
+                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius);
+            }
+            addNotifLog('dispatch', `إعادة إطلاق رحلة ${rideData.passengerName}: ${rideData.pickupAddress} → ${rideData.dropoffAddress} | ${rideData.realDistanceKm} كم | ${rideData.fare} MRU | تنبيه ${nearby.length} سائق`);
+            ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
+        }
+        if (currentPage === 'rides') loadRidesList();
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
+    }
 };
 
 document.getElementById('filterRideStatus').addEventListener('change', () => {
