@@ -1161,8 +1161,8 @@
             <div class="mb-3">
                 <label class="form-label fw-bold">نقطة الانطلاق</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="pickupCoords" placeholder="انقر على الخريطة" readonly>
-                    <button class="btn btn-outline-danger" id="clearPickup"><i class="bi bi-trash"></i></button>
+                    <input type="text" class="form-control" id="pickupCoords" placeholder="انقر على الخريطة" readonly tabindex="-1">
+                    <button class="btn btn-outline-danger" id="clearPickup" tabindex="-1"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
             <div class="mb-3">
@@ -1171,14 +1171,14 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">نصف قطر البحث: <span class="text-gold fw-bold" id="radiusValue">3 كم</span></label>
-                <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3">
+                <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3" tabindex="-1">
                 <small class="text-muted">تحديد نطاق السائقين القريبين فقط</small>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">نقطة الوجهة</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="dropoffCoords" placeholder="نقرة ثانية = الوجهة" readonly>
-                    <button class="btn btn-outline-danger" id="clearDropoff"><i class="bi bi-trash"></i></button>
+                    <input type="text" class="form-control" id="dropoffCoords" placeholder="نقرة ثانية = الوجهة" readonly tabindex="-1">
+                    <button class="btn btn-outline-danger" id="clearDropoff" tabindex="-1"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
             <div class="mb-3">
@@ -1195,7 +1195,7 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">سعر الرحلة (MRU)</label>
-                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="أدخل السعر">
+                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="أدخل السعر" tabindex="-1">
                 <small class="text-muted">يُحدد يدوياً من قِبل المشرف</small>
             </div>
             <button class="btn btn-gold text-white fw-bold w-100 py-3" id="dispatchBtn" disabled>
