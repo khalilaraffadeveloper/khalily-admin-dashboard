@@ -1082,6 +1082,47 @@
         </div>
     </div>
 
+    <!-- EDIT ADMIN MODAL -->
+    <div class="modal fade" id="editAdminModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold"><i class="bi bi-pencil-square me-2 text-gold"></i>تعديل بيانات المشرف</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editAdminId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اسم المستخدم</label>
+                        <input type="text" class="form-control" id="editAdminUsername" disabled>
+                        <small class="text-muted">لا يمكن تغيير اسم المستخدم لأنه مرتبط بحساب المصادقة</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الاسم الكامل</label>
+                        <input type="text" class="form-control" id="editAdminName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الدور</label>
+                        <select class="form-select" id="editAdminRole">
+                            <option value="supervisor">مشرف</option>
+                            <option value="admin">مدير عام</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">كلمة مرور جديدة <small class="text-muted">(اختياري)</small></label>
+                        <input type="password" class="form-control" id="editAdminPassword" placeholder="اتركها فارغة للإبقاء على الحالية" autocomplete="new-password">
+                        <small class="text-muted">لا يمكن تغيير كلمة مرور مشرف مرتبط بالبريد الإلكتروني إلا من حسابه الخاص</small>
+                    </div>
+                    <div class="fw-semibold" id="editAdminStatus"></div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditAdminBtn">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DISPATCH PANEL (Custom - RTL safe) -->
     <div class="dispatch-panel-overlay d-none" id="dispatchOverlay" onclick="toggleDispatchPanel()"></div>
     <div class="dispatch-panel" id="dispatchPanel">

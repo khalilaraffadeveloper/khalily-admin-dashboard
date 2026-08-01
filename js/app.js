@@ -1148,6 +1148,7 @@ const customerCreditModal = new bootstrap.Modal(document.getElementById('custome
 const deleteCustomerModal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
 const customerPasswordModal = new bootstrap.Modal(document.getElementById('customerPasswordModal'));
 const editCustomerCreditModal = new bootstrap.Modal(document.getElementById('editCustomerCreditModal'));
+const editAdminModal = new bootstrap.Modal(document.getElementById('editAdminModal'));
 
 window.openPasswordModal = function(id, name) {
     document.getElementById('passwordDriverId').value = id;
@@ -1942,19 +1943,96 @@ async function loadAdminsList() {
         }
         const roleLabels = { admin: 'مدير عام', supervisor: 'مشرف' };
         const roleBadge = { admin: 'bg-primary', supervisor: 'bg-secondary' };
-        tbody.innerHTML = admins.map(a => `<tr>
+        tbody.innerHTML = admins.map(a => {
+            const safeName = (a.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `<tr>
             <td><strong>${a.name || '-'}</strong></td>
             <td>${a.username || '-'}</td>
             <td><span class="badge ${roleBadge[a.role] || 'bg-secondary'}">${roleLabels[a.role] || a.role}</span></td>
             <td>
-                <button class="btn-action btn-action-delete" onclick="deleteAdmin('${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">حذف</button>
+                <div class="d-flex gap-1 flex-wrap">
+                    <button class="btn-action btn-action-edit" onclick="openEditAdminModal('${a.id}','${safeName}','${a.username||''}','${a.role||'supervisor'}')">تعديل</button>
+                    <button class="btn-action btn-action-delete" onclick="deleteAdmin('${a.id}','${safeName}')">حذف</button>
+                </div>
             </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
     } catch (err) {
         console.error('Load admins error:', err);
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
+
+let editingAdminData = null;
+
+window.openEditAdminModal = function (id, name, username, role) {
+    editingAdminData = null;
+    document.getElementById('editAdminId').value = id;
+    document.getElementById('editAdminUsername').value = username || '';
+    document.getElementById('editAdminName').value = name || '';
+    document.getElementById('editAdminRole').value = role || 'supervisor';
+    document.getElementById('editAdminPassword').value = '';
+    document.getElementById('editAdminStatus').textContent = '';
+    editAdminModal.show();
+    db.collection('admins').doc(id).get().then(snap => {
+        if (snap.exists) editingAdminData = { id: snap.id, ...snap.data() };
+    }).catch(() => {});
+};
+
+document.getElementById('saveEditAdminBtn').addEventListener('click', async () => {
+    if (!requireDb('editAdminStatus')) return;
+    const id = document.getElementById('editAdminId').value;
+    const name = document.getElementById('editAdminName').value.trim();
+    const role = document.getElementById('editAdminRole').value;
+    const newPass = document.getElementById('editAdminPassword').value;
+    const statusEl = document.getElementById('editAdminStatus');
+    if (!name) { statusEl.textContent = 'أدخل الاسم الكامل'; statusEl.className = 'fw-semibold text-danger'; return; }
+
+    try {
+        const target = editingAdminData || (await db.collection('admins').doc(id).get()).data();
+
+        if (target.role === 'admin' && role !== 'admin') {
+            const snapshot = await db.collection('admins').get();
+            const admins = [];
+            snapshot.forEach(doc => admins.push({ id: doc.id, ...doc.data() }));
+            const otherAdmins = admins.filter(a => a.id !== id && a.role === 'admin');
+            if (otherAdmins.length === 0) {
+                statusEl.textContent = 'لا يمكن تغيير دور آخر مشرف بصلاحية مدير عام. يجب أن يبقى مشرف واحد على الأقل.';
+                statusEl.className = 'fw-semibold text-danger';
+                return;
+            }
+        }
+
+        await db.collection('admins').doc(id).update({ name, role });
+        let passwordMsg = '';
+        if (newPass) {
+            if (target.authUid) {
+                const currentUser = firebase.auth().currentUser;
+                if (currentUser && currentUser.uid === target.authUid) {
+                    try {
+                        await currentUser.updatePassword(newPass);
+                        await db.collection('admins').doc(id).update({ password: newPass });
+                        passwordMsg = ' وتحديث كلمة المرور';
+                    } catch (e) {
+                        passwordMsg = ' (فشل تحديث كلمة مرور المصادقة)';
+                    }
+                } else {
+                    passwordMsg = ' (كلمة المرور لم تتغير: مرتبطة بحساب بريد إلكتروني، غيّرها من حسابه الخاص)';
+                }
+            } else {
+                await db.collection('admins').doc(id).update({ password: newPass });
+                passwordMsg = ' وتحديث كلمة المرور';
+            }
+        }
+        statusEl.className = 'fw-semibold text-success';
+        statusEl.textContent = `تم حفظ تعديلات المشرف بنجاح${passwordMsg}`;
+        setTimeout(() => { editAdminModal.hide(); }, 900);
+        loadAdminsList();
+    } catch (err) {
+        statusEl.className = 'fw-semibold text-danger';
+        statusEl.textContent = 'خطأ: ' + err.message;
+    }
+});
 
 window.addAdmin = async function () {
     if (!requireDb('addAdminStatus')) return;
