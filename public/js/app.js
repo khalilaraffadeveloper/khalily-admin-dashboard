@@ -247,20 +247,6 @@ function initMap() {
 
     map.on('click', (e) => {
         const { lat, lng } = e.latlng;
-        if (dispatchMode === 'batch') {
-            if (activeBatchLegIndex >= 0 && batchLegs[activeBatchLegIndex]) {
-                const leg = batchLegs[activeBatchLegIndex];
-                if (activeBatchPoint === 'pickup') leg.pickup = { lat, lng };
-                else leg.dropoff = { lat, lng };
-                activeBatchLegIndex = -1;
-                setMapPickMode(false);
-                hideBatchPickCancel();
-                setBatchPickHint(null);
-                renderBatchLegs();
-                map.panTo([lat, lng]);
-            }
-            return;
-        }
         if (mapClickMode === 'pickup') {
             setPickupPoint(lat, lng);
             mapClickMode = 'dropoff';
@@ -493,10 +479,6 @@ navigateToPage('map');
 // DISPATCH PANEL (Custom RTL-safe)
 // ============================================
 let dispatchPanelOpen = false;
-let dispatchMode = 'single';
-let batchLegs = [];
-let activeBatchLegIndex = -1;
-let activeBatchPoint = 'pickup';
 
 window.toggleDispatchPanel = function () {
     dispatchPanelOpen = !dispatchPanelOpen;
@@ -505,9 +487,7 @@ window.toggleDispatchPanel = function () {
     document.getElementById('dispatchOverlay').classList.toggle('d-none', !dispatchPanelOpen);
     if (dispatchPanelOpen) {
         setTimeout(() => {
-            const f = dispatchMode === 'batch'
-                ? (document.querySelector('#batchLegsContainer input') || null)
-                : document.getElementById('passengerName');
+            const f = document.getElementById('passengerName');
             if (f) f.focus();
         }, 350);
     }
@@ -518,12 +498,6 @@ function closeDispatchPanel() {
     document.getElementById('dispatchPanel').classList.remove('open');
     document.getElementById('dispatchOverlay').classList.remove('show');
     setTimeout(() => document.getElementById('dispatchOverlay').classList.add('d-none'), 300);
-    activeBatchLegIndex = -1;
-    setMapPickMode(false);
-    hideBatchPickCancel();
-    setBatchPickHint(null);
-    batchMarkers.forEach(m => map.removeLayer(m));
-    batchMarkers = [];
 }
 
 document.getElementById('searchRadius').addEventListener('input', (e) => {
@@ -566,287 +540,6 @@ document.getElementById('fareInput').addEventListener('input', (e) => {
     const v = normalizeDigits(e.target.value).replace(/[^\d.]/g, '');
     if (e.target.value !== v) e.target.value = v;
 });
-
-// ============================================
-// BATCH DISPATCH (multiple legs, one driver)
-// ============================================
-document.getElementById('batchSearchRadius')?.addEventListener('input', (e) => {
-    const v = document.getElementById('batchRadiusValue');
-    if (v) v.textContent = `${e.target.value} كم`;
-});
-
-window.setDispatchMode = function (mode) {
-    dispatchMode = mode;
-    activeBatchLegIndex = -1;
-    setMapPickMode(false);
-    hideBatchPickCancel();
-    const singleBtn = document.getElementById('dispatchModeSingleBtn');
-    const batchBtn = document.getElementById('dispatchModeBatchBtn');
-    const singleForm = document.getElementById('singleRideForm');
-    const batchForm = document.getElementById('batchRideForm');
-    if (singleBtn) singleBtn.classList.toggle('active', mode === 'single');
-    if (batchBtn) batchBtn.classList.toggle('active', mode === 'batch');
-    if (singleForm) singleForm.classList.toggle('d-none', mode !== 'single');
-    if (batchForm) batchForm.classList.toggle('d-none', mode !== 'batch');
-    if (mode === 'batch' && batchLegs.length === 0) addBatchLeg();
-};
-
-window.addBatchLeg = function () {
-    batchLegs.push({ customerName: '', customerPhone: '', pickupAddr: '', dropoffAddr: '', fare: '', eta: '', pickup: null, dropoff: null });
-    renderBatchLegs();
-};
-
-window.removeBatchLeg = function (i) {
-    batchLegs.splice(i, 1);
-    if (activeBatchLegIndex >= batchLegs.length) activeBatchLegIndex = -1;
-    renderBatchLegs();
-};
-
-window.batchLegField = function (i, field, el) {
-    let value = el.value;
-    if (field === 'fare' || field === 'eta') {
-        value = normalizeDigits(value).replace(/[^\d.]/g, '');
-        if (el.value !== value) el.value = value;
-    }
-    if (!batchLegs[i]) return;
-    batchLegs[i][field] = value;
-    updateBatchTotals();
-    updateDispatchBatchBtn();
-};
-
-let batchMarkers = [];
-
-function setMapPickMode(on) {
-    const el = document.getElementById('map');
-    if (!el || !map) return;
-    el.classList.toggle('map-picking', on);
-    if (on) {
-        map.dragging.disable();
-        map.touchZoom.disable();
-        map.scrollWheelZoom.disable();
-        map.boxZoom.disable();
-        map.keyboard.disable();
-        map.doubleClickZoom.disable();
-    } else {
-        map.dragging.enable();
-        map.touchZoom.enable();
-        map.scrollWheelZoom.enable();
-        map.boxZoom.enable();
-        map.keyboard.enable();
-        map.doubleClickZoom.enable();
-    }
-}
-
-function showBatchPickCancel() {
-    let chip = document.getElementById('batchPickCancel');
-    if (!chip) {
-        chip = document.createElement('button');
-        chip.id = 'batchPickCancel';
-        chip.type = 'button';
-        chip.className = 'btn btn-sm btn-danger';
-        chip.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;box-shadow:0 2px 10px rgba(0,0,0,0.35);';
-        chip.innerHTML = '<i class="bi bi-x-lg me-1"></i>إلغاء تحديد النقطة';
-        chip.onclick = () => cancelBatchPick();
-        document.getElementById('map').appendChild(chip);
-    }
-    chip.classList.remove('d-none');
-}
-
-function hideBatchPickCancel() {
-    const chip = document.getElementById('batchPickCancel');
-    if (chip) chip.classList.add('d-none');
-}
-
-function setBatchPickHint(text) {
-    const hint = document.getElementById('batchPickHint');
-    if (!hint) return;
-    if (!text) {
-        hint.classList.add('d-none');
-        return;
-    }
-    hint.textContent = text;
-    hint.classList.remove('d-none');
-    hint.style.background = '#FFF3E0';
-    hint.style.color = '#B26A00';
-    hint.style.border = '1px solid #FFD180';
-}
-
-window.cancelBatchPick = function () {
-    activeBatchLegIndex = -1;
-    setMapPickMode(false);
-    hideBatchPickCancel();
-    setBatchPickHint(null);
-    renderBatchLegs();
-};
-
-function drawBatchMarkers() {
-    batchMarkers.forEach(m => map.removeLayer(m));
-    batchMarkers = [];
-    batchLegs.forEach((leg, i) => {
-        if (leg.pickup) {
-            const m = L.circleMarker([leg.pickup.lat, leg.pickup.lng], {
-                radius: 8, color: '#0B1849', weight: 2, fillColor: '#D4A843', fillOpacity: 1
-            });
-            m.bindTooltip(`انطلاق محطة ${i + 1}`, { direction: 'top' });
-            batchMarkers.push(m.addTo(map));
-        }
-        if (leg.dropoff) {
-            const m = L.circleMarker([leg.dropoff.lat, leg.dropoff.lng], {
-                radius: 8, color: '#0B1849', weight: 2, fillColor: '#1E7A2E', fillOpacity: 1
-            });
-            m.bindTooltip(`وجهة محطة ${i + 1}`, { direction: 'top' });
-            batchMarkers.push(m.addTo(map));
-        }
-    });
-}
-
-window.batchPickCoords = function (i, point) {
-    if (!batchLegs[i]) return;
-    activeBatchLegIndex = i;
-    activeBatchPoint = point;
-    setMapPickMode(true);
-    showBatchPickCancel();
-    const label = point === 'pickup' ? 'الانطلاق' : 'الوجهة';
-    setBatchPickHint(`انقر على الخريطة لتحديد ${label} لمحطة ${i + 1} — أو استخدم زر "إلغاء تحديد النقطة" أعلى الخريطة`);
-    renderBatchLegs();
-};
-
-function renderBatchLegs() {
-    const container = document.getElementById('batchLegsContainer');
-    if (!container) return;
-    if (batchLegs.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted small py-3">لا توجد محطات بعد. أضف محطة للبدء.</div>';
-    } else {
-        container.innerHTML = batchLegs.map((leg, i) => {
-            const pickupOk = leg.pickup ? '<span class="text-success small">✓ انطلاق</span>' : '<span class="text-muted small">انطلاق؟</span>';
-            const dropoffOk = leg.dropoff ? '<span class="text-success small">✓ وجهة</span>' : '<span class="text-muted small">وجهة؟</span>';
-            const activeCls = activeBatchLegIndex === i ? ' border border-primary' : '';
-            return `<div class="card border-0 shadow-sm mb-2 p-2${activeCls}">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <strong class="text-dark-blue small"><i class="bi bi-box-seam me-1"></i>محطة ${i + 1}</strong>
-                    <div class="d-flex align-items-center gap-1">
-                        <span>${pickupOk} | ${dropoffOk}</span>
-                        <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeBatchLeg(${i})"><i class="bi bi-trash"></i></button>
-                    </div>
-                </div>
-                <div class="row g-1">
-                    <div class="col-6"><input class="form-control form-control-sm" type="text" placeholder="اسم الزبون" value="${leg.customerName || ''}" oninput="batchLegField(${i},'customerName',this)"></div>
-                    <div class="col-6"><input class="form-control form-control-sm" type="tel" dir="ltr" placeholder="هاتف الزبون" value="${leg.customerPhone || ''}" oninput="batchLegField(${i},'customerPhone',this)"></div>
-                    <div class="col-6"><input class="form-control form-control-sm" type="text" placeholder="عنوان الانطلاق" value="${leg.pickupAddr || ''}" oninput="batchLegField(${i},'pickupAddr',this)"></div>
-                    <div class="col-6"><input class="form-control form-control-sm" type="text" placeholder="عنوان الوجهة" value="${leg.dropoffAddr || ''}" oninput="batchLegField(${i},'dropoffAddr',this)"></div>
-                    <div class="col-4"><input class="form-control form-control-sm" type="text" inputmode="numeric" dir="ltr" placeholder="السعر MRU" value="${leg.fare || ''}" oninput="batchLegField(${i},'fare',this)"></div>
-                    <div class="col-4"><input class="form-control form-control-sm" type="text" inputmode="numeric" dir="ltr" placeholder="الوقت (دقيقة)" value="${leg.eta || ''}" oninput="batchLegField(${i},'eta',this)"></div>
-                    <div class="col-4 d-flex gap-1 align-items-center">
-                        <button class="btn btn-sm btn-outline-secondary flex-fill py-1" onclick="batchPickCoords(${i},'pickup')"><i class="bi bi-crosshair me-1"></i>انطلاق</button>
-                        <button class="btn btn-sm btn-outline-secondary flex-fill py-1" onclick="batchPickCoords(${i},'dropoff')"><i class="bi bi-crosshair me-1"></i>وجهة</button>
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-    }
-    updateBatchTotals();
-    updateDispatchBatchBtn();
-    drawBatchMarkers();
-}
-
-function updateBatchTotals() {
-    const total = batchLegs.reduce((s, l) => s + (parseNum(l.fare) || 0), 0);
-    const fareEl = document.getElementById('batchTotalFare');
-    const countEl = document.getElementById('batchLegsCount');
-    if (fareEl) fareEl.textContent = `${total} MRU`;
-    if (countEl) countEl.textContent = `${batchLegs.length} محطة`;
-}
-
-function updateDispatchBatchBtn() {
-    const btn = document.getElementById('dispatchBatchBtn');
-    if (!btn) return;
-    const first = batchLegs[0];
-    const valid = batchLegs.length > 0 && first && first.pickup && batchLegs.every(l =>
-        (l.customerName || '').trim() && (l.pickupAddr || '').trim() && (l.dropoffAddr || '').trim() && parseNum(l.fare) > 0
-    );
-    btn.disabled = !valid;
-}
-
-window.dispatchBatch = async function () {
-    if (!requireDb('dispatchBatchStatus')) return;
-    const first = batchLegs[0];
-    if (!first || !first.pickup) {
-        showStatus('dispatchBatchStatus', 'حدد نقطة انطلاق المحطة الأولى من الخريطة', 'error');
-        return;
-    }
-    const radius = parseInt(document.getElementById('batchSearchRadius').value) || 3;
-    const btn = document.getElementById('dispatchBatchBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>جاري الإرسال...';
-    let totalFare = 0;
-    try {
-        const batchRef = db.collection('batches').doc();
-        const legIds = [];
-        for (let i = 0; i < batchLegs.length; i++) {
-            const leg = batchLegs[i];
-            const fare = parseNum(leg.fare) || 0;
-            totalFare += fare;
-            const realDist = (leg.pickup && leg.dropoff)
-                ? Math.round(haversine(leg.pickup.lat, leg.pickup.lng, leg.dropoff.lat, leg.dropoff.lng) * 100) / 100
-                : 0;
-            const legDoc = {
-                passengerName: (leg.customerName || '').trim(),
-                passengerPhone: (leg.customerPhone || '').trim(),
-                pickupLat: leg.pickup ? leg.pickup.lat : 0,
-                pickupLng: leg.pickup ? leg.pickup.lng : 0,
-                dropoffLat: leg.dropoff ? leg.dropoff.lat : 0,
-                dropoffLng: leg.dropoff ? leg.dropoff.lng : 0,
-                pickupAddress: (leg.pickupAddr || '').trim(),
-                dropoffAddress: (leg.dropoffAddr || '').trim(),
-                realDistanceKm: realDist,
-                searchRadiusKm: radius,
-                fare,
-                commissionPercent,
-                estimatedMinutes: parseInt(parseNum(leg.eta)) || 0,
-                batchId: batchRef.id,
-                batchIndex: i,
-                status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            const docRef = await db.collection('rides').add(legDoc);
-            legIds.push(docRef.id);
-        }
-
-        await batchRef.set({
-            driverId: '',
-            status: 'pending',
-            legIds,
-            legCount: batchLegs.length,
-            totalFare,
-            currentIndex: 0,
-            notifiedDrivers: [],
-            notificationSentAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        const nearby = await findNearbyDrivers(first.pickup.lat, first.pickup.lng, radius);
-        if (nearby.length === 0) {
-            await batchRef.update({ status: 'no_drivers' });
-            showStatus('dispatchBatchStatus', 'لا يوجد سائقون متاحون في النطاق', 'error');
-            addNotifLog('dispatch', `فشل إرسال الحزمة: لا يوجد سائقون في نطاق ${radius} كم (${batchLegs.length} محطة)`);
-        } else {
-            const nearbyIds = nearby.map(d => d.id);
-            const tokens = nearby.filter(d => d.fcmToken).map(d => d.fcmToken);
-            await batchRef.update({ notifiedDrivers: nearbyIds });
-            sendBatchNotifications(tokens, batchRef.id, batchLegs.length, totalFare, first.pickupAddr);
-            showStatus('dispatchBatchStatus', `تم إرسال الحزمة! تنبيه ${nearby.length} سائق | ${batchLegs.length} محطة | ${totalFare} MRU`, 'success');
-            addNotifLog('dispatch', `حزمة ${batchLegs.length} محطة: ${totalFare} MRU | تنبيه ${nearby.length} سائق`);
-        }
-        batchLegs = [];
-        renderBatchLegs();
-        addBatchLeg();
-        setTimeout(closeDispatchPanel, 2000);
-    } catch (err) {
-        showStatus('dispatchBatchStatus', 'حدث خطأ: ' + err.message, 'error');
-    }
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>إرسال الحزمة للسائقين';
-};
 
 function resetDispatchForm() {
     if (pickupMarker) map.removeLayer(pickupMarker);
@@ -1001,18 +694,14 @@ async function getAppConfigData() {
 }
 
 async function deleteAllRides() {
-    let total = 0;
-    for (const col of ['rides', 'batches']) {
-        const snapshot = await db.collection(col).get();
-        const ids = snapshot.docs.map(d => d.id);
-        for (let i = 0; i < ids.length; i += 500) {
-            const batch = db.batch();
-            ids.slice(i, i + 500).forEach(id => batch.delete(db.collection(col).doc(id)));
-            await batch.commit();
-        }
-        total += ids.length;
+    const snapshot = await db.collection('rides').get();
+    const ids = snapshot.docs.map(d => d.id);
+    for (let i = 0; i < ids.length; i += 500) {
+        const batch = db.batch();
+        ids.slice(i, i + 500).forEach(id => batch.delete(db.collection('rides').doc(id)));
+        await batch.commit();
     }
-    return total;
+    return ids.length;
 }
 
 async function loadRidesCleanupSettings() {
@@ -1905,7 +1594,7 @@ function renderRidesList(rides) {
                 ? `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button>`
                 : '';
         return `<tr>
-            <td><strong>${r.batchId ? '<i class="bi bi-box-seam text-info me-1" title="محطة من حزمة"></i>' : ''}${r.passengerName || '-'}</strong></td>
+            <td><strong>${r.passengerName || '-'}</strong></td>
             <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
@@ -2092,15 +1781,6 @@ async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, ln
     addNotifLog('system', `FCM: تم إرسال إشعار ${tokens.length} سائق بنجاح`);
 }
 
-async function sendBatchNotifications(tokens, batchId, legCount, totalFare, firstPickup) {
-    console.log(`FCM BATCH: ${tokens.length} tokens, batch ${batchId}, legs ${legCount}`);
-    if (tokens.length === 0) {
-        addNotifLog('system', `FCM: لا توجد رموز إشعارات لسائقي الحزمة`);
-        return;
-    }
-    addNotifLog('system', `FCM: تم إرسال إشعار حزمة إلى ${tokens.length} سائق`);
-}
-
 // ============================================
 // NOTIFICATION LOG
 // ============================================
@@ -2158,7 +1838,7 @@ window.confirmResetAllData = async function () {
     const status = document.getElementById('resetStatus');
     status.innerHTML = '<span class="text-danger"><i class="bi bi-hourglass-split me-1"></i>جاري مسح البيانات...</span>';
     requireDb('resetStatus');
-    const collections = ['rides', 'batches', 'customers', 'drivers', 'messages'];
+    const collections = ['rides', 'customers', 'drivers', 'messages'];
     let completed = 0;
     collections.forEach(async (col) => {
         try {
