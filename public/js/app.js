@@ -458,7 +458,7 @@ function navigateToPage(page) {
     if (page === 'customers') loadCustomersList();
     if (page === 'unregistered-customers') loadUnregisteredCustomers();
     if (page === 'rides') loadRidesList();
-    if (page === 'settings') loadCommission();
+    if (page === 'settings') { loadCommission(); loadRidesCleanupSettings(); }
     if (page === 'admins') loadAdminsList();
     if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); }
     if (page === 'promotions') loadPromotionsList();
@@ -658,6 +658,104 @@ window.saveCommission = async function () {
         ARAalert('تم حفظ النسبة بنجاح', 'success');
     } catch (e) {
         ARAalert('خطأ: ' + e.message, 'error');
+    }
+};
+
+// ============================================
+// DAILY RIDES CLEANUP
+// ============================================
+async function getAppConfigData() {
+    try {
+        const doc = await db.collection('settings').doc('app_config').get();
+        return doc.exists ? doc.data() : {};
+    } catch (e) { return {}; }
+}
+
+async function deleteAllRides() {
+    const snapshot = await db.collection('rides').get();
+    const ids = snapshot.docs.map(d => d.id);
+    for (let i = 0; i < ids.length; i += 500) {
+        const batch = db.batch();
+        ids.slice(i, i + 500).forEach(id => batch.delete(db.collection('rides').doc(id)));
+        await batch.commit();
+    }
+    return ids.length;
+}
+
+async function loadRidesCleanupSettings() {
+    if (!db) return;
+    try {
+        const cfg = await getAppConfigData();
+        const cb = document.getElementById('ridesCleanupAuto');
+        if (cb) cb.checked = cfg.ridesCleanupAuto !== false;
+        const lastRunEl = document.getElementById('ridesCleanupLastRun');
+        if (lastRunEl) {
+            const t = cfg.ridesCleanupLastRun && cfg.ridesCleanupLastRun.toDate ? cfg.ridesCleanupLastRun.toDate() : null;
+            lastRunEl.textContent = t ? t.toLocaleString('ar-MA') : 'لم يتم بعد';
+        }
+    } catch (e) { console.log('Cleanup settings load error'); }
+}
+
+async function checkDailyRidesCleanup() {
+    if (!db) return;
+    try {
+        const cfg = await getAppConfigData();
+        if (cfg.ridesCleanupAuto === false) return;
+        const lastRun = cfg.ridesCleanupLastRun && cfg.ridesCleanupLastRun.toDate ? cfg.ridesCleanupLastRun.toDate().getTime() : 0;
+        const DAY = 24 * 60 * 60 * 1000;
+        if (!lastRun) {
+            await db.collection('settings').doc('app_config').set(
+                { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            return;
+        }
+        if (Date.now() - lastRun >= DAY) {
+            const count = await deleteAllRides();
+            await db.collection('settings').doc('app_config').set(
+                { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            addNotifLog('system', `🧹 بدأ يوم جديد: تم مسح سجل الرحلات (${count} رحلة)`);
+            if (currentPage === 'rides') loadRidesList();
+            loadRidesCleanupSettings();
+        }
+    } catch (e) {
+        console.error('Daily rides cleanup error:', e);
+    }
+}
+
+document.getElementById('ridesCleanupAuto')?.addEventListener('change', async (e) => {
+    if (!requireDb()) return;
+    const val = e.target.checked;
+    try {
+        await db.collection('settings').doc('app_config').set({ ridesCleanupAuto: val }, { merge: true });
+        if (val) {
+            await db.collection('settings').doc('app_config').set(
+                { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            loadRidesCleanupSettings();
+        }
+        ARAalert(val ? 'تم تفعيل المسح التلقائي يوميًا' : 'تم إيقاف المسح التلقائي', 'success');
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
+        e.target.checked = !val;
+    }
+});
+
+window.clearRidesNow = async function () {
+    if (sessionStorage.getItem('ARAVA_admin_role') !== 'admin') {
+        ARAalert('هذا الإجراء متاح فقط لصلاحية مدير عام', 'warning');
+        return;
+    }
+    if (!(await ARAconfirm('سيتم حذف سجل الرحلات بالكامل الآن. هل أنت متأكد؟'))) return;
+    if (!(await ARAconfirm('تأكيد نهائي: سيبدأ يوم جديد بسجل فارغ. متابعة؟'))) return;
+    if (!requireDb()) return;
+    try {
+        const count = await deleteAllRides();
+        await db.collection('settings').doc('app_config').set(
+            { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        addNotifLog('system', `🧹 تم مسح سجل الرحلات يدويًا (${count} رحلة)`);
+        if (currentPage === 'rides') loadRidesList();
+        loadRidesCleanupSettings();
+        ARAalert(`تم مسح سجل الرحلات (${count} رحلة)`, 'success');
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
     }
 };
 
@@ -2442,9 +2540,11 @@ function initDashboard() {
     initMap();
     bindMapSearch();
     loadCommission();
+    loadRidesCleanupSettings();
     loadStats();
     initRealtimeListeners();
     applyRoleVisibility();
+    checkDailyRidesCleanup();
     setInterval(loadStats, 60000);
     addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }
