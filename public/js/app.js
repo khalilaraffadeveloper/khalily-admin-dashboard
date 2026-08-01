@@ -1642,6 +1642,10 @@ window.clearNotifLog = function () {
 };
 
 window.confirmResetAllData = async function () {
+    if (sessionStorage.getItem('ARAVA_admin_role') !== 'admin') {
+        ARAalert('هذا الإجراء متاح فقط لصلاحية مدير عام', 'warning');
+        return;
+    }
     if (!(await ARAconfirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟'))) return;
     if (!(await ARAconfirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟'))) return;
     const status = document.getElementById('resetStatus');
