@@ -1560,6 +1560,7 @@ function renderRidesList(rides) {
         const created = r.createdAt?.toDate ? new Date(r.createdAt.toDate()).toLocaleString('ar-MA') : '-';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
+        const commPct = r.commissionPercent || commissionPercent;
         const dist = r.realDistanceKm ? `${r.realDistanceKm} كم` : '-';
         const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
         const driverName = driver ? driver.name : (r.assignedDriverId ? '...' : '-');
@@ -1573,7 +1574,7 @@ function renderRidesList(rides) {
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
             <td><small>${dist}</small></td>
             <td><strong>${fare}</strong> MRU</td>
-            <td><strong class="text-danger">${comm}</strong> MRU</td>
+            <td><strong class="text-danger">${comm}</strong> MRU <small class="text-muted">(${commPct}%)</small></td>
             <td><strong>${driverName}</strong></td>
             <td class="d-none d-lg-table-cell"><small dir="ltr">${driverPhone}</small></td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
@@ -1619,6 +1620,7 @@ async function loadStats() {
         document.getElementById('statTodayRides').textContent = todayRidesSnap.size;
 
         let totalComm = 0;
+        let cancelledComm = 0;
         let totalRidesCount = 0;
         let activeCount = 0;
         let completedCount = 0;
@@ -1629,11 +1631,16 @@ async function loadStats() {
             if (r.status === 'completed') {
                 completedCount++;
                 if (r.commissionAmount) totalComm += r.commissionAmount;
+            } else if (r.status === 'cancelled' && (r.cancelledBy === 'driver' || r.cancelledBy === 'driver_cancel')) {
+                if (r.commissionAmount) {
+                    totalComm += r.commissionAmount;
+                    cancelledComm += r.commissionAmount;
+                }
             }
             if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
         });
         document.getElementById('statTotalRides').textContent = totalRidesCount;
-        document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>`;
+        document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>${cancelledComm > 0 ? `<br><small class="d-block" style="font-size:10px;color:#e53935;">منها ${cancelledComm} MRU من رحلات ألغاها السائق</small>` : ''}`;
         document.getElementById('statActiveRides').textContent = activeCount;
 
         const custSnap = await db.collection('customers').get();
