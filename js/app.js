@@ -1748,17 +1748,41 @@ function initMsgTypeSwitch() {
 }
 initMsgTypeSwitch();
 
+let msgSelectAllChecked = false;
+
+function syncMsgSelectAllCheckbox() {
+    const sel = document.getElementById('msgRecipients');
+    const cb = document.getElementById('msgSelectAll');
+    if (!sel || !cb) return;
+    const all = sel.options.length > 0 && Array.from(sel.options).every(o => o.selected);
+    cb.checked = all;
+    msgSelectAllChecked = all;
+}
+
+document.getElementById('msgSelectAll')?.addEventListener('change', (e) => {
+    msgSelectAllChecked = e.target.checked;
+    const sel = document.getElementById('msgRecipients');
+    Array.from(sel.options).forEach(o => { o.selected = msgSelectAllChecked; });
+});
+
+document.getElementById('msgRecipients')?.addEventListener('change', () => {
+    syncMsgSelectAllCheckbox();
+});
+
 async function loadMsgRecipients() {
     if (!requireDb()) return;
     const sel = document.getElementById('msgRecipients');
     if (!sel) return;
-    sel.innerHTML = '<option value="all">جميع السائقين</option>';
+    sel.innerHTML = '';
     try {
         const snap = await db.collection('drivers').get();
         snap.forEach(doc => {
             const d = doc.data();
             sel.innerHTML += `<option value="${doc.id}">${d.name || 'سائق'} (${d.phone || ''})</option>`;
         });
+        if (msgSelectAllChecked) {
+            Array.from(sel.options).forEach(o => { o.selected = true; });
+        }
     } catch (e) { console.log('Recipients load error'); }
 }
 
@@ -1770,7 +1794,7 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
     const senderName = sessionStorage.getItem('ARAVA_admin_name') || 'المدير';
     const msg = { type, sentBy: senderName, readBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
 
-    if (recipientIds.includes('all')) {
+    if (msgSelectAllChecked) {
         const snap = await db.collection('drivers').get();
         msg.recipients = snap.docs.map(d => d.id);
         msg.recipientLabel = 'جميع السائقين';
