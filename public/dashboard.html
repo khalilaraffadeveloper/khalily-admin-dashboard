@@ -1150,6 +1150,11 @@
             <button type="button" class="btn-close btn-close-white" onclick="toggleDispatchPanel()"></button>
         </div>
         <div class="dispatch-panel-body p-3">
+            <div class="btn-group w-100 mb-3" role="group" aria-label="نوع الإرسال">
+                <button type="button" class="btn btn-sm btn-outline-primary fw-bold active" id="dispatchModeSingleBtn" onclick="setDispatchMode('single')"><i class="bi bi-geo-alt me-1"></i>رحلة واحدة</button>
+                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="dispatchModeBatchBtn" onclick="setDispatchMode('batch')"><i class="bi bi-box-seam me-1"></i>حزمة رحلات</button>
+            </div>
+            <div id="singleRideForm">
             <div class="mb-3">
                 <label class="form-label fw-bold">اسم الزبون</label>
                 <input type="text" class="form-control" id="passengerName" placeholder="أدخل اسم الزبون">
@@ -1202,6 +1207,25 @@
                 <i class="bi bi-send-fill me-2"></i>إرسال تنبيه للسائقين
             </button>
             <div class="text-center mt-2 fw-semibold" id="dispatchStatus"></div>
+            </div>
+            <!-- BATCH MODE -->
+            <div id="batchRideForm" class="d-none">
+                <div id="batchLegsContainer"></div>
+                <button class="btn btn-outline-primary w-100 fw-bold mb-2" id="addBatchLegBtn" onclick="addBatchLeg()"><i class="bi bi-plus-lg me-1"></i>أضف محطة</button>
+                <div class="mb-2">
+                    <label class="form-label small fw-bold mb-1">نطاق البحث عن سائق (كم): <span class="text-gold fw-bold" id="batchRadiusValue">3</span></label>
+                    <input type="range" class="form-range" id="batchSearchRadius" min="1" max="10" value="3" tabindex="-1">
+                </div>
+                <div class="bg-light rounded-3 p-3 text-center mb-3">
+                    <small class="text-muted">إجمالي الحزمة</small>
+                    <div class="fs-5 fw-bold text-dark-blue" id="batchTotalFare">0 MRU</div>
+                    <small class="text-muted" id="batchLegsCount">0 محطة</small>
+                </div>
+                <button class="btn btn-gold text-white fw-bold w-100 py-3" id="dispatchBatchBtn" onclick="dispatchBatch()" disabled>
+                    <i class="bi bi-send-fill me-2"></i>إرسال الحزمة للسائقين
+                </button>
+                <div class="text-center mt-2 fw-semibold" id="dispatchBatchStatus"></div>
+            </div>
         </div>
     </div>
 
