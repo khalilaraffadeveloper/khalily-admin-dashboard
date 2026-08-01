@@ -110,7 +110,7 @@ function ARAconfirm(message) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        var MAX_W = 800, MAX_H = 800, QUALITY = 0.4, SIZE_LIMIT = 300 * 1024;
+        var MAX_W = 640, MAX_H = 640, QUALITY = 0.3, SIZE_LIMIT = 100 * 1024;
         if (file.size <= SIZE_LIMIT) {
             var reader = new FileReader();
             reader.onload = function (e) { resolve(e.target.result); };
@@ -2008,16 +2008,19 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
     } else if (type === 'image') {
         const fileInput = document.getElementById('msgImageFile');
         if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر صورة', 'error'); return; }
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            msg.content = ev.target.result;
-            await sendMsgToFirestore(msg);
-        };
-        reader.readAsDataURL(fileInput.files[0]);
+        showStatus('msgSendStatus', 'جاري ضغط الصورة وإرسالها...', '');
+        const b64 = await fileToBase64(fileInput.files[0]);
+        if (!b64) { showStatus('msgSendStatus', 'فشل قراءة الصورة', 'error'); return; }
+        msg.content = b64;
+        await sendMsgToFirestore(msg);
         return;
     } else if (type === 'audio') {
         const fileInput = document.getElementById('msgAudioFile');
         if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر ملف صوتي', 'error'); return; }
+        if (fileInput.files[0].size > 600 * 1024) {
+            showStatus('msgSendStatus', 'الملف الصوتي كبير جداً (الحد 600KB) - مستندات Firestore محدودة بحجم 1MB', 'error');
+            return;
+        }
         const reader = new FileReader();
         reader.onload = async (ev) => {
             msg.content = ev.target.result;
@@ -2032,6 +2035,10 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
 
 async function sendMsgToFirestore(msg) {
     try {
+        if (typeof msg.content === 'string' && msg.content.length > 900 * 1024) {
+            showStatus('msgSendStatus', 'الرسالة كبيرة جداً (أكثر من 900KB) - اختر صورة/مقطع أصغر أو قلّل عدد الصور', 'error');
+            return;
+        }
         await db.collection('messages').add(msg);
         showStatus('msgSendStatus', `تم إرسال الرسالة لـ ${msg.recipientLabel} بنجاح!`, 'success');
         document.getElementById('msgText').value = '';
@@ -2467,6 +2474,13 @@ window.addPromotion = async function() {
             return;
         }
 
+        var promoSize = images.reduce(function (s, u) { return s + (u ? u.length : 0); }, 0);
+        if (promoSize > 850 * 1024) {
+            showStatus('addPromoStatus', 'الصور كبيرة جداً (' + Math.round(promoSize / 1024) + 'KB) - مستند Firestore محدود بـ 1MB. اختر صوراً أصغر.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة العرض';
+            return;
+        }
+
         await db.collection('promotions').add({
             title, type, description, videoUrl, images,
             active: true,
@@ -2611,6 +2625,13 @@ window.addProduct = async function() {
 
         if (prodImageFiles.length > 0 && images.length === 0) {
             showStatus('addProductStatus', 'فشل رفع الصور. جرب صوراً أصغر أو استخدم رابط مباشر.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة المنتج';
+            return;
+        }
+
+        var prodSize = images.reduce(function (s, u) { return s + (u ? u.length : 0); }, 0);
+        if (prodSize > 850 * 1024) {
+            showStatus('addProductStatus', 'الصور كبيرة جداً (' + Math.round(prodSize / 1024) + 'KB) - مستند Firestore محدود بـ 1MB. اختر صوراً أصغر.', 'error');
             btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة المنتج';
             return;
         }
