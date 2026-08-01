@@ -435,6 +435,7 @@ const pageTitles = {
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
+    announcements: 'الإعلانات',
     admins: 'إدارة المشرفين',
     promotions: 'العروض والنشاطات',
     products: 'المتجر والمنتجات'
@@ -461,6 +462,7 @@ function navigateToPage(page) {
     if (page === 'settings') { loadCommission(); loadRidesCleanupSettings(); }
     if (page === 'admins') loadAdminsList();
     if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); }
+    if (page === 'announcements') loadAnnouncements();
     if (page === 'promotions') loadPromotionsList();
     if (page === 'products') loadProductsList();
 }
@@ -2113,6 +2115,92 @@ window.clearOldMessages = async function() {
         snap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
         loadSentMessages();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+// ============================================
+// ANNOUNCEMENTS (BROADCAST TO ALL DRIVERS)
+// ============================================
+window.sendAnnouncement = async function () {
+    if (!requireDb('annSendStatus')) return;
+    const title = document.getElementById('annTitle').value.trim();
+    const content = document.getElementById('annContent').value.trim();
+    if (!title && !content) { showStatus('annSendStatus', 'اكتب عنوان الإعلان أو نصه', 'error'); return; }
+    if (!content) { showStatus('annSendStatus', 'اكتب نص الإعلان', 'error'); return; }
+
+    const senderName = sessionStorage.getItem('ARAVA_admin_name') || 'المدير';
+    try {
+        await db.collection('announcements').add({
+            title: title || 'إعلان من الإدارة',
+            content: content,
+            sentBy: senderName,
+            readBy: [],
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus('annSendStatus', 'تم إرسال الإعلان لجميع السائقين بنجاح!', 'success');
+        document.getElementById('annTitle').value = '';
+        document.getElementById('annContent').value = '';
+        loadAnnouncements();
+    } catch (err) {
+        showStatus('annSendStatus', 'خطأ: ' + err.message, 'error');
+    }
+};
+
+async function loadAnnouncements() {
+    if (!requireDb()) return;
+    const container = document.getElementById('annListContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-4"><div class="ARAVA-spinner"></div></div>';
+
+    try {
+        const snap = await db.collection('announcements').orderBy('timestamp', 'desc').limit(50).get();
+        document.getElementById('annCount').textContent = snap.size;
+
+        if (snap.empty) {
+            container.innerHTML = '<div class="text-center text-muted py-4 small">لا توجد إعلانات بعد</div>';
+            return;
+        }
+
+        container.innerHTML = snap.docs.map(doc => {
+            const a = doc.data();
+            const time = a.timestamp?.toDate ? new Date(a.timestamp.toDate()).toLocaleString('ar-MA') : '';
+            const readCount = (a.readBy || []).length;
+            const totalDrivers = 0;
+            return `<div class="log-entry p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="badge bg-warning text-dark"><i class="bi bi-bullhorn-fill me-1"></i>${a.title || 'إعلان'}</span>
+                    <small class="text-muted">${time}</small>
+                </div>
+                <div class="mb-1">${a.content || ''}</div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted"><i class="bi bi-person"></i> ${a.sentBy || 'المدير'} | <i class="bi bi-eye"></i> ${readCount} قراءة</small>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement('${doc.id}')"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<div class="text-center text-danger py-4">خطأ في تحميل الإعلانات</div>';
+    }
+}
+
+window.deleteAnnouncement = async function (id) {
+    if (!(await ARAconfirm('هل تريد حذف هذا الإعلان؟'))) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('announcements').doc(id).delete();
+        loadAnnouncements();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.clearOldAnnouncements = async function () {
+    if (!(await ARAconfirm('حذف جميع الإعلانات القديمة؟'))) return;
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('announcements').get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        loadAnnouncements();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
