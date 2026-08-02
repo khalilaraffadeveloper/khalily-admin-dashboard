@@ -2266,6 +2266,7 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
     const newPass = document.getElementById('editAdminPassword').value;
     const statusEl = document.getElementById('editAdminStatus');
     if (!name) { statusEl.textContent = 'أدخل الاسم الكامل'; statusEl.className = 'fw-semibold text-danger'; return; }
+    if (newPass && newPass.length < 6) { statusEl.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'; statusEl.className = 'fw-semibold text-danger'; return; }
 
     try {
         const target = editingAdminData || (await db.collection('admins').doc(id).get()).data();
@@ -2323,6 +2324,7 @@ window.addAdmin = async function () {
     if (!username) { showStatus('addAdminStatus', 'أدخل اسم المستخدم', 'error'); return; }
     if (!name) { showStatus('addAdminStatus', 'أدخل الاسم الكامل', 'error'); return; }
     if (!password) { showStatus('addAdminStatus', 'أدخل كلمة المرور', 'error'); return; }
+    if (password.length < 6) { showStatus('addAdminStatus', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error'); return; }
 
     try {
         const existing = await db.collection('admins').where('username', '==', username).get();
