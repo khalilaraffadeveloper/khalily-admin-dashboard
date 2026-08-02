@@ -155,4 +155,32 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// POST /api/send-fcm - send FCM push to arbitrary tokens
+router.post("/send-fcm", async (req, res) => {
+  try {
+    const { tokens, title, body, data } = req.body;
+    if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+      return res.status(400).json({ error: "tokens array required" });
+    }
+    const cleanData = {};
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) cleanData[k] = String(v);
+    });
+    const messaging = require("firebase-admin").messaging();
+    const message = {
+      tokens,
+      notification: { title: title || "ARAVA", body: body || "إشعار جديد" },
+      data: cleanData,
+    };
+    const response = await messaging.sendEachForMulticast(message);
+    res.json({
+      success: true,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

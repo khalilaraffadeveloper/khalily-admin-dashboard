@@ -127,6 +127,40 @@ app.post('/api/dispatch-ride', async (req, res) => {
     }
 });
 
+// API: Send FCM push notification to arbitrary tokens (rides, deliveries, calls)
+app.post('/api/send-fcm', async (req, res) => {
+    try {
+        const { tokens, title, body, data } = req.body;
+
+        if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+            return res.status(400).json({ error: 'tokens array required' });
+        }
+
+        const cleanData = {};
+        Object.entries(data || {}).forEach(([k, v]) => {
+            if (v !== undefined && v !== null) cleanData[k] = String(v);
+        });
+
+        const message = {
+            notification: { title: title || 'ARAVA', body: body || 'إشعار جديد' },
+            data: cleanData,
+            tokens
+        };
+
+        const response = await admin.messaging().sendEachForMulticast(message);
+
+        console.log(`FCM: ${response.successCount} notified, ${response.failureCount} failed`);
+        res.json({
+            success: true,
+            successCount: response.successCount,
+            failureCount: response.failureCount
+        });
+    } catch (error) {
+        console.error('FCM send error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // API: Accept ride with Firestore Transaction (race condition protection)
 app.post('/api/accept-ride', async (req, res) => {
     try {

@@ -151,6 +151,8 @@
 .btn-action-credit:hover { background: #C8E6C9; }
 .btn-action-toggle { background: #FFF3E0; color: #E65100; border: none; }
 .btn-action-toggle:hover { background: #FFE0B2; }
+.btn-action-send { background: #E3F2FD; color: #0D47A1; border: none; }
+.btn-action-send:hover { background: #BBDEFB; }
 .btn-action-delete { background: #FFEBEE; color: #C62828; border: none; }
 .btn-action-delete:hover { background: #FFCDD2; }
 
@@ -202,28 +204,103 @@
 .log-badge-danger { background: #FFEBEE; color: #C62828; }
 .log-badge-info { background: #E3F2FD; color: #1565C0; }
 
-/* ============ STATS BAR ============ */
+/* ============ STATS BAR (Dark + Gold) ============ */
+.stats-bar {
+    background: var(--k-blue);
+    border-bottom: 2px solid var(--k-gold);
+}
 .stat-item {
     min-width: 80px;
-    border-radius: 8px;
-    transition: background 0.2s;
+    margin: 4px;
+    padding: 10px 12px !important;
+    border-radius: 14px;
+    border: 2px solid var(--k-gold);
+    background: var(--k-blue-light);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.stat-item:hover { background: #f0f4ff; }
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(212,168,67,0.35);
+}
 .stat-label {
     font-size: 11px;
     line-height: 1.3;
     margin-bottom: 2px;
+    font-weight: 700;
+    color: #ffffff;
 }
 .stat-value {
     font-size: 20px;
     font-weight: 800;
     line-height: 1.2;
+    color: #ffffff;
 }
 .stat-value small {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--k-gold);
 }
 @media (max-width: 576px) {
     .stat-value { font-size: 16px; }
     .stat-label { font-size: 10px; }
 }
+
+/* ============ DARK CARDS + GOLD BORDERS ============ */
+.page-content .card {
+    border: 2px solid var(--k-gold) !important;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(11,24,73,0.12) !important;
+}
+.page-content .card-header {
+    background: var(--k-blue) !important;
+    border-bottom: 2px solid var(--k-gold);
+    border-radius: 12px 12px 0 0 !important;
+}
+.page-content .card-header h6 {
+    color: #ffffff !important;
+}
+.page-content .card-header .btn {
+    color: var(--k-gold);
+    border-color: var(--k-gold);
+}
+.page-content .card-header .btn:hover {
+    background: var(--k-gold);
+    color: #fff;
+}
+.page-content .form-label {
+    font-weight: 700;
+    color: var(--k-blue);
+}
+.page-content .form-control,
+.page-content .form-select {
+    border: 1.5px solid #c9c9c9;
+    font-weight: 600;
+    border-radius: 10px;
+}
+.page-content .form-control:focus,
+.page-content .form-select:focus {
+    border-color: var(--k-gold);
+    box-shadow: 0 0 0 0.2rem rgba(212,168,67,0.25);
+}
+.page-content table th {
+    font-weight: 700;
+    color: var(--k-blue);
+}
+
+/* ============ FLOATING BUTTONS ============ */
+.btn-gold, .btn-dark-blue {
+    border-radius: 50px;
+    box-shadow: 0 4px 14px rgba(11,24,73,0.28);
+}
+.btn-gold { background: var(--k-gold); border-color: var(--k-gold); color: #fff; }
+.btn-gold:hover { background: var(--k-gold-light); border-color: var(--k-gold-light); color: #fff; }
+.btn-action {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 50px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+/* ============ BOOTSTRAP OVERRIDES ============ */

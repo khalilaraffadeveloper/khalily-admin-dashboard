@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260726" />
+    <link rel="stylesheet" href="css/style.css?v=20260805" />
 </head>
 <body class="bg-light">
 
@@ -47,6 +47,12 @@
             </a>
             <a href="#" class="sidebar-link" data-page="products">
                 <i class="bi bi-shop"></i> المتجر والمنتجات
+            </a>
+            <a href="#" class="sidebar-link" data-page="stores">
+                <i class="bi bi-store"></i> المتاجر والنشاطات الذكية
+            </a>
+            <a href="#" class="sidebar-link" data-page="ladies">
+                <i class="bi bi-gem"></i> متجر عرفه للسيدات
             </a>
         </div>
         <div class="sidebar-stats px-3 pb-3">
@@ -103,6 +109,12 @@
                     </a>
                     <a href="#" class="sidebar-link" data-page="products" data-bs-dismiss="offcanvas">
                         <i class="bi bi-shop"></i> المتجر والمنتجات
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="stores" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-store"></i> المتاجر والنشاطات الذكية
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="ladies" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-gem"></i> متجر عرفه للسيدات
                     </a>
                 </div>
                 <div class="px-3 pb-3 mt-auto">
@@ -768,9 +780,150 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-people me-2 text-gold"></i>منتجات الزبائن (المرفوعة من التطبيق) (<span id="customerProductCount">0</span>)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="customerProductsList" class="row g-3">
+                                    <div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+
+    <!-- STORES (SMART PROMOTIONS) PAGE -->
+    <div class="page-content d-none" id="page-stores">
+        <div class="container-fluid p-3 p-md-4">
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom">
+                            <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-plus-circle me-2 text-gold"></i>إضافة متجر / نشاط ذكي</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">اسم المتجر</label>
+                                    <input type="text" class="form-control" id="storeName" placeholder="اسم المتجر">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">رقم الهاتف</label>
+                                    <input type="text" class="form-control" id="storePhone" placeholder="رقم الهاتف">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">الحي / الموقع</label>
+                                    <input type="text" class="form-control" id="storeDistrict" placeholder="الحي / الموقع">
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold">صورة المتجر</label>
+                                    <input type="file" class="form-control" id="storeImage" accept="image/*">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">رابط صورة (اختياري)</label>
+                                    <input type="text" class="form-control" id="storeImageUrl" placeholder="https://...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">الحالة</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" id="storeActive" checked>
+                                        <label class="form-check-label" for="storeActive">ظاهر في التطبيق</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <div id="storeImagePreview" class="d-none">
+                                        <img src="" alt="معاينة" class="img-thumbnail rounded-3" style="max-height:120px;">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary px-4" id="btnAddStore" onclick="addStore()"><i class="bi bi-plus-lg me-2"></i>إضافة المتجر</button>
+                                    <div class="mt-2 fw-semibold" id="addStoreStatus"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-store me-2 text-gold"></i>المتاجر والنشاطات الذكية (<span id="storeCount">0</span>)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="storesList" class="row g-3">
+                                <div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LADIES STORE PAGE -->
+    <div class="page-content d-none" id="page-ladies">
+        <div class="container-fluid p-3 p-md-4">
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom">
+                            <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-plus-circle me-2 text-gold"></i>إضافة منتج إلى متجر عرفه للسيدات</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">اسم المنتج</label>
+                                    <input type="text" class="form-control" id="ladiesName" placeholder="اسم المنتج">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">السعر (MRU)</label>
+                                    <input type="number" class="form-control" id="ladiesPrice" placeholder="السعر">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">رقم الهاتف</label>
+                                    <input type="text" class="form-control" id="ladiesPhone" placeholder="رقم الهاتف">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">الوصف</label>
+                                    <textarea class="form-control" id="ladiesDescription" rows="2" placeholder="وصف المنتج"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">صور المنتج</label>
+                                    <input type="file" class="form-control" id="ladiesImages" accept="image/*" multiple>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold small">أو أدخل روابط صور مباشرة (واحد لكل سطر)</label>
+                                    <textarea class="form-control" id="ladiesImageUrls" rows="2" placeholder="https://example.com/image1.jpg"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <div id="ladiesImagesPreview" class="d-flex flex-wrap gap-2"></div>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary px-4" id="btnAddLadiesProduct" onclick="addLadiesProduct()"><i class="bi bi-plus-lg me-2"></i>إضافة المنتج</button>
+                                    <div class="mt-2 fw-semibold" id="addLadiesStatus"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-gem me-2 text-gold"></i>منتجات متجر عرفه للسيدات (<span id="ladiesCount">0</span>)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="ladiesList" class="row g-3">
+                                <div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- EDIT DRIVER MODAL -->
     <div class="modal fade" id="editDriverModal" tabindex="-1">
@@ -1169,6 +1322,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260731"></script>
+    <script src="js/app.js?v=20260805"></script>
 </body>
 </html>
