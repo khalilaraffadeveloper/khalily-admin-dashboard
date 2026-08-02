@@ -110,7 +110,7 @@ function ARAconfirm(message) {
 // ============================================
 function fileToBase64(file) {
     return new Promise(function (resolve, reject) {
-        var MAX_W = 800, MAX_H = 800, QUALITY = 0.4, SIZE_LIMIT = 300 * 1024;
+        var MAX_W = 640, MAX_H = 640, QUALITY = 0.3, SIZE_LIMIT = 100 * 1024;
         if (file.size <= SIZE_LIMIT) {
             var reader = new FileReader();
             reader.onload = function (e) { resolve(e.target.result); };
@@ -204,6 +204,7 @@ let allCustomers = [];
 let allRides = [];
 let ridesListUnsubscribe = null;
 let deliveriesUnsubscribe = null;
+let driversInfoCache = {};
 let currentPage = 'map';
 
 // ============================================
@@ -224,9 +225,26 @@ function calculateFare(distanceKm) {
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([18.0735, -15.9582], 13);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap', maxZoom: 19
-    }).addTo(map);
+    });
+    const esriStreetsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri', maxZoom: 19
+    });
+    const esriImageryLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Imagery © Esri', maxZoom: 19
+    });
+
+    esriStreetsLayer.addTo(map);
+
+    L.control.layers({
+        'الشوارع (Esri)': esriStreetsLayer,
+        'الخريطة العادية (OSM)': osmLayer,
+        'الأقمار الصناعية (Esri)': esriImageryLayer
+    }, null, { position: 'topright' }).addTo(map);
+
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
 
     map.on('click', (e) => {
         const { lat, lng } = e.latlng;
@@ -250,6 +268,53 @@ function initMap() {
         updateDispatchBtn();
     });
 }
+
+let searchResultMarker = null;
+
+function bindMapSearch() {
+    const input = document.getElementById('mapSearchInput');
+    const btn = document.getElementById('mapSearchBtn');
+    const resultsBox = document.getElementById('mapSearchResults');
+    if (!input || !btn || !resultsBox) return;
+
+    const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    async function doSearch() {
+        const q = input.value.trim();
+        if (!q) { resultsBox.innerHTML = ''; return; }
+        try {
+            const res = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) +
+                '&format=json&limit=6&accept-language=ar');
+            const data = await res.json();
+            if (!data.length) { resultsBox.innerHTML = '<div class="map-search-empty">لا توجد نتائج</div>'; return; }
+            resultsBox.innerHTML = data.map((r, i) =>
+                '<div class="map-search-result" data-i="' + i + '">' + escapeHtml(r.display_name) + '</div>').join('');
+            resultsBox.querySelectorAll('.map-search-result').forEach(el => {
+                el.onclick = () => {
+                    const r = data[parseInt(el.dataset.i)];
+                    map.flyTo([parseFloat(r.lat), parseFloat(r.lon)], 16);
+                    if (searchResultMarker) map.removeLayer(searchResultMarker);
+                    searchResultMarker = L.marker([parseFloat(r.lat), parseFloat(r.lon)]).addTo(map)
+                        .bindPopup(escapeHtml(r.display_name)).openPopup();
+                    resultsBox.innerHTML = '';
+                    input.value = '';
+                };
+            });
+        } catch (e) { console.error('Map search error:', e); }
+    }
+
+    btn.addEventListener('click', doSearch);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.map-search')) resultsBox.innerHTML = '';
+    });
+}
+
+document.getElementById('darkModeBtn').addEventListener('click', () => {
+    document.body.classList.toggle('map-dark');
+    const icon = document.querySelector('#darkModeBtn i');
+    if (icon) icon.className = document.body.classList.contains('map-dark') ? 'bi bi-brightness-high' : 'bi bi-moon-stars';
+});
 
 function setPickupPoint(lat, lng) {
     pickupCoords = { lat, lng };
@@ -368,9 +433,11 @@ const pageTitles = {
     drivers: 'إدارة السائقين',
     customers: 'إدارة الزبائن',
     deliveries: 'التوصيلات',
+    'unregistered-customers': 'الزبناء غير المسجلين',
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
+    announcements: 'الإعلانات',
     admins: 'إدارة المشرفين',
     promotions: 'العروض والنشاطات',
     products: 'المتجر والمنتجات',
@@ -396,10 +463,12 @@ function navigateToPage(page) {
     if (page === 'drivers') loadDriversList();
     if (page === 'customers') loadCustomersList();
     if (page === 'deliveries') initDeliveriesListener();
+    if (page === 'unregistered-customers') loadUnregisteredCustomers();
     if (page === 'rides') loadRidesList();
-    if (page === 'settings') loadCommission();
+    if (page === 'settings') { loadCommission(); loadRidesCleanupSettings(); }
     if (page === 'admins') loadAdminsList();
     if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); loadSentCustomerMessages(); }
+    if (page === 'announcements') loadAnnouncements();
     if (page === 'promotions') loadPromotionsList();
     if (page === 'products') { loadProductsList(); loadCustomerProductsList(); }
     if (page === 'stores') loadStoresList();
@@ -426,6 +495,12 @@ window.toggleDispatchPanel = function () {
     document.getElementById('dispatchPanel').classList.toggle('open', dispatchPanelOpen);
     document.getElementById('dispatchOverlay').classList.toggle('show', dispatchPanelOpen);
     document.getElementById('dispatchOverlay').classList.toggle('d-none', !dispatchPanelOpen);
+    if (dispatchPanelOpen) {
+        setTimeout(() => {
+            const f = document.getElementById('passengerName');
+            if (f) f.focus();
+        }, 350);
+    }
 };
 
 function closeDispatchPanel() {
@@ -458,6 +533,22 @@ document.getElementById('clearDropoff').addEventListener('click', () => {
 
 ['passengerName', 'passengerPhone', 'pickupAddress', 'dropoffAddress'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateDispatchBtn);
+});
+
+const dispatchFocusChain = ['passengerName', 'passengerPhone', 'pickupAddress', 'dropoffAddress'];
+dispatchFocusChain.forEach((id, i) => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const nextId = dispatchFocusChain[i + 1] || 'dispatchBtn';
+        const next = document.getElementById(nextId);
+        if (next) next.focus();
+    });
+});
+
+document.getElementById('fareInput').addEventListener('input', (e) => {
+    const v = normalizeDigits(e.target.value).replace(/[^\d.]/g, '');
+    if (e.target.value !== v) e.target.value = v;
 });
 
 function resetDispatchForm() {
@@ -495,7 +586,7 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
     const pickupAddress = document.getElementById('pickupAddress').value.trim();
     const dropoffAddress = document.getElementById('dropoffAddress').value.trim();
     const radius = parseInt(document.getElementById('searchRadius').value);
-    const fare = parseFloat(document.getElementById('fareInput').value) || BASE_FARE;
+    const fare = parseNum(document.getElementById('fareInput').value) || BASE_FARE;
 
     if (!passengerName || !passengerPhone) {
         showStatus('dispatchStatus', 'يرجى إدخال اسم الزبون ورقم هاتفه', 'error');
@@ -603,8 +694,120 @@ window.saveCommission = async function () {
 };
 
 // ============================================
+// DAILY RIDES CLEANUP
+// ============================================
+async function getAppConfigData() {
+    try {
+        const doc = await db.collection('settings').doc('app_config').get();
+        return doc.exists ? doc.data() : {};
+    } catch (e) { return {}; }
+}
+
+async function deleteAllRides() {
+    const snapshot = await db.collection('rides').get();
+    const ids = snapshot.docs.map(d => d.id);
+    for (let i = 0; i < ids.length; i += 500) {
+        const batch = db.batch();
+        ids.slice(i, i + 500).forEach(id => batch.delete(db.collection('rides').doc(id)));
+        await batch.commit();
+    }
+    return ids.length;
+}
+
+async function loadRidesCleanupSettings() {
+    if (!db) return;
+    try {
+        const cfg = await getAppConfigData();
+        const cb = document.getElementById('ridesCleanupAuto');
+        if (cb) cb.checked = cfg.ridesCleanupAuto !== false;
+        const lastRunEl = document.getElementById('ridesCleanupLastRun');
+        if (lastRunEl) {
+            const t = cfg.ridesCleanupLastRun && cfg.ridesCleanupLastRun.toDate ? cfg.ridesCleanupLastRun.toDate() : null;
+            lastRunEl.textContent = t ? t.toLocaleString('ar-MA') : 'لم يتم بعد';
+        }
+    } catch (e) { console.log('Cleanup settings load error'); }
+}
+
+async function checkDailyRidesCleanup() {
+    if (!db) return;
+    try {
+        const cfg = await getAppConfigData();
+        if (cfg.ridesCleanupAuto === false) return;
+        const lastRun = cfg.ridesCleanupLastRun && cfg.ridesCleanupLastRun.toDate ? cfg.ridesCleanupLastRun.toDate().getTime() : 0;
+        const DAY = 24 * 60 * 60 * 1000;
+        if (!lastRun) {
+            await db.collection('settings').doc('app_config').set(
+                { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            return;
+        }
+        if (Date.now() - lastRun >= DAY) {
+            const count = await deleteAllRides();
+            await db.collection('settings').doc('app_config').set(
+                { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            addNotifLog('system', `🧹 بدأ يوم جديد: تم مسح سجل الرحلات (${count} رحلة)`);
+            if (currentPage === 'rides') loadRidesList();
+            loadRidesCleanupSettings();
+        }
+    } catch (e) {
+        console.error('Daily rides cleanup error:', e);
+    }
+}
+
+document.getElementById('ridesCleanupAuto')?.addEventListener('change', async (e) => {
+    if (!requireDb()) return;
+    const val = e.target.checked;
+    try {
+        await db.collection('settings').doc('app_config').set({ ridesCleanupAuto: val }, { merge: true });
+        if (val) {
+            await db.collection('settings').doc('app_config').set(
+                { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            loadRidesCleanupSettings();
+        }
+        ARAalert(val ? 'تم تفعيل المسح التلقائي يوميًا' : 'تم إيقاف المسح التلقائي', 'success');
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
+        e.target.checked = !val;
+    }
+});
+
+window.clearRidesNow = async function () {
+    if (sessionStorage.getItem('ARAVA_admin_role') !== 'admin') {
+        ARAalert('هذا الإجراء متاح فقط لصلاحية مدير عام', 'warning');
+        return;
+    }
+    if (!(await ARAconfirm('سيتم حذف سجل الرحلات بالكامل الآن. هل أنت متأكد؟'))) return;
+    if (!(await ARAconfirm('تأكيد نهائي: سيبدأ يوم جديد بسجل فارغ. متابعة؟'))) return;
+    if (!requireDb()) return;
+    try {
+        const count = await deleteAllRides();
+        await db.collection('settings').doc('app_config').set(
+            { ridesCleanupLastRun: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        addNotifLog('system', `🧹 تم مسح سجل الرحلات يدويًا (${count} رحلة)`);
+        if (currentPage === 'rides') loadRidesList();
+        loadRidesCleanupSettings();
+        ARAalert(`تم مسح سجل الرحلات (${count} رحلة)`, 'success');
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
+    }
+};
+
+const ARABIC_DIGIT_MAP = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9' };
+function normalizeDigits(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[٠-٩۰-۹]/g, ch => ARABIC_DIGIT_MAP[ch] || ch);
+}
+function parseNum(str) {
+    const cleaned = normalizeDigits(str).replace(/[^\d.\-]/g, '');
+    if (cleaned === '') return NaN;
+    const v = parseFloat(cleaned);
+    return isNaN(v) ? NaN : v;
+}
+
+// ============================================
 // DRIVER SEARCH
 // ============================================
+let lastSearchedDriverId = null;
+
 window.searchDriverByPhone = async function () {
     if (!requireDb()) return;
     const phone = document.getElementById('searchDriverPhone').value.trim();
@@ -615,38 +818,74 @@ window.searchDriverByPhone = async function () {
     try {
         const snapshot = await db.collection('drivers').where('phone', '==', phone).get();
         if (snapshot.empty) {
+            lastSearchedDriverId = null;
             resultEl.innerHTML = '<div class="alert alert-danger py-2">لم يتم العثور على سائق</div>';
             return;
         }
         const doc = snapshot.docs[0];
-        const d = doc.data();
-        resultEl.innerHTML = `
-            <div class="bg-light rounded-3 p-3">
-                <p class="fw-bold mb-1">${d.name || '-'}</p>
-                <p class="text-muted small mb-1">الهاتف: ${d.phone} | الرصيد: <strong class="text-gold">${d.credit || 0} MRU</strong></p>
-                <div class="input-group input-group-sm mt-2">
-                    <input type="number" class="form-control" id="quickCreditAmount" placeholder="المبلغ" min="1">
-                    <button class="btn btn-success text-white fw-bold" onclick="quickAddCredit('${doc.id}')">شحن</button>
-                </div>
-            </div>`;
+        lastSearchedDriverId = doc.id;
+        renderDriverSearchResult(doc.id, doc.data());
     } catch (e) {
         resultEl.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
     }
 };
 
+function renderDriverSearchResult(id, d) {
+    const resultEl = document.getElementById('searchDriverResult');
+    if (!resultEl) return;
+    const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const disabled = !!d.disabled;
+    resultEl.innerHTML = `
+        <div class="bg-light rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <p class="fw-bold mb-1">${d.name || '-'}</p>
+                    <p class="text-muted small mb-1">الهاتف: <span dir="ltr">${d.phone || '-'}</span> | الرصيد: <strong class="text-gold">${d.credit || 0} MRU</strong></p>
+                </div>
+                <span class="badge ${disabled ? 'bg-danger' : 'bg-success'}">${disabled ? 'معطّل' : 'مفعّل'}</span>
+            </div>
+            <div class="d-flex gap-1 flex-wrap mt-2">
+                <button class="btn-action btn-action-edit" onclick="openEditModal('${id}','${safeName}','${d.phone||''}','${disabled?"disabled":"active"}')">تعديل</button>
+                <button class="btn-action btn-action-credit" onclick="openCreditModal('${id}','${safeName}',${d.credit||0})">شحن</button>
+                <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
+                <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${id}',${disabled})">${disabled ? 'تفعيل' : 'تعطيل'}</button>
+                <button class="btn-action btn-action-delete" onclick="openDeleteModal('${id}','${safeName}')">حذف</button>
+            </div>
+            <div class="input-group input-group-sm mt-2" style="max-width:280px">
+                <input type="text" class="form-control" id="quickCreditAmount" placeholder="المبلغ (MRU)" inputmode="numeric">
+                <button class="btn btn-success text-white fw-bold" onclick="quickAddCredit('${id}')">شحن سريع</button>
+            </div>
+        </div>`;
+}
+
 window.quickAddCredit = async function (driverId) {
-    const amount = parseFloat(document.getElementById('quickCreditAmount').value);
+    const amount = parseNum(document.getElementById('quickCreditAmount').value);
     if (!amount || amount <= 0) { ARAalert('أدخل مبلغ صحيح', 'warning'); return; }
     try {
         await db.collection('drivers').doc(driverId).update({
             credit: firebase.firestore.FieldValue.increment(amount)
         });
         ARAalert(`تم شحن ${amount} MRU بنجاح`, 'success');
-        searchDriverByPhone();
+        refreshDriverSearchResult();
         if (currentPage === 'drivers') loadDriversList();
     } catch (e) {
         ARAalert('خطأ: ' + e.message, 'error');
     }
+};
+
+window.refreshDriverSearchResult = async function () {
+    if (!lastSearchedDriverId) return;
+    const resultEl = document.getElementById('searchDriverResult');
+    if (!resultEl) return;
+    try {
+        const snap = await db.collection('drivers').doc(lastSearchedDriverId).get();
+        if (snap.exists) {
+            renderDriverSearchResult(snap.id, snap.data());
+        } else {
+            lastSearchedDriverId = null;
+            resultEl.innerHTML = '<div class="alert alert-warning py-2">تم حذف هذا السائق من قاعدة البيانات</div>';
+        }
+    } catch (e) { console.error('Search refresh error:', e); }
 };
 
 // ============================================
@@ -735,7 +974,7 @@ document.getElementById('registerDriverBtn').addEventListener('click', async () 
     const phone = document.getElementById('newDriverPhone').value.trim();
     const password = document.getElementById('newDriverPassword').value.trim();
     const vehicle = document.getElementById('newDriverVehicle')?.value || 'motorcycle';
-    const credit = parseFloat(document.getElementById('newDriverCredit').value) || 0;
+    const credit = parseNum(document.getElementById('newDriverCredit').value) || 0;
 
     if (!name) { showStatus(statusEl, 'أدخل اسم السائق', 'error'); return; }
     if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
@@ -803,7 +1042,7 @@ function renderDriversList(drivers) {
         const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `<tr>
             <td><strong>${d.name || '-'}</strong></td>
-            <td>${d.phone || '-'}</td>
+            <td><span dir="ltr">${d.phone || '-'}</span></td>
             <td><span class="text-muted">${d.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPasswordModal('${d.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
             <td><strong>${d.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
@@ -840,6 +1079,86 @@ function filterDrivers() {
 }
 
 // ============================================
+// UNREGISTERED CUSTOMERS
+// ============================================
+let allUnregisteredCustomers = [];
+
+async function loadUnregisteredCustomers() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('unregCustomersTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل البيانات...</div></td></tr>';
+    try {
+        const [ridesSnap, custSnap] = await Promise.all([
+            db.collection('rides').orderBy('createdAt', 'desc').limit(500).get(),
+            db.collection('customers').get()
+        ]);
+        const registered = new Set();
+        custSnap.forEach(c => {
+            const cc = c.data();
+            if (cc.phone) registered.add(normalizeDigits(cc.phone).replace(/[^\d]/g, ''));
+        });
+        const agg = {};
+        ridesSnap.forEach(doc => {
+            const r = doc.data();
+            const phone = normalizeDigits(r.passengerPhone || '').replace(/[^\d]/g, '');
+            if (!phone || registered.has(phone)) return;
+            if (!agg[phone]) agg[phone] = { name: r.passengerName || 'زبون', phone, rides: 0, total: 0, last: null };
+            agg[phone].rides++;
+            const fare = parseNum(r.fare);
+            agg[phone].total += (isNaN(fare) ? 0 : fare);
+            const t = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate() : null;
+            if (t && (!agg[phone].last || t > agg[phone].last)) {
+                agg[phone].last = t;
+                agg[phone].name = r.passengerName || agg[phone].name;
+            }
+        });
+        allUnregisteredCustomers = Object.values(agg).sort((a, b) => b.rides - a.rides);
+        renderUnregisteredCustomers(allUnregisteredCustomers);
+    } catch (err) {
+        console.error('Load unregistered customers error:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
+}
+
+function renderUnregisteredCustomers(list) {
+    const tbody = document.getElementById('unregCustomersTableBody');
+    document.getElementById('totalUnregCustomersCount').textContent = list.length;
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا يوجد زبناء غير مسجلين</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(c => `<tr>
+        <td><strong>${c.name || '-'}</strong></td>
+        <td><span dir="ltr">${c.phone}</span></td>
+        <td>${c.rides}</td>
+        <td><strong>${c.total || 0}</strong> MRU</td>
+        <td><small>${c.last ? c.last.toLocaleString('ar-MA') : '-'}</small></td>
+    </tr>`).join('');
+}
+
+document.getElementById('searchUnregCustomers').addEventListener('input', () => {
+    const q = document.getElementById('searchUnregCustomers').value.trim();
+    renderUnregisteredCustomers(allUnregisteredCustomers.filter(c => {
+        return !q || (c.name || '').includes(q) || c.phone.includes(q) ||
+            (c.name || '').localeCompare(q, 'ar', { sensitivity: 'base' }) === 0;
+    }));
+});
+
+window.exportUnregisteredCustomersCSV = function () {
+    if (!allUnregisteredCustomers.length) { ARAalert('لا توجد بيانات للتصدير', 'warning'); return; }
+    const rows = [['الاسم', 'الهاتف', 'عدد الرحلات', 'إجمالي المبالغ', 'آخر رحلة']];
+    allUnregisteredCustomers.forEach(c => {
+        rows.push([c.name || '', c.phone, c.rides, c.total || 0, c.last ? c.last.toLocaleString('ar-MA') : '']);
+    });
+    const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'unregistered_customers.csv';
+    a.click();
+};
+
+// ============================================
 // CUSTOMERS LIST
 // ============================================
 async function loadCustomersList() {
@@ -871,8 +1190,8 @@ function renderCustomersList(customers) {
         const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `<tr>
             <td><strong>${c.name || '-'}</strong></td>
-            <td>${c.phone || '-'}</td>
-            <td>${c.whatsapp || '-'}</td>
+            <td><span dir="ltr">${c.phone || '-'}</span></td>
+            <td><span dir="ltr">${c.whatsapp || '-'}</span></td>
             <td><span class="text-muted">${c.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openCustomerPasswordModal('${c.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
             <td><strong>${c.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
@@ -915,7 +1234,7 @@ document.getElementById('registerCustomerBtn').addEventListener('click', async (
     const phone = document.getElementById('newCustomerPhone').value.trim();
     const whatsapp = document.getElementById('newCustomerWhatsapp').value.trim();
     const password = document.getElementById('newCustomerPassword').value.trim();
-    const credit = parseFloat(document.getElementById('newCustomerCredit').value) || 0;
+    const credit = parseNum(document.getElementById('newCustomerCredit').value) || 0;
 
     if (!name) { showStatus(statusEl, 'أدخل اسم الزبون', 'error'); return; }
     if (!phone) { showStatus(statusEl, 'أدخل رقم الهاتف', 'error'); return; }
@@ -959,6 +1278,7 @@ const customerCreditModal = new bootstrap.Modal(document.getElementById('custome
 const deleteCustomerModal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
 const customerPasswordModal = new bootstrap.Modal(document.getElementById('customerPasswordModal'));
 const editCustomerCreditModal = new bootstrap.Modal(document.getElementById('editCustomerCreditModal'));
+const editAdminModal = new bootstrap.Modal(document.getElementById('editAdminModal'));
 
 window.openPasswordModal = function(id, name) {
     document.getElementById('passwordDriverId').value = id;
@@ -990,7 +1310,7 @@ window.openEditCreditModal = function(id, name, current) {
 document.getElementById('confirmEditCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('editCreditDriverId').value;
-    const newVal = parseFloat(document.getElementById('editCreditNewValue').value);
+    const newVal = parseNum(document.getElementById('editCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
         ARAalert('أدخل رصيد صحيح', 'warning'); return;
     }
@@ -998,6 +1318,7 @@ document.getElementById('confirmEditCreditBtn').addEventListener('click', async 
         await db.collection('drivers').doc(id).update({ credit: newVal });
         editCreditModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
@@ -1027,6 +1348,7 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
         await db.collection('drivers').doc(id).update({ name, phone, disabled: status === 'disabled' });
         editModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Edit error:', err); }
 });
 
@@ -1041,12 +1363,13 @@ window.openCreditModal = function(id, name, current) {
 document.getElementById('confirmCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('creditDriverId').value;
-    const amount = parseFloat(document.getElementById('creditAmount').value);
+    const amount = parseNum(document.getElementById('creditAmount').value);
     if (!amount || amount <= 0) return;
     try {
         await db.collection('drivers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
         creditModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Credit error:', err); }
 });
 
@@ -1055,6 +1378,7 @@ window.toggleDriverStatus = async function(id, currentlyDisabled) {
     try {
         await db.collection('drivers').doc(id).update({ disabled: !currentlyDisabled, isOnline: false });
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Toggle error:', err); }
 };
 
@@ -1071,6 +1395,7 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async () =
         await db.collection('drivers').doc(id).delete();
         deleteModal.hide();
         loadDriversList();
+        refreshDriverSearchResult();
     } catch (err) { console.error('Delete error:', err); }
 });
 
@@ -1104,7 +1429,7 @@ window.openEditCustomerCreditModal = function(id, name, current) {
 document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
     const id = document.getElementById('editCustomerCreditId').value;
-    const newVal = parseFloat(document.getElementById('editCustomerCreditNewValue').value);
+    const newVal = parseNum(document.getElementById('editCustomerCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
         ARAalert('أدخل رصيد صحيح', 'warning'); return;
     }
@@ -1223,45 +1548,74 @@ async function loadRidesList() {
 
                 allRides = [];
                 snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
-                const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
-                if (currentFilter === 'all') renderRidesList(allRides);
-                else renderRidesList(allRides.filter(r => r.status === currentFilter));
+                enrichRidesWithDrivers(allRides, () => {
+                    const currentFilter = document.getElementById('filterRideStatus')?.value || 'all';
+                    if (currentFilter === 'all') renderRidesList(allRides);
+                    else renderRidesList(allRides.filter(r => r.status === currentFilter));
+                });
             }, err => {
                 console.error('Rides listener error:', err);
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
             });
     } catch (err) {
         console.error('Load rides error:', err);
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
+}
+
+async function enrichRidesWithDrivers(rides, done) {
+    const ids = [...new Set(rides.map(r => r.assignedDriverId).filter(Boolean))];
+    const missing = ids.filter(id => !driversInfoCache[id]);
+    for (let i = 0; i < missing.length; i += 10) {
+        const chunk = missing.slice(i, i + 10);
+        try {
+            const snap = await db.collection('drivers').where('__name__', 'in', chunk).get();
+            snap.forEach(d => {
+                const dd = d.data();
+                driversInfoCache[d.id] = { name: dd.name || 'سائق', phone: dd.phone || '-' };
+            });
+        } catch (e) { console.error('Driver lookup error:', e); }
+    }
+    if (done) done();
 }
 
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
     const colors = { pending: 'warning', accepted: 'primary', in_progress: 'success', completed: 'purple', cancelled: 'danger', no_drivers: 'secondary' };
     const canCancel = ['pending', 'accepted', 'in_progress'];
+    const canRelaunch = ['cancelled', 'no_drivers'];
     tbody.innerHTML = rides.map(r => {
         const created = r.createdAt?.toDate ? fmtDate(r.createdAt.toDate()) : '-';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
+        const commPct = r.commissionPercent || commissionPercent;
         const dist = r.realDistanceKm ? `${r.realDistanceKm} كم` : '-';
-        const cancelBtn = canCancel.includes(r.status)
-            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>` : '';
+        const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
+        const driverName = driver ? driver.name : (r.assignedDriverId ? '...' : '-');
+        const driverPhone = driver ? driver.phone : '-';
+        const actionBtn = canCancel.includes(r.status)
+            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>`
+            : canRelaunch.includes(r.status)
+                ? `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button>`
+                : '';
         return `<tr>
             <td><strong>${r.passengerName || '-'}</strong></td>
+            <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
             <td><small>${dist}</small></td>
             <td><strong>${fare}</strong> MRU</td>
-            <td><strong class="text-danger">${comm}</strong> MRU</td>
+            <td><strong class="text-danger">${comm}</strong> MRU <small class="text-muted">(${commPct}%)</small></td>
+            <td><strong>${driverName}</strong></td>
+            <td class="d-none d-lg-table-cell"><small dir="ltr">${driverPhone}</small></td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
-            <td>${cancelBtn}</td>
+            <td>${actionBtn}</td>
         </tr>`;
     }).join('');
 }
@@ -1273,6 +1627,62 @@ window.cancelRide = async function (rideId) {
         await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
         if (currentPage === 'rides') loadRidesList();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.reLaunchRide = async function (rideId) {
+    if (!requireDb()) return;
+    if (!(await ARAconfirm('سيتم إطلاق نفس الرحلة مرة أخرى بنفس المعلومات وتنبيه السائقين القريبين. متابعة؟'))) return;
+    try {
+        const snap = await db.collection('rides').doc(rideId).get();
+        if (!snap.exists) { ARAalert('الرحلة غير موجودة', 'error'); return; }
+        const r = snap.data();
+        if (r.status !== 'cancelled' && r.status !== 'no_drivers') {
+            ARAalert('يمكن إعادة إطلاق الرحلات الملغاة فقط', 'warning');
+            return;
+        }
+        const radius = r.searchRadiusKm || 3;
+        const lat = r.pickupLat || 0;
+        const lng = r.pickupLng || 0;
+        const rideData = {
+            passengerName: r.passengerName || '',
+            passengerPhone: r.passengerPhone || '',
+            pickupLat: lat,
+            pickupLng: lng,
+            dropoffLat: r.dropoffLat || 0,
+            dropoffLng: r.dropoffLng || 0,
+            pickupAddress: r.pickupAddress || '',
+            dropoffAddress: r.dropoffAddress || '',
+            realDistanceKm: r.realDistanceKm || 0,
+            searchRadiusKm: radius,
+            fare: r.fare || BASE_FARE,
+            commissionPercent: r.commissionPercent || commissionPercent,
+            status: 'pending',
+            reLaunchedFrom: rideId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        const docRef = await db.collection('rides').add(rideData);
+        const nearby = await findNearbyDrivers(lat, lng, radius);
+        if (nearby.length === 0) {
+            await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
+            addNotifLog('dispatch', `فشل إعادة الإطلاق: لا يوجد سائقون في نطاق ${radius} كم`);
+            ARAalert('لا يوجد سائقون متاحون في النطاق. الرحلة جديدة الآن كرحلة بلا سائق.', 'error');
+        } else {
+            const nearbyIds = nearby.map(d => d.id);
+            const tokens = nearby.filter(d => d.fcmToken).map(d => d.fcmToken);
+            await db.collection('rides').doc(docRef.id).update({
+                notifiedDrivers: nearbyIds,
+                notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            if (tokens.length > 0) {
+                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius);
+            }
+            addNotifLog('dispatch', `إعادة إطلاق رحلة ${rideData.passengerName}: ${rideData.pickupAddress} → ${rideData.dropoffAddress} | ${rideData.realDistanceKm} كم | ${rideData.fare} MRU | تنبيه ${nearby.length} سائق`);
+            ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
+        }
+        if (currentPage === 'rides') loadRidesList();
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
+    }
 };
 
 document.getElementById('filterRideStatus').addEventListener('change', () => {
@@ -1559,6 +1969,7 @@ async function loadStats() {
         document.getElementById('statTodayRides').textContent = todayRidesSnap.size;
 
         let totalComm = 0;
+        let cancelledComm = 0;
         let totalRidesCount = 0;
         let activeCount = 0;
         let completedCount = 0;
@@ -1569,11 +1980,16 @@ async function loadStats() {
             if (r.status === 'completed') {
                 completedCount++;
                 if (r.commissionAmount) totalComm += r.commissionAmount;
+            } else if (r.status === 'cancelled' && (r.cancelledBy === 'driver' || r.cancelledBy === 'driver_cancel')) {
+                if (r.commissionAmount) {
+                    totalComm += r.commissionAmount;
+                    cancelledComm += r.commissionAmount;
+                }
             }
             if (r.status === 'accepted' || r.status === 'in_progress') activeCount++;
         });
         document.getElementById('statTotalRides').textContent = totalRidesCount;
-        document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>`;
+        document.getElementById('statTotalComm').innerHTML = `${totalComm} <small>MRU</small>${cancelledComm > 0 ? `<br><small class="d-block" style="font-size:10px;color:#e53935;">منها ${cancelledComm} MRU من رحلات ألغاها السائق</small>` : ''}`;
         document.getElementById('statActiveRides').textContent = activeCount;
 
         const custSnap = await db.collection('customers').get();
@@ -1598,12 +2014,15 @@ window.exportDriversCSV = function () {
 
 window.exportRidesCSV = function () {
     if (allRides.length === 0) { ARAalert('لا توجد رحلات للتصدير', 'info'); return; }
-    let csv = '\uFEFF' + 'الزبون,الهاتف,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,الحالة,التاريخ\n';
+    let csv = '\uFEFF' + 'الزبون,هاتف الزبون,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,اسم السائق,هاتف السائق,الحالة,التاريخ\n';
     allRides.forEach(r => {
         const created = r.createdAt?.toDate ? fmtDate(r.createdAt.toDate()) : '';
         const fare = r.fare || 0;
         const comm = r.commissionAmount || Math.round(fare * commissionPercent / 100);
-        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${r.status||''},${created}\n`;
+        const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
+        const driverName = driver ? driver.name : '';
+        const driverPhone = driver ? driver.phone : '';
+        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${driverName},${driverPhone},${r.status||''},${created}\n`;
     });
     downloadCSV(csv, 'ARAVA_rides.csv');
 };
@@ -1712,6 +2131,10 @@ window.clearNotifLog = function () {
 };
 
 window.confirmResetAllData = async function () {
+    if (sessionStorage.getItem('ARAVA_admin_role') !== 'admin') {
+        ARAalert('هذا الإجراء متاح فقط لصلاحية مدير عام', 'warning');
+        return;
+    }
     if (!(await ARAconfirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟'))) return;
     if (!(await ARAconfirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟'))) return;
     const status = document.getElementById('resetStatus');
@@ -1819,6 +2242,27 @@ function initMsgTypeSwitch() {
 }
 initMsgTypeSwitch();
 
+let msgSelectAllChecked = false;
+
+function syncMsgSelectAllCheckbox() {
+    const sel = document.getElementById('msgRecipients');
+    const cb = document.getElementById('msgSelectAll');
+    if (!sel || !cb) return;
+    const all = sel.options.length > 0 && Array.from(sel.options).every(o => o.selected);
+    cb.checked = all;
+    msgSelectAllChecked = all;
+}
+
+document.getElementById('msgSelectAll')?.addEventListener('change', (e) => {
+    msgSelectAllChecked = e.target.checked;
+    const sel = document.getElementById('msgRecipients');
+    Array.from(sel.options).forEach(o => { o.selected = msgSelectAllChecked; });
+});
+
+document.getElementById('msgRecipients')?.addEventListener('change', () => {
+    syncMsgSelectAllCheckbox();
+});
+
 async function loadMsgRecipients() {
     if (!requireDb()) return;
     const sel = document.getElementById('msgRecipients');
@@ -1845,6 +2289,9 @@ async function loadMsgRecipients() {
             });
         } catch (e) { console.log('Recipients load error'); }
     }
+    if (msgSelectAllChecked) {
+        Array.from(sel.options).forEach(o => { o.selected = true; });
+    }
 }
 
 document.getElementById('msgRecipientType')?.addEventListener('change', loadMsgRecipients);
@@ -1859,7 +2306,7 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
     const senderName = sessionStorage.getItem('ARAVA_admin_name') || 'المدير';
     const msg = { type, sentBy: senderName, readBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp(), recipientKind };
 
-    if (recipientIds.includes('all')) {
+    if (recipientIds.includes('all') || msgSelectAllChecked) {
         if (recipientKind === 'customers') {
             const snap = await db.collection('customers').get();
             msg.recipients = snap.docs.map(d => (d.data().phone || d.id));
@@ -1885,16 +2332,19 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
     } else if (type === 'image') {
         const fileInput = document.getElementById('msgImageFile');
         if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر صورة', 'error'); return; }
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            msg.content = ev.target.result;
-            await sendMsgToFirestore(msg);
-        };
-        reader.readAsDataURL(fileInput.files[0]);
+        showStatus('msgSendStatus', 'جاري ضغط الصورة وإرسالها...', '');
+        const b64 = await fileToBase64(fileInput.files[0]);
+        if (!b64) { showStatus('msgSendStatus', 'فشل قراءة الصورة', 'error'); return; }
+        msg.content = b64;
+        await sendMsgToFirestore(msg);
         return;
     } else if (type === 'audio') {
         const fileInput = document.getElementById('msgAudioFile');
         if (!fileInput.files[0]) { showStatus('msgSendStatus', 'اختر ملف صوتي', 'error'); return; }
+        if (fileInput.files[0].size > 600 * 1024) {
+            showStatus('msgSendStatus', 'الملف الصوتي كبير جداً (الحد 600KB) - مستندات Firestore محدودة بحجم 1MB', 'error');
+            return;
+        }
         const reader = new FileReader();
         reader.onload = async (ev) => {
             msg.content = ev.target.result;
@@ -1909,6 +2359,10 @@ document.getElementById('sendMsgBtn')?.addEventListener('click', async () => {
 
 async function sendMsgToFirestore(msg) {
     try {
+        if (typeof msg.content === 'string' && msg.content.length > 900 * 1024) {
+            showStatus('msgSendStatus', 'الرسالة كبيرة جداً (أكثر من 900KB) - اختر صورة/مقطع أصغر أو قلّل عدد الصور', 'error');
+            return;
+        }
         if (msg.recipientKind === 'customers') {
             const custMsg = { type: msg.type, content: msg.content, recipients: msg.recipients, sentBy: msg.sentBy, readBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
             await db.collection('customer_messages').add(custMsg);
@@ -2069,6 +2523,92 @@ window.clearOldMessages = async function() {
 };
 
 // ============================================
+// ANNOUNCEMENTS (BROADCAST TO ALL DRIVERS)
+// ============================================
+window.sendAnnouncement = async function () {
+    if (!requireDb('annSendStatus')) return;
+    const title = document.getElementById('annTitle').value.trim();
+    const content = document.getElementById('annContent').value.trim();
+    if (!title && !content) { showStatus('annSendStatus', 'اكتب عنوان الإعلان أو نصه', 'error'); return; }
+    if (!content) { showStatus('annSendStatus', 'اكتب نص الإعلان', 'error'); return; }
+
+    const senderName = sessionStorage.getItem('ARAVA_admin_name') || 'المدير';
+    try {
+        await db.collection('announcements').add({
+            title: title || 'إعلان من الإدارة',
+            content: content,
+            sentBy: senderName,
+            readBy: [],
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus('annSendStatus', 'تم إرسال الإعلان لجميع السائقين بنجاح!', 'success');
+        document.getElementById('annTitle').value = '';
+        document.getElementById('annContent').value = '';
+        loadAnnouncements();
+    } catch (err) {
+        showStatus('annSendStatus', 'خطأ: ' + err.message, 'error');
+    }
+};
+
+async function loadAnnouncements() {
+    if (!requireDb()) return;
+    const container = document.getElementById('annListContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-4"><div class="ARAVA-spinner"></div></div>';
+
+    try {
+        const snap = await db.collection('announcements').orderBy('timestamp', 'desc').limit(50).get();
+        document.getElementById('annCount').textContent = snap.size;
+
+        if (snap.empty) {
+            container.innerHTML = '<div class="text-center text-muted py-4 small">لا توجد إعلانات بعد</div>';
+            return;
+        }
+
+        container.innerHTML = snap.docs.map(doc => {
+            const a = doc.data();
+            const time = a.timestamp?.toDate ? new Date(a.timestamp.toDate()).toLocaleString('ar-MA') : '';
+            const readCount = (a.readBy || []).length;
+            const totalDrivers = 0;
+            return `<div class="log-entry p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="badge bg-warning text-dark"><i class="bi bi-bullhorn-fill me-1"></i>${a.title || 'إعلان'}</span>
+                    <small class="text-muted">${time}</small>
+                </div>
+                <div class="mb-1">${a.content || ''}</div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted"><i class="bi bi-person"></i> ${a.sentBy || 'المدير'} | <i class="bi bi-eye"></i> ${readCount} قراءة</small>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnouncement('${doc.id}')"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<div class="text-center text-danger py-4">خطأ في تحميل الإعلانات</div>';
+    }
+}
+
+window.deleteAnnouncement = async function (id) {
+    if (!(await ARAconfirm('هل تريد حذف هذا الإعلان؟'))) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('announcements').doc(id).delete();
+        loadAnnouncements();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.clearOldAnnouncements = async function () {
+    if (!(await ARAconfirm('حذف جميع الإعلانات القديمة؟'))) return;
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('announcements').get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        loadAnnouncements();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+// ============================================
 // ADMINS MANAGEMENT
 // ============================================
 async function loadAdminsList() {
@@ -2086,19 +2626,97 @@ async function loadAdminsList() {
         }
         const roleLabels = { admin: 'مدير عام', supervisor: 'مشرف' };
         const roleBadge = { admin: 'bg-primary', supervisor: 'bg-secondary' };
-        tbody.innerHTML = admins.map(a => `<tr>
+        tbody.innerHTML = admins.map(a => {
+            const safeName = (a.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `<tr>
             <td><strong>${a.name || '-'}</strong></td>
             <td>${a.username || '-'}</td>
             <td><span class="badge ${roleBadge[a.role] || 'bg-secondary'}">${roleLabels[a.role] || a.role}</span></td>
             <td>
-                <button class="btn-action btn-action-delete" onclick="deleteAdmin('${a.id}','${(a.name||'').replace(/'/g,"\\'")}')">حذف</button>
+                <div class="d-flex gap-1 flex-wrap">
+                    <button class="btn-action btn-action-edit" onclick="openEditAdminModal('${a.id}','${safeName}','${a.username||''}','${a.role||'supervisor'}')">تعديل</button>
+                    <button class="btn-action btn-action-delete" onclick="deleteAdmin('${a.id}','${safeName}')">حذف</button>
+                </div>
             </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
     } catch (err) {
         console.error('Load admins error:', err);
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
+
+let editingAdminData = null;
+
+window.openEditAdminModal = function (id, name, username, role) {
+    editingAdminData = null;
+    document.getElementById('editAdminId').value = id;
+    document.getElementById('editAdminUsername').value = username || '';
+    document.getElementById('editAdminName').value = name || '';
+    document.getElementById('editAdminRole').value = role || 'supervisor';
+    document.getElementById('editAdminPassword').value = '';
+    document.getElementById('editAdminStatus').textContent = '';
+    editAdminModal.show();
+    db.collection('admins').doc(id).get().then(snap => {
+        if (snap.exists) editingAdminData = { id: snap.id, ...snap.data() };
+    }).catch(() => {});
+};
+
+document.getElementById('saveEditAdminBtn').addEventListener('click', async () => {
+    if (!requireDb('editAdminStatus')) return;
+    const id = document.getElementById('editAdminId').value;
+    const name = document.getElementById('editAdminName').value.trim();
+    const role = document.getElementById('editAdminRole').value;
+    const newPass = document.getElementById('editAdminPassword').value;
+    const statusEl = document.getElementById('editAdminStatus');
+    if (!name) { statusEl.textContent = 'أدخل الاسم الكامل'; statusEl.className = 'fw-semibold text-danger'; return; }
+    if (newPass && newPass.length < 6) { statusEl.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'; statusEl.className = 'fw-semibold text-danger'; return; }
+
+    try {
+        const target = editingAdminData || (await db.collection('admins').doc(id).get()).data();
+
+        if (target.role === 'admin' && role !== 'admin') {
+            const snapshot = await db.collection('admins').get();
+            const admins = [];
+            snapshot.forEach(doc => admins.push({ id: doc.id, ...doc.data() }));
+            const otherAdmins = admins.filter(a => a.id !== id && a.role === 'admin');
+            if (otherAdmins.length === 0) {
+                statusEl.textContent = 'لا يمكن تغيير دور آخر مشرف بصلاحية مدير عام. يجب أن يبقى مشرف واحد على الأقل.';
+                statusEl.className = 'fw-semibold text-danger';
+                return;
+            }
+        }
+
+        await db.collection('admins').doc(id).update({ name, role });
+        let passwordMsg = '';
+        if (newPass) {
+            if (target.authUid) {
+                const currentUser = firebase.auth().currentUser;
+                if (currentUser && currentUser.uid === target.authUid) {
+                    try {
+                        await currentUser.updatePassword(newPass);
+                        await db.collection('admins').doc(id).update({ password: newPass });
+                        passwordMsg = ' وتحديث كلمة المرور';
+                    } catch (e) {
+                        passwordMsg = ' (فشل تحديث كلمة مرور المصادقة)';
+                    }
+                } else {
+                    passwordMsg = ' (كلمة المرور لم تتغير: مرتبطة بحساب بريد إلكتروني، غيّرها من حسابه الخاص)';
+                }
+            } else {
+                await db.collection('admins').doc(id).update({ password: newPass });
+                passwordMsg = ' وتحديث كلمة المرور';
+            }
+        }
+        statusEl.className = 'fw-semibold text-success';
+        statusEl.textContent = `تم حفظ تعديلات المشرف بنجاح${passwordMsg}`;
+        setTimeout(() => { editAdminModal.hide(); }, 900);
+        loadAdminsList();
+    } catch (err) {
+        statusEl.className = 'fw-semibold text-danger';
+        statusEl.textContent = 'خطأ: ' + err.message;
+    }
+});
 
 window.addAdmin = async function () {
     if (!requireDb('addAdminStatus')) return;
@@ -2110,6 +2728,7 @@ window.addAdmin = async function () {
     if (!username) { showStatus('addAdminStatus', 'أدخل اسم المستخدم', 'error'); return; }
     if (!name) { showStatus('addAdminStatus', 'أدخل الاسم الكامل', 'error'); return; }
     if (!password) { showStatus('addAdminStatus', 'أدخل كلمة المرور', 'error'); return; }
+    if (password.length < 6) { showStatus('addAdminStatus', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error'); return; }
 
     try {
         const existing = await db.collection('admins').where('username', '==', username).get();
@@ -2250,6 +2869,13 @@ window.addPromotion = async function() {
 
         if (promoImageFiles.length > 0 && images.length === 0) {
             showStatus('addPromoStatus', 'فشل رفع الصور. جرب صوراً أصغر أو استخدم رابط مباشر.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة العرض';
+            return;
+        }
+
+        var promoSize = images.reduce(function (s, u) { return s + (u ? u.length : 0); }, 0);
+        if (promoSize > 850 * 1024) {
+            showStatus('addPromoStatus', 'الصور كبيرة جداً (' + Math.round(promoSize / 1024) + 'KB) - مستند Firestore محدود بـ 1MB. اختر صوراً أصغر.', 'error');
             btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة العرض';
             return;
         }
@@ -2402,6 +3028,13 @@ window.addProduct = async function() {
             return;
         }
 
+        var prodSize = images.reduce(function (s, u) { return s + (u ? u.length : 0); }, 0);
+        if (prodSize > 850 * 1024) {
+            showStatus('addProductStatus', 'الصور كبيرة جداً (' + Math.round(prodSize / 1024) + 'KB) - مستند Firestore محدود بـ 1MB. اختر صوراً أصغر.', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>إضافة المنتج';
+            return;
+        }
+
         await db.collection('products').add({
             name, type, price, phone, description, videoUrl, images,
             active: true,
@@ -2514,10 +3147,13 @@ function openWhatsApp(phone, name) {
 // ============================================
 function initDashboard() {
     initMap();
+    bindMapSearch();
     loadCommission();
+    loadRidesCleanupSettings();
     loadStats();
     initRealtimeListeners();
     applyRoleVisibility();
+    checkDailyRidesCleanup();
     setInterval(loadStats, 60000);
     addNotifLog('system', 'تم تشغيل لوحة التحكم');
 }

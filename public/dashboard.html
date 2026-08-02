@@ -29,6 +29,12 @@
             <a href="#" class="sidebar-link" data-page="customers">
                 <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
             </a>
+            <a href="#" class="sidebar-link" data-page="unregistered-customers">
+                <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
+            </a>
+            <a href="#" class="sidebar-link" data-page="deliveries">
+                <i class="bi bi-truck"></i> طلبات التوصيل
+            </a>
             <a href="#" class="sidebar-link" data-page="rides">
                 <i class="bi bi-journal-text"></i> سجل الرحلات
             </a>
@@ -38,6 +44,9 @@
             
             <a href="#" class="sidebar-link" data-page="messages">
                 <i class="bi bi-envelope-fill"></i> الرسائل
+            </a>
+            <a href="#" class="sidebar-link" data-page="announcements">
+                <i class="bi bi-bullhorn-fill"></i> الإعلانات
             </a>
             <a href="#" class="sidebar-link admin-only" data-page="admins">
                 <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
@@ -91,7 +100,13 @@
                     <a href="#" class="sidebar-link" data-page="customers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
                     </a>
-                    <a href="#" class="sidebar-link" data-page="rides" data-bs-dismiss="offcanvas">
+            <a href="#" class="sidebar-link" data-page="unregistered-customers" data-bs-dismiss="offcanvas">
+                <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
+            </a>
+            <a href="#" class="sidebar-link" data-page="deliveries" data-bs-dismiss="offcanvas">
+                <i class="bi bi-truck"></i> طلبات التوصيل
+            </a>
+            <a href="#" class="sidebar-link" data-page="rides" data-bs-dismiss="offcanvas">
                         <i class="bi bi-journal-text"></i> سجل الرحلات
                     </a>
                     <a href="#" class="sidebar-link" data-page="settings" data-bs-dismiss="offcanvas">
@@ -100,6 +115,9 @@
                     
                     <a href="#" class="sidebar-link" data-page="messages" data-bs-dismiss="offcanvas">
                         <i class="bi bi-envelope-fill"></i> الرسائل
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="announcements" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-bullhorn-fill"></i> الإعلانات
                     </a>
                     <a href="#" class="sidebar-link admin-only" data-page="admins" data-bs-dismiss="offcanvas">
                         <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
@@ -153,6 +171,9 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <span class="text-muted fw-semibold d-none d-sm-inline" id="currentTime"></span>
+                <button class="btn btn-outline-secondary btn-sm" id="darkModeBtn" title="الوضع الليلي">
+                    <i class="bi bi-moon-stars"></i><span class="d-none d-sm-inline ms-1">ليلي</span>
+                </button>
                 <button class="btn btn-outline-danger btn-sm" id="logoutBtn">
                     <i class="bi bi-box-arrow-left me-1"></i><span class="d-none d-sm-inline">خروج</span>
                 </button>
@@ -199,6 +220,13 @@
 
             <div class="map-wrapper position-relative">
                 <div id="map" class="w-100 h-100"></div>
+                <div class="map-search">
+                    <div class="map-search-bar">
+                        <input type="text" id="mapSearchInput" placeholder="ابحث عن مكان أو عنوان..." autocomplete="off">
+                        <button id="mapSearchBtn" title="بحث"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="mapSearchResults"></div>
+                </div>
             </div>
         </div>
 
@@ -235,7 +263,7 @@
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الرصيد (MRU)</label>
-                                            <input type="number" class="form-control" id="newDriverCredit" value="" min="0" placeholder="0" autocomplete="off">
+                                            <input type="text" class="form-control" id="newDriverCredit" value="" inputmode="numeric" placeholder="0" autocomplete="off">
                                         </div>
                                     </div>
                                     <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerDriverBtn">
@@ -323,7 +351,7 @@
                                         </div>
                                         <div class="col-md-3 col-6">
                                             <label class="form-label fw-bold">الرصيد (MRU)</label>
-                                            <input type="number" class="form-control" id="newCustomerCredit" value="" min="0" placeholder="0" autocomplete="off">
+                                            <input type="text" class="form-control" id="newCustomerCredit" value="" inputmode="numeric" placeholder="0" autocomplete="off">
                                         </div>
                                     </div>
                                     <button class="btn btn-dark-blue text-white fw-bold mt-3" id="registerCustomerBtn">
@@ -381,6 +409,48 @@
             </div>
         </div>
 
+        <!-- UNREGISTERED CUSTOMERS PAGE -->
+        <div class="page-content d-none" id="page-unregistered-customers">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-x-fill me-2 text-gold"></i>الزبناء غير المسجلين (<span id="totalUnregCustomersCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-dark-blue" onclick="exportUnregisteredCustomersCSV()"><i class="bi bi-download me-1"></i>تصدير CSV</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-8 col-7">
+                                        <input type="text" class="form-control" id="searchUnregCustomers" placeholder="بحث بالاسم أو الهاتف...">
+                                    </div>
+                                    <div class="col-md-4 col-5 d-flex align-items-center">
+                                        <small class="text-muted">زبائن ظهروا في سجلات الرحلات دون حساب مسجل</small>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-dark-blue text-white">
+                                            <tr>
+                                                <th>الاسم</th>
+                                                <th>الهاتف</th>
+                                                <th>عدد الرحلات</th>
+                                                <th>إجمالي المبالغ</th>
+                                                <th>آخر رحلة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="unregCustomersTableBody">
+                                            <tr><td colspan="5" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل البيانات...</div></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- RIDES PAGE -->
         <div class="page-content d-none" id="page-rides">
             <div class="container-fluid p-3 p-md-4">
@@ -405,18 +475,21 @@
                                 <thead class="table-dark-blue text-white">
                                     <tr>
                                         <th>الزبون</th>
+                                        <th class="d-none d-md-table-cell">هاتف الزبون</th>
                                         <th class="d-none d-md-table-cell">الانطلاق</th>
                                         <th class="d-none d-md-table-cell">الوجهة</th>
                                         <th>المسافة</th>
                                         <th>السعر</th>
                                         <th>العمولة</th>
+                                        <th>اسم السائق</th>
+                                        <th class="d-none d-lg-table-cell">هاتف السائق</th>
                                         <th>الحالة</th>
                                         <th class="d-none d-lg-table-cell">التاريخ</th>
                                         <th>إجراءات</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ridesTableBody">
-                                    <tr><td colspan="9" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>
+                                    <tr><td colspan="12" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -497,7 +570,26 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12">
+                    <!-- DAILY RIDES CLEANUP -->
+                    <div class="col-12 admin-only">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-calendar2-week text-gold me-2"></i>سجل الرحلات اليومي</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="ridesCleanupAuto" checked>
+                                    <label class="form-check-label fw-bold" for="ridesCleanupAuto">المسح التلقائي كل 24 ساعة</label>
+                                </div>
+                                <p class="text-muted small mb-3">عند تفعيله، يُمسح سجل الرحلات تلقائيًا كل 24 ساعة لتبدأ كل يوم بسجل جديد. آخر مسح: <span id="ridesCleanupLastRun" class="fw-bold text-dark-blue">-</span></p>
+                                <button class="btn btn-outline-danger fw-bold" onclick="clearRidesNow()">
+                                    <i class="bi bi-trash me-1"></i>مسح سجل الرحلات الآن
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 admin-only">
                         <div class="card shadow-sm border-0 border-danger">
                             <div class="card-header bg-white border-bottom border-danger">
                                 <h6 class="fw-bold mb-0 text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>مسح جميع البيانات</h6>
@@ -536,10 +628,16 @@
                                     </div>
                                     <div class="col-md-9 col-6">
                                         <label class="form-label fw-bold">المستلمون</label>
-                                        <select class="form-select" id="msgRecipients" multiple size="3" style="min-height:80px;">
-                                            <option value="all">جميع السائقين</option>
+                                        <select class="form-select mb-2" id="msgRecipientType">
+                                            <option value="drivers">سائقون</option>
+                                            <option value="customers">زبائن</option>
                                         </select>
-                                        <small class="text-muted">اضغط Ctrl لاختيار أكثر من سائق</small>
+                                        <select class="form-select" id="msgRecipients" multiple size="3" style="min-height:80px;"></select>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="msgSelectAll">
+                                            <label class="form-check-label fw-semibold" for="msgSelectAll"><i class="bi bi-people-fill me-1 text-dark-blue"></i>تحديد الجميع دفعة واحدة</label>
+                                        </div>
+                                        <small class="text-muted">اضغط Ctrl لاختيار أكثر من مستلم</small>
                                     </div>
                                 </div>
                                 <div id="msgTextGroup" class="mt-3">
@@ -574,6 +672,112 @@
                             <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
                                 <div id="msgListContainer">
                                     <div class="text-center text-muted py-4 small">لا توجد رسائل بعد</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-chat-heart-fill me-2 text-gold"></i>رسائل الزبائن (<span id="msgCountCustomers">0</span>)</h6>
+                            </div>
+                            <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
+                                <div id="msgListContainerCustomers">
+                                    <div class="text-center text-muted py-4 small">لا توجد رسائل للزبائن بعد</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- DELIVERIES PAGE -->
+        <div class="page-content d-none" id="page-deliveries">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-truck me-2 text-gold"></i>طلبات التوصيل من تطبيق الزبائن</h6>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <input type="text" id="searchDeliveries" class="form-control form-control-sm" style="width:180px;" placeholder="بحث بالهاتف أو الاسم..." oninput="loadDeliveriesList()">
+                                    <select class="form-select form-select-sm" id="filterDeliveryStatus" onchange="loadDeliveriesList()">
+                                        <option value="all">كل الحالات</option>
+                                        <option value="new">جديد</option>
+                                        <option value="price_sent">سعر مُرسل</option>
+                                        <option value="accepted">مقبول</option>
+                                        <option value="launched">مُطلق</option>
+                                        <option value="in_progress">قيد التنفيذ</option>
+                                        <option value="completed">مكتملة</option>
+                                        <option value="cancelled">ملغاة</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>الزبون</th>
+                                                <th>مستلم</th>
+                                                <th class="d-none d-md-table-cell">حي المرسل</th>
+                                                <th class="d-none d-md-table-cell">حي المستلم</th>
+                                                <th>السعر</th>
+                                                <th>الحالة</th>
+                                                <th class="d-none d-lg-table-cell">التاريخ</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="deliveriesTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- ANNOUNCEMENTS PAGE -->
+        <div class="page-content d-none" id="page-announcements">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-bullhorn-fill me-2 text-gold"></i>إرسال إعلان لجميع السائقين</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">عنوان الإعلان</label>
+                                        <input type="text" class="form-control" id="annTitle" placeholder="مثال: عروض نهاية الأسبوع" maxlength="80">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-bold">نص الإعلان</label>
+                                        <textarea class="form-control" id="annContent" rows="3" placeholder="اكتب نص الإعلان الذي سيصل لجميع السائقين..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="mt-3 d-flex align-items-center gap-3">
+                                    <button class="btn btn-gold text-white fw-bold" onclick="sendAnnouncement()">
+                                        <i class="bi bi-broadcast me-1"></i>إرسال للجميع
+                                    </button>
+                                    <span class="text-muted small"><i class="bi bi-people-fill me-1"></i>سيصل الإعلان لجميع السائقين الحاليين والمستقبليين</span>
+                                </div>
+                                <div class="mt-2 fw-semibold" id="annSendStatus"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-envelope-paper-fill me-2 text-gold"></i>الإعلانات المرسلة (<span id="annCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearOldAnnouncements()"><i class="bi bi-trash me-1"></i>مسح الكل</button>
+                            </div>
+                            <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
+                                <div id="annListContainer">
+                                    <div class="text-center text-muted py-4 small">لا توجد إعلانات بعد</div>
                                 </div>
                             </div>
                         </div>
@@ -1172,6 +1376,47 @@
         </div>
     </div>
 
+    <!-- EDIT ADMIN MODAL -->
+    <div class="modal fade" id="editAdminModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold"><i class="bi bi-pencil-square me-2 text-gold"></i>تعديل بيانات المشرف</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editAdminId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اسم المستخدم</label>
+                        <input type="text" class="form-control" id="editAdminUsername" disabled>
+                        <small class="text-muted">لا يمكن تغيير اسم المستخدم لأنه مرتبط بحساب المصادقة</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الاسم الكامل</label>
+                        <input type="text" class="form-control" id="editAdminName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الدور</label>
+                        <select class="form-select" id="editAdminRole">
+                            <option value="supervisor">مشرف</option>
+                            <option value="admin">مدير عام</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">كلمة مرور جديدة <small class="text-muted">(اختياري)</small></label>
+                        <input type="password" class="form-control" id="editAdminPassword" placeholder="اتركها فارغة للإبقاء على الحالية" autocomplete="new-password">
+                        <small class="text-muted">لا يمكن تغيير كلمة مرور مشرف مرتبط بالبريد الإلكتروني إلا من حسابه الخاص</small>
+                    </div>
+                    <div class="fw-semibold" id="editAdminStatus"></div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditAdminBtn">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DISPATCH PANEL (Custom - RTL safe) -->
     <div class="dispatch-panel-overlay d-none" id="dispatchOverlay" onclick="toggleDispatchPanel()"></div>
     <div class="dispatch-panel" id="dispatchPanel">
@@ -1191,8 +1436,8 @@
             <div class="mb-3">
                 <label class="form-label fw-bold">نقطة الانطلاق</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="pickupCoords" placeholder="انقر على الخريطة" readonly>
-                    <button class="btn btn-outline-danger" id="clearPickup"><i class="bi bi-trash"></i></button>
+                    <input type="text" class="form-control" id="pickupCoords" placeholder="انقر على الخريطة" readonly tabindex="-1">
+                    <button class="btn btn-outline-danger" id="clearPickup" tabindex="-1"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
             <div class="mb-3">
@@ -1201,14 +1446,14 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">نصف قطر البحث: <span class="text-gold fw-bold" id="radiusValue">3 كم</span></label>
-                <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3">
+                <input type="range" class="form-range" id="searchRadius" min="1" max="10" value="3" tabindex="-1">
                 <small class="text-muted">تحديد نطاق السائقين القريبين فقط</small>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">نقطة الوجهة</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="dropoffCoords" placeholder="نقرة ثانية = الوجهة" readonly>
-                    <button class="btn btn-outline-danger" id="clearDropoff"><i class="bi bi-trash"></i></button>
+                    <input type="text" class="form-control" id="dropoffCoords" placeholder="نقرة ثانية = الوجهة" readonly tabindex="-1">
+                    <button class="btn btn-outline-danger" id="clearDropoff" tabindex="-1"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
             <div class="mb-3">
@@ -1225,7 +1470,7 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold">سعر الرحلة (MRU)</label>
-                <input type="number" class="form-control fw-bold text-center" id="fareInput" value="350" min="0" step="50" placeholder="أدخل السعر">
+                <input type="text" inputmode="numeric" class="form-control fw-bold text-center" id="fareInput" value="350" dir="ltr" placeholder="أدخل السعر" tabindex="-1">
                 <small class="text-muted">يُحدد يدوياً من قِبل المشرف</small>
             </div>
             <button class="btn btn-gold text-white fw-bold w-100 py-3" id="dispatchBtn" disabled>
@@ -1307,6 +1552,29 @@
         </style>
     </div>
 
+    <!-- DELIVERY PRICE MODAL -->
+    <div class="modal fade" id="deliveryPriceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold text-dark-blue"><i class="bi bi-cash-coin me-2 text-gold"></i>إرسال سعر التوصيلة</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2"><strong>الزبون:</strong> <span id="deliveryPriceCustomer"></span></div>
+                    <div class="mb-3"><strong>مستلم:</strong> <span id="deliveryPriceReceiver"></span></div>
+                    <input type="hidden" id="deliveryPriceId">
+                    <label class="form-label fw-bold">السعر (MRU)</label>
+                    <input type="number" class="form-control" id="deliveryPriceValue" placeholder="مثال: 150">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="button" class="btn btn-gold text-white fw-bold" id="confirmDeliveryPriceBtn">إرسال السعر</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- CUSTOM MODAL -->
     <div class="ara-modal-overlay" id="araModalOverlay">
         <div class="ara-modal" id="araModal">
@@ -1322,6 +1590,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260805"></script>
+    <script src="js/app.js?v=20260806"></script>
 </body>
 </html>
