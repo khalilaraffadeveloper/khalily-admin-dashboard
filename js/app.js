@@ -1652,6 +1652,7 @@ window.reLaunchRide = async function (rideId) {
             dropoffLng: r.dropoffLng || 0,
             pickupAddress: r.pickupAddress || '',
             dropoffAddress: r.dropoffAddress || '',
+            notes: r.notes || '',
             realDistanceKm: r.realDistanceKm || 0,
             searchRadiusKm: radius,
             fare: r.fare || BASE_FARE,
@@ -1674,7 +1675,10 @@ window.reLaunchRide = async function (rideId) {
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius);
+                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius, {
+                    notes: rideData.notes || '',
+                    deliveryId: r.deliveryId || ''
+                });
             }
             addNotifLog('dispatch', `إعادة إطلاق رحلة ${rideData.passengerName}: ${rideData.pickupAddress} → ${rideData.dropoffAddress} | ${rideData.realDistanceKm} كم | ${rideData.fare} MRU | تنبيه ${nearby.length} سائق`);
             ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
@@ -1883,12 +1887,13 @@ window.dispatchDeliveryToDrivers = async function (id) {
         receiverName: '',
         senderDistrict: d.senderDistrict || '',
         receiverDistrict: d.receiverDistrict || '',
+        notes: d.notes || '',
         pickupLat: lat,
         pickupLng: lng,
         dropoffLat: lat,
         dropoffLng: lng,
-        pickupAddress: d.senderDistrict || 'نقطة الانطلاق',
-        dropoffAddress: d.receiverDistrict || 'نقطة الوصول',
+        pickupAddress: d.pickupAddress || d.senderDistrict || 'نقطة الانطلاق',
+        dropoffAddress: d.dropoffAddress || d.receiverDistrict || 'نقطة الوصول',
         realDistanceKm: 0,
         searchRadiusKm: radius,
         fare: price,
@@ -1914,11 +1919,14 @@ window.dispatchDeliveryToDrivers = async function (id) {
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, 'طلب توصيل', price, lat, lng, d.senderDistrict || '', d.receiverDistrict || '', radius, {
+                sendFCMNotifications(tokens, docRef.id, 'طلب توصيل', price, lat, lng, d.pickupAddress || d.senderDistrict || '', d.dropoffAddress || d.receiverDistrict || '', radius, {
                     senderPhone: d.senderPhone || '',
                     receiverPhone: d.receiverPhone || '',
                     senderDistrict: d.senderDistrict || '',
                     receiverDistrict: d.receiverDistrict || '',
+                    pickupAddress: d.pickupAddress || d.senderDistrict || '',
+                    dropoffAddress: d.dropoffAddress || d.receiverDistrict || '',
+                    notes: d.notes || '',
                     deliveryId: id,
                     deliveryPhase: 'at_sender'
                 });
@@ -3442,18 +3450,29 @@ async function loadCustomerProductsList() {
     if (!list) return;
     list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
     try {
-        const snap = await db.collection('customer_products').orderBy('createdAt', 'desc').get();
+        let snap;
+        try {
+            snap = await db.collection('customer_products').orderBy('createdAt', 'desc').get();
+        } catch (orderErr) {
+            console.warn('customer_products orderBy createdAt failed:', orderErr.message);
+            snap = await db.collection('customer_products').get();
+        }
         document.getElementById('customerProductCount').textContent = snap.size;
         if (snap.empty) {
-            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات من الزبائن</div>';
+            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات من الزبائن بعد — عندما يرفع الزبون منتجاً من تطبيق الزبون سيظهر هنا فوراً</div>';
             return;
         }
-        list.innerHTML = snap.docs.map(doc => {
+        const docs = snap.docs.slice().sort((a, b) => {
+            const ta = a.data().createdAt && a.data().createdAt.toMillis ? a.data().createdAt.toMillis() : 0;
+            const tb = b.data().createdAt && b.data().createdAt.toMillis ? b.data().createdAt.toMillis() : 0;
+            return tb - ta;
+        });
+        list.innerHTML = docs.map(doc => {
             const p = doc.data();
             const active = p.active !== false;
             const time = p.createdAt?.toDate ? fmtDate(p.createdAt.toDate()) : '';
             const imgHtml = p.images && p.images.length > 0
-                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.src='data:image/svg+xml,%253Csvg%2520xmlns%253D%2522http://www.w3.org/2000/svg%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%253E%253Crect%2520fill%253D%2522%2523f0f0f0%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%252F%253E%253Ctext%2520x%253D%252250%2525%2522%2520y%253D%252250%2525%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522%2523999%2522%2520font-size%253D%252240%2522%253E%25F0%259F%2596%25BC%253C%252Ftext%253E%253C%252Fsvg%253E'">`
+                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.onerror=null;this.style.display='none';">`
                 : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-box fs-1 text-muted"></i></div>`;
             return `<div class="col-md-4 col-sm-6">
                 <div class="card border-0 shadow-sm h-100 ${active ? '' : 'opacity-75'}">
@@ -3466,6 +3485,7 @@ async function loadCustomerProductsList() {
                         <h6 class="fw-bold mb-1">${p.name}</h6>
                         <p class="small text-muted mb-1">${p.description || ''}</p>
                         <h5 class="text-gold fw-bold mb-2">${p.price || 0} MRU</h5>
+                        ${p.monthlyPrice ? `<div class="badge bg-warning text-dark mb-2">عرض شهري: ${p.monthlyPrice} MRU</div>` : ''}
                         <div class="d-flex gap-2 flex-wrap">
                             <button onclick="callPhone('${p.phone||''}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>
                             <button class="btn btn-sm ${active ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleCustomerProduct('${doc.id}', ${active})"><i class="bi ${active ? 'bi-eye-slash' : 'bi-eye'}"></i> ${active ? 'إخفاء' : 'إظهار'}</button>
@@ -3477,7 +3497,7 @@ async function loadCustomerProductsList() {
             </div>`;
         }).join('');
     } catch (err) {
-        list.innerHTML = '<div class="col-12 text-center text-danger py-4">خطأ في التحميل</div>';
+        list.innerHTML = `<div class="col-12 text-center text-danger py-4">خطأ في التحميل: ${err.message || err}</div>`;
     }
 }
 
