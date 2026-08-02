@@ -1718,8 +1718,8 @@ function fmtNum(n) {
 // ============================================
 // DELIVERIES (from Customer App)
 // ============================================
-const deliveryStatusLabels = { new: 'جديد', price_sent: 'سعر مرسل', accepted: 'نشط (مقبول)', launched: 'في الطريق', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة' };
-const deliveryStatusColors = { new: 'warning', price_sent: 'info', accepted: 'primary', launched: 'success', in_progress: 'success', completed: 'purple', cancelled: 'danger' };
+const deliveryStatusLabels = { new: 'جديد', price_sent: 'سعر مرسل', accepted: 'مقبول', saved: 'رُفض السعر', launched: 'في الطريق', in_progress: 'جارية', no_drivers: 'بلا سائقين', completed: 'مكتملة', cancelled: 'ملغاة' };
+const deliveryStatusColors = { new: 'warning', price_sent: 'info', accepted: 'primary', saved: 'danger', launched: 'success', in_progress: 'success', no_drivers: 'dark', completed: 'purple', cancelled: 'secondary' };
 let allDeliveries = [];
 let seenDeliveryIds = new Set();
 let deliveriesFirstSnapshot = true;
@@ -1746,9 +1746,9 @@ function initDeliveriesListener() {
                 if (!deliveriesFirstSnapshot && newRequests.length > 0) {
                     newRequests.forEach(r => {
                         playNotificationSound();
-                        addNotifLog('delivery_new', `🚚 طلب توصيل جديد من ${r.customerName || r.customerPhone || 'زبون'} — المستلم: ${r.receiverDistrict || r.receiverPhone || '-'} — الحي: ${r.senderDistrict || '-'}`);
+                        addNotifLog('delivery_new', `🚚 طلب توصيل جديد من ${r.customerName || r.customerPhone || 'زبون'} — من: ${r.pickupAddress || r.senderDistrict || '-'} إلى: ${r.dropoffAddress || r.receiverDistrict || '-'} — مستلم: ${r.receiverPhone || '-'}`);
                         ARAalert(
-                            `طلب توصيل جديد!\nمن: ${r.customerName || r.customerPhone || 'زبون'}\nالمستلم: ${r.receiverDistrict || r.receiverPhone || '-'}\nالحي: ${r.senderDistrict || '-'}`,
+                            `طلب توصيل جديد!\nمن: ${r.customerName || r.customerPhone || 'زبون'}\nنقطة الانطلاق: ${r.pickupAddress || r.senderDistrict || '-'}\nنقطة الوجهة: ${r.dropoffAddress || r.receiverDistrict || '-'}\nمستلم: ${r.receiverPhone || '-'}`,
                             'info'
                         );
                     });
@@ -1785,19 +1785,17 @@ function renderDeliveriesList(deliveries) {
     tbody.innerHTML = filtered.map(d => {
         const created = d.createdAt?.toDate ? fmtDate(d.createdAt.toDate()) : '-';
         const price = d.pendingPrice != null ? d.pendingPrice : (d.fare != null ? d.fare : '-');
-        const safeName = (d.customerName || d.customerPhone || '').replace(/'/g, '');
-        const safeRecv = (d.receiverPhone || '').replace(/'/g, '');
         let actions = '';
-        if (d.status === 'new') {
-            actions += `<button class="btn-action btn-action-credit" onclick="openDeliveryPriceModal('${d.id}','${safeName}','${safeRecv}')">إرسال السعر</button> `;
+        if (d.status === 'new' || d.status === 'saved' || d.status === 'no_drivers') {
+            actions += `<button class="btn-action btn-action-credit" onclick="openDeliveryPriceModal('${d.id}')">إرسال السعر</button> `;
         }
-        if (d.status === 'new' || d.status === 'price_sent') {
+        if (d.status === 'new' || d.status === 'price_sent' || d.status === 'saved') {
             actions += `<button class="btn-action btn-action-edit" onclick="setDeliveryStatus('${d.id}','accepted')">قبول (نشط)</button> `;
         }
-        if (d.status === 'accepted' || d.status === 'launched' || d.status === 'in_progress') {
+        if (d.status === 'accepted' || d.status === 'launched' || d.status === 'in_progress' || d.status === 'no_drivers') {
             actions += `<button class="btn-action btn-action-credit" onclick="setDeliveryStatus('${d.id}','completed')">مكتملة</button> `;
         }
-        if (d.status === 'accepted') {
+        if (d.status === 'accepted' || d.status === 'no_drivers') {
             actions += `<button class="btn-action btn-action-send" onclick="dispatchDeliveryToDrivers('${d.id}')">إرسال للسائقين</button> `;
         }
         if (d.status !== 'completed' && d.status !== 'cancelled') {
@@ -1807,8 +1805,8 @@ function renderDeliveriesList(deliveries) {
         return `<tr>
             <td><strong>${d.customerName || '-'}</strong><br><small class="text-muted">${fmtNum(d.customerPhone || '')}</small></td>
             <td><strong>${fmtNum(d.receiverPhone || '-')}</strong></td>
-            <td class="d-none d-md-table-cell">${d.senderDistrict || fmtNum(d.senderPhone || '-')}</td>
-            <td class="d-none d-md-table-cell">${d.receiverDistrict || '-'}</td>
+            <td class="d-none d-md-table-cell">${d.pickupAddress || d.senderDistrict || '-'}</td>
+            <td class="d-none d-md-table-cell">${d.dropoffAddress || d.receiverDistrict || '-'}</td>
             <td><strong class="text-gold">${price} MRU</strong></td>
             <td><span class="badge bg-${deliveryStatusColors[d.status] || 'secondary'}">${deliveryStatusLabels[d.status] || d.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
@@ -1817,11 +1815,30 @@ function renderDeliveriesList(deliveries) {
     }).join('');
 }
 
-window.openDeliveryPriceModal = function (id, customer, receiver) {
+window.openDeliveryPriceModal = function (id) {
+    const d = allDeliveries.find(x => x.id === id);
+    if (!d) return;
     document.getElementById('deliveryPriceId').value = id;
-    document.getElementById('deliveryPriceCustomer').textContent = customer;
-    document.getElementById('deliveryPriceReceiver').textContent = receiver;
-    document.getElementById('deliveryPriceValue').value = '';
+    document.getElementById('deliveryPriceCustomer').textContent = d.customerName || d.customerPhone || '-';
+    document.getElementById('deliveryPriceReceiver').textContent = fmtNum(d.receiverPhone || '-');
+    document.getElementById('deliveryPriceSender').textContent = d.senderDistrict || d.senderPhone || '-';
+    document.getElementById('deliveryPriceReceiverDistrict').textContent = d.receiverDistrict || '-';
+    document.getElementById('deliveryPricePickup').textContent = d.pickupAddress || d.senderDistrict || '-';
+    document.getElementById('deliveryPriceDropoff').textContent = d.dropoffAddress || d.receiverDistrict || '-';
+    document.getElementById('deliveryPriceNotes').textContent = d.notes || '-';
+    const from = (d.senderLat && d.senderLng) ? `${d.senderLat},${d.senderLng}` : null;
+    const to = (d.dropoffLat && d.dropoffLng) ? `${d.dropoffLat},${d.dropoffLng}` : null;
+    const link = document.getElementById('deliveryPriceMapLink');
+    if (from && to) {
+        link.href = `https://www.google.com/maps/dir/${from}/${to}`;
+        link.style.display = '';
+    } else if (from) {
+        link.href = `https://www.google.com/maps/search/?api=1&query=${from}`;
+        link.style.display = '';
+    } else {
+        link.style.display = 'none';
+    }
+    document.getElementById('deliveryPriceValue').value = d.pendingPrice || '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('deliveryPriceModal')).show();
 };
 
@@ -1868,6 +1885,8 @@ window.dispatchDeliveryToDrivers = async function (id) {
     if (!d.senderLat && !d.senderLng) { ARAalert('لا توجد إحداثيات لنقطة الانطلاق على هذه التوصيلة', 'warning'); return; }
 
     const lat = d.senderLat, lng = d.senderLng;
+    const dropLat = d.dropoffLat || lat;
+    const dropLng = d.dropoffLng || lng;
     let radius = 20;
     try {
         const cfg = await db.collection('settings').doc('app_config').get();
@@ -1890,10 +1909,10 @@ window.dispatchDeliveryToDrivers = async function (id) {
         notes: d.notes || '',
         pickupLat: lat,
         pickupLng: lng,
-        dropoffLat: lat,
-        dropoffLng: lng,
-        pickupAddress: d.pickupAddress || d.senderDistrict || 'نقطة الانطلاق',
-        dropoffAddress: d.dropoffAddress || d.receiverDistrict || 'نقطة الوصول',
+        dropoffLat: dropLat,
+        dropoffLng: dropLng,
+        pickupAddress: d.pickupAddress || d.senderDistrict || '',
+        dropoffAddress: d.dropoffAddress || d.receiverDistrict || '',
         realDistanceKm: 0,
         searchRadiusKm: radius,
         fare: price,

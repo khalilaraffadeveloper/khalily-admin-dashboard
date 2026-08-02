@@ -707,8 +707,10 @@
                                         <option value="new">جديد</option>
                                         <option value="price_sent">سعر مُرسل</option>
                                         <option value="accepted">مقبول</option>
+                                        <option value="saved">رُفض السعر</option>
                                         <option value="launched">مُطلق</option>
                                         <option value="in_progress">قيد التنفيذ</option>
+                                        <option value="no_drivers">بلا سائقين</option>
                                         <option value="completed">مكتملة</option>
                                         <option value="cancelled">ملغاة</option>
                                     </select>
@@ -721,8 +723,8 @@
                                             <tr>
                                                 <th>الزبون</th>
                                                 <th>مستلم</th>
-                                                <th class="d-none d-md-table-cell">حي المرسل</th>
-                                                <th class="d-none d-md-table-cell">حي المستلم</th>
+                                                <th class="d-none d-md-table-cell">نقطة الانطلاق</th>
+                                                <th class="d-none d-md-table-cell">نقطة الوجهة</th>
                                                 <th>السعر</th>
                                                 <th>الحالة</th>
                                                 <th class="d-none d-lg-table-cell">التاريخ</th>
@@ -1562,10 +1564,17 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-2"><strong>الزبون:</strong> <span id="deliveryPriceCustomer"></span></div>
-                    <div class="mb-3"><strong>مستلم:</strong> <span id="deliveryPriceReceiver"></span></div>
+                    <div class="mb-2"><strong>مستلم:</strong> <span id="deliveryPriceReceiver"></span></div>
+                    <div class="mb-2"><strong>المرسل (الحي):</strong> <span id="deliveryPriceSender"></span></div>
+                    <div class="mb-2"><strong>المستلم (الحي):</strong> <span id="deliveryPriceReceiverDistrict"></span></div>
+                    <div class="mb-2"><strong>نقطة الانطلاق:</strong> <span id="deliveryPricePickup"></span></div>
+                    <div class="mb-2"><strong>نقطة الوجهة:</strong> <span id="deliveryPriceDropoff"></span></div>
+                    <div class="mb-2"><strong>ملاحظات:</strong> <span id="deliveryPriceNotes"></span></div>
+                    <div class="mb-3"><a href="#" target="_blank" rel="noopener" id="deliveryPriceMapLink" class="btn btn-sm btn-outline-primary"><i class="bi bi-geo-alt me-1"></i>فتح المسار في خرائط جوجل</a></div>
                     <input type="hidden" id="deliveryPriceId">
-                    <label class="form-label fw-bold">السعر (MRU)</label>
+                    <label class="form-label fw-bold">السعر التقديري (MRU)</label>
                     <input type="number" class="form-control" id="deliveryPriceValue" placeholder="مثال: 150">
+                    <div class="form-text">يستطيع المشرف الآن رؤية نقطتي الانطلاق والوجهة لتقدير السعر بدقة</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
