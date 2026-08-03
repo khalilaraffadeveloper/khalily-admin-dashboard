@@ -1279,7 +1279,7 @@ document.getElementById('registerCustomerBtn').addEventListener('click', async (
         await db.collection('customers').add({
             name, phone, whatsapp, password, credit,
             lat: 18.0735, lng: -15.9582, geohash: '',
-            isOnline: false, totalRides: 0, fcmToken: '', deviceId: '',
+            isOnline: false, disabled: false, totalRides: 0, fcmToken: '', deviceId: '',
             lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -3109,6 +3109,7 @@ window.addProduct = async function() {
             await db.collection('customer_products').add({
                 name, type, price, phone, description, videoUrl, images,
                 active: true,
+                status: 'approved',
                 ownerPhone: phone,
                 views: 0,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -3504,6 +3505,7 @@ async function loadCustomerProductsList() {
     if (!requireDb()) return;
     const list = document.getElementById('customerProductsList');
     if (!list) return;
+    const filter = (document.getElementById('customerProductFilter') || {}).value || 'all';
     list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
     try {
         let snap;
@@ -3513,28 +3515,49 @@ async function loadCustomerProductsList() {
             console.warn('customer_products orderBy createdAt failed:', orderErr.message);
             snap = await db.collection('customer_products').get();
         }
-        document.getElementById('customerProductCount').textContent = snap.size;
-        if (snap.empty) {
-            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات من الزبائن بعد — عندما يرفع الزبون منتجاً من تطبيق الزبون سيظهر هنا فوراً</div>';
-            return;
-        }
         const docs = snap.docs.slice().sort((a, b) => {
             const ta = a.data().createdAt && a.data().createdAt.toMillis ? a.data().createdAt.toMillis() : 0;
             const tb = b.data().createdAt && b.data().createdAt.toMillis ? b.data().createdAt.toMillis() : 0;
             return tb - ta;
+        }).filter(doc => {
+            const p = doc.data();
+            const st = p.status || (p.active === false ? 'hidden' : 'approved');
+            if (filter === 'all') return true;
+            return st === filter;
         });
+        document.getElementById('customerProductCount').textContent = docs.length;
+        if (docs.length === 0) {
+            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات في هذا التصنيف</div>';
+            return;
+        }
+        const badgeMap = {
+            pending: ['bg-warning text-dark', 'بانتظار الموافقة'],
+            approved: ['bg-success', 'ظاهر في التطبيق'],
+            hidden: ['bg-secondary', 'مخفي'],
+            rejected: ['bg-danger', 'مرفوض']
+        };
         list.innerHTML = docs.map(doc => {
             const p = doc.data();
-            const active = p.active !== false;
+            const st = p.status || (p.active === false ? 'hidden' : 'approved');
+            const [badgeClass, badgeLabel] = badgeMap[st] || badgeMap.approved;
             const time = p.createdAt?.toDate ? fmtDate(p.createdAt.toDate()) : '';
             const imgHtml = p.images && p.images.length > 0
                 ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.onerror=null;this.style.display='none';">`
                 : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-box fs-1 text-muted"></i></div>`;
+            let buttons = '';
+            if (st === 'pending') {
+                buttons += `<button class="btn btn-sm btn-success" onclick="approveCustomerProduct('${doc.id}')"><i class="bi bi-check-lg"></i> موافقة</button>`;
+                buttons += `<button class="btn btn-sm btn-outline-danger" onclick="rejectCustomerProduct('${doc.id}')"><i class="bi bi-x-lg"></i> رفض</button>`;
+            } else {
+                buttons += `<button class="btn btn-sm ${p.active === false ? 'btn-outline-success' : 'btn-outline-warning'}" onclick="toggleCustomerProduct('${doc.id}', ${p.active !== false})"><i class="bi ${p.active === false ? 'bi-eye' : 'bi-eye-slash'}"></i> ${p.active === false ? 'إظهار' : 'إخفاء'}</button>`;
+            }
+            buttons += `<button class="btn btn-sm btn-outline-primary" onclick="openEditCustomerProductModal('${doc.id}')"><i class="bi bi-pencil"></i></button>`;
+            buttons += `<button class="btn btn-sm btn-outline-danger" onclick="deleteCustomerProduct('${doc.id}')"><i class="bi bi-trash"></i></button>`;
             return `<div class="col-md-4 col-sm-6">
-                <div class="card border-0 shadow-sm h-100 ${active ? '' : 'opacity-75'}">
+                <div class="card border-0 shadow-sm h-100 ${p.active === false ? 'opacity-75' : ''}">
                     <div class="card-body">
                         <div class="d-flex gap-1 align-items-center mb-1">
-                            <span class="badge ${active ? 'bg-success' : 'bg-secondary'}">${active ? 'ظاهر في التطبيق' : 'مخفي'}</span>
+                            <span class="badge ${badgeClass}">${badgeLabel}</span>
                             <span class="badge bg-info">${p.views || 0} مشاهدة</span>
                         </div>
                         ${imgHtml}
@@ -3544,10 +3567,9 @@ async function loadCustomerProductsList() {
                         ${p.monthlyPrice ? `<div class="badge bg-warning text-dark mb-2">عرض شهري: ${p.monthlyPrice} MRU</div>` : ''}
                         <div class="d-flex gap-2 flex-wrap">
                             <button onclick="callPhone('${p.phone||''}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>
-                            <button class="btn btn-sm ${active ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleCustomerProduct('${doc.id}', ${active})"><i class="bi ${active ? 'bi-eye-slash' : 'bi-eye'}"></i> ${active ? 'إخفاء' : 'إظهار'}</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomerProduct('${doc.id}')"><i class="bi bi-trash"></i></button>
+                            ${buttons}
                         </div>
-                        <small class="text-muted d-block mt-2">${time}</small>
+                        <small class="text-muted d-block mt-2">${time}${p.ownerPhone ? ' | بائع: <span dir="ltr">' + p.ownerPhone + '</span>' : ''}</small>
                     </div>
                 </div>
             </div>`;
@@ -3557,10 +3579,31 @@ async function loadCustomerProductsList() {
     }
 }
 
+window.approveCustomerProduct = async function(id) {
+    if (!requireDb()) return;
+    try {
+        await db.collection('customer_products').doc(id).update({ status: 'approved', active: true });
+        loadCustomerProductsList();
+        ARAalert('تمت الموافقة على المنتج وسيظهر في التطبيق', 'success');
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.rejectCustomerProduct = async function(id) {
+    if (!(await ARAconfirm('رفض هذا المنتج؟ سيُخفى ولا يظهر في التطبيق.'))) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('customer_products').doc(id).update({ status: 'rejected', active: false });
+        loadCustomerProductsList();
+        ARAalert('تم رفض المنتج', 'success');
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
 window.toggleCustomerProduct = async function(id, currentActive) {
     if (!requireDb()) return;
     try {
-        await db.collection('customer_products').doc(id).update({ active: !currentActive });
+        await db.collection('customer_products').doc(id).update(
+            currentActive ? { active: false } : { active: true, status: 'approved' }
+        );
         loadCustomerProductsList();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
@@ -3571,5 +3614,169 @@ window.deleteCustomerProduct = async function(id) {
     try {
         await db.collection('customer_products').doc(id).delete();
         loadCustomerProductsList();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+// ============================================
+// EDIT CUSTOMER PRODUCT MODAL
+// ============================================
+const editCustomerProductModal = new bootstrap.Modal(document.getElementById('editCustomerProductModal'));
+
+window.openEditCustomerProductModal = async function(id) {
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('customer_products').doc(id).get();
+        if (!snap.exists) { ARAalert('المنتج غير موجود', 'error'); return; }
+        const p = snap.data();
+        document.getElementById('editCustomerProductId').value = id;
+        document.getElementById('editCustomerProductName').value = p.name || '';
+        document.getElementById('editCustomerProductPrice').value = p.price || 0;
+        document.getElementById('editCustomerProductMonthly').value = p.monthlyPrice || 0;
+        document.getElementById('editCustomerProductPhone').value = p.phone || '';
+        document.getElementById('editCustomerProductDescription').value = p.description || '';
+        editCustomerProductModal.show();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+document.getElementById('saveEditCustomerProductBtn').addEventListener('click', async () => {
+    if (!requireDb()) return;
+    const id = document.getElementById('editCustomerProductId').value;
+    const name = document.getElementById('editCustomerProductName').value.trim();
+    const price = parseNum(document.getElementById('editCustomerProductPrice').value);
+    const monthly = parseNum(document.getElementById('editCustomerProductMonthly').value);
+    const phone = document.getElementById('editCustomerProductPhone').value.trim();
+    const description = document.getElementById('editCustomerProductDescription').value.trim();
+    if (!name) { ARAalert('أدخل اسم المنتج', 'warning'); return; }
+    try {
+        const data = { name, description, phone };
+        if (!isNaN(price)) data.price = price;
+        if (!isNaN(monthly)) data.monthlyPrice = monthly;
+        await db.collection('customer_products').doc(id).update(data);
+        editCustomerProductModal.hide();
+        loadCustomerProductsList();
+        ARAalert('تم حفظ تعديلات المنتج', 'success');
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+});
+
+// ============================================
+// CUSTOMER PROFILE SEARCH (full info + controls)
+// ============================================
+let lastCustomerProfileId = null;
+
+window.searchCustomerProfile = async function() {
+    if (!requireDb()) return;
+    const phone = document.getElementById('searchCustomerProfilePhone').value.trim();
+    const name = document.getElementById('searchCustomerProfileName').value.trim();
+    const resultEl = document.getElementById('customerProfileResult');
+    if (!phone && !name) { ARAalert('أدخل رقم الهاتف أو الاسم', 'warning'); return; }
+    resultEl.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> جاري البحث...</div>';
+    try {
+        let snapshot;
+        if (phone) {
+            snapshot = await db.collection('customers').where('phone', '==', phone).get();
+            if (snapshot.empty) {
+                snapshot = await db.collection('customers').where('whatsapp', '==', phone).get();
+            }
+        } else {
+            snapshot = await db.collection('customers').where('name', '==', name).get();
+        }
+        if (snapshot.empty) {
+            lastCustomerProfileId = null;
+            resultEl.innerHTML = '<div class="alert alert-danger py-2">لم يتم العثور على زبون</div>';
+            return;
+        }
+        const doc = snapshot.docs[0];
+        lastCustomerProfileId = doc.id;
+        await renderCustomerProfile(doc.id, doc.data());
+    } catch (e) {
+        resultEl.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
+    }
+};
+
+window.refreshCustomerProfile = async function() {
+    if (!lastCustomerProfileId) return;
+    try {
+        const snap = await db.collection('customers').doc(lastCustomerProfileId).get();
+        if (snap.exists) {
+            renderCustomerProfile(snap.id, snap.data());
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.renderCustomerProfile = async function(id, c) {
+    const resultEl = document.getElementById('customerProfileResult');
+    if (!resultEl) return;
+    const disabled = !!c.disabled;
+    const createdAt = c.createdAt && c.createdAt.toDate ? fmtDate(c.createdAt.toDate()) : '-';
+    const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    let productsHtml = '<div class="text-muted small">لا توجد منتجات</div>';
+    try {
+        const prods = await db.collection('customer_products').where('ownerPhone', '==', c.phone).limit(20).get();
+        if (!prods.empty) {
+            productsHtml = prods.docs.map(p => {
+                const pr = p.data();
+                const st = pr.status || (pr.active === false ? 'hidden' : 'approved');
+                const stBadge = st === 'pending' ? '<span class="badge bg-warning text-dark">بانتظار الموافقة</span>'
+                    : st === 'rejected' ? '<span class="badge bg-danger">مرفوض</span>'
+                    : (pr.active === false ? '<span class="badge bg-secondary">مخفي</span>' : '<span class="badge bg-success">ظاهر</span>');
+                return `<div class="d-flex justify-content-between align-items-center border-bottom py-1 gap-2">
+                    <div>
+                        <strong>${pr.name}</strong>
+                        <span class="text-gold ms-1">${pr.price || 0} MRU</span>
+                        ${stBadge}
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-primary" onclick="openEditCustomerProductModal('${p.id}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomerProduct('${p.id}'); setTimeout(refreshCustomerProfile, 700)"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    } catch (e) {
+        productsHtml = '<div class="text-muted small">تعذر تحميل المنتجات</div>';
+    }
+    resultEl.innerHTML = `
+        <div class="bg-light rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h6 class="fw-bold mb-2">${c.name || '-'}</h6>
+                    <table class="table table-sm table-borderless small mb-2" style="max-width:560px">
+                        <tr><th class="text-muted w-25">الهاتف</th><td><span dir="ltr">${c.phone || '-'}</span></td></tr>
+                        <tr><th class="text-muted">الواتساب</th><td><span dir="ltr">${c.whatsapp || '-'}</span></td></tr>
+                        <tr><th class="text-muted">كلمة السر</th><td>${c.password ? '••••' : '-'}</td></tr>
+                        <tr><th class="text-muted">الرصيد</th><td><strong class="text-gold">${c.credit || 0} MRU</strong></td></tr>
+                        <tr><th class="text-muted">الحالة</th><td><span class="badge ${c.isOnline ? 'bg-success' : 'bg-secondary'}">${c.isOnline ? 'متصل' : 'غير متصل'}</span> <span class="badge ${disabled ? 'bg-danger' : 'bg-success'}">${disabled ? 'معطل' : 'مفعّل'}</span></td></tr>
+                        <tr><th class="text-muted">الرحلات</th><td>${c.totalRides || 0}</td></tr>
+                        <tr><th class="text-muted">تاريخ التسجيل</th><td>${createdAt}</td></tr>
+                        <tr><th class="text-muted">معرّف الجهاز</th><td><span dir="ltr" class="small">${c.deviceId || '-'}</span></td></tr>
+                        <tr><th class="text-muted">Token الإشعارات</th><td><span dir="ltr" class="small text-break">${c.fcmToken ? c.fcmToken.substring(0, 40) + '...' : '-'}</span></td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="d-flex gap-1 flex-wrap mb-2">
+                <button class="btn-action btn-action-edit" onclick="openEditCustomerModal('${id}','${safeName}','${c.phone||''}','${c.whatsapp||''}')">تعديل</button>
+                <button class="btn-action btn-action-credit" onclick="openCustomerCreditModal('${id}','${safeName}',${c.credit||0})">شحن</button>
+                <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCustomerCreditModal('${id}','${safeName}',${c.credit||0})">تعديل الرصيد</button>
+                <button class="btn-action btn-action-edit" onclick="openCustomerPasswordModal('${id}','${safeName}')">كلمة السر</button>
+                <button class="btn-action btn-action-toggle" onclick="toggleCustomerBlock('${id}', ${disabled})">${disabled ? 'تفعيل' : 'تعطيل'}</button>
+                <button class="btn-action btn-action-delete" onclick="openDeleteCustomerModal('${id}','${safeName}')">حذف</button>
+            </div>
+            <div class="mt-2">
+                <strong class="small">منتجات هذا الزبون (${c.phone ? '' : ''}):</strong>
+                <div class="mt-1">${productsHtml}</div>
+            </div>
+        </div>`;
+    document.getElementById('searchCustomerProfilePhone').value = c.phone || '';
+    document.getElementById('searchCustomerProfileName').value = c.name || '';
+};
+
+window.toggleCustomerBlock = async function(id, currentDisabled) {
+    if (!(await ARAconfirm(currentDisabled ? 'تفعيل حساب هذا الزبون؟' : 'تعطيل حساب هذا الزبون؟ سيمنع من تسجيل الدخول.'))) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('customers').doc(id).update({ disabled: !currentDisabled });
+        refreshCustomerProfile();
+        loadCustomersList();
+        ARAalert(currentDisabled ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب', 'success');
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
