@@ -1276,6 +1276,24 @@ document.getElementById('registerCustomerBtn').addEventListener('click', async (
     const btn = document.getElementById('registerCustomerBtn');
     btn.disabled = true; btn.textContent = 'جاري التسجيل...';
     try {
+        const dupPhone = await db.collection('customers').where('phone', '==', phone).get();
+        if (!dupPhone.empty) {
+            const existing = dupPhone.docs[0].data().name || 'زبون آخر';
+            showStatus(statusEl, 'رقم الهاتف ' + phone + ' مسجل بالفعل للزبون: ' + existing, 'error');
+            btn.disabled = false; btn.textContent = 'تسجيل الزبون';
+            return;
+        }
+        if (whatsapp) {
+            const dupWa = await db.collection('customers')
+                .where('whatsapp', '==', whatsapp)
+                .get();
+            if (!dupWa.empty) {
+                const existing = dupWa.docs[0].data().name || 'زبون آخر';
+                showStatus(statusEl, 'رقم الواتساب ' + whatsapp + ' مسجل بالفعل للزبون: ' + existing, 'error');
+                btn.disabled = false; btn.textContent = 'تسجيل الزبون';
+                return;
+            }
+        }
         await db.collection('customers').add({
             name, phone, whatsapp, password, credit,
             lat: 18.0735, lng: -15.9582, geohash: '',
@@ -1489,6 +1507,12 @@ document.getElementById('saveEditCustomerBtn').addEventListener('click', async (
     const whatsapp = document.getElementById('editCustomerWhatsapp').value.trim();
     if (!name) return;
     try {
+        const dupPhone = await db.collection('customers').where('phone', '==', phone).get();
+        const conflict = dupPhone.docs.find(d => d.id !== id);
+        if (conflict) {
+            ARAalert('رقم الهاتف ' + phone + ' مسجل بالفعل للزبون: ' + (conflict.data().name || 'زبون آخر'), 'error');
+            return;
+        }
         await db.collection('customers').doc(id).update({ name, phone, whatsapp });
         editCustomerModal.hide();
         loadCustomersList();
