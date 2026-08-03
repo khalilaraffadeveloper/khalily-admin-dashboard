@@ -465,7 +465,7 @@ function navigateToPage(page) {
     if (page === 'deliveries') initDeliveriesListener();
     if (page === 'unregistered-customers') loadUnregisteredCustomers();
     if (page === 'rides') loadRidesList();
-    if (page === 'settings') { loadCommission(); loadRidesCleanupSettings(); }
+    if (page === 'settings') { loadCommission(); loadCustomerCommission(); loadRidesCleanupSettings(); }
     if (page === 'admins') loadAdminsList();
     if (page === 'messages') { loadMsgRecipients(); loadSentMessages(); loadSentCustomerMessages(); }
     if (page === 'announcements') loadAnnouncements();
@@ -688,6 +688,39 @@ window.saveCommission = async function () {
         commissionPercent = val;
         document.getElementById('currentCommission').textContent = `${val}%`;
         ARAalert('تم حفظ النسبة بنجاح', 'success');
+    } catch (e) {
+        ARAalert('خطأ: ' + e.message, 'error');
+    }
+};
+
+let customerRideCommissionPercent = 5;
+
+async function loadCustomerCommission() {
+    if (!requireDb()) return;
+    try {
+        const doc = await db.collection('settings').doc('app_config').get();
+        if (doc.exists) customerRideCommissionPercent = doc.data().customerRideCommissionPercent || 5;
+        const el = document.getElementById('currentCustomerCommission');
+        if (el) el.textContent = `${customerRideCommissionPercent}%`;
+        const inp = document.getElementById('newCustomerCommission');
+        if (inp) inp.value = customerRideCommissionPercent;
+    } catch (e) {
+        console.log('Customer commission load error');
+    }
+}
+
+window.saveCustomerCommission = async function () {
+    if (!requireDb()) return;
+    const val = parseFloat(document.getElementById('newCustomerCommission').value);
+    if (isNaN(val) || val < 0 || val > 100) {
+        ARAalert('يرجى إدخال نسبة صحيحة (0-100)', 'warning');
+        return;
+    }
+    try {
+        await db.collection('settings').doc('app_config').set({ customerRideCommissionPercent: val }, { merge: true });
+        customerRideCommissionPercent = val;
+        document.getElementById('currentCustomerCommission').textContent = `${val}%`;
+        ARAalert('تم حفظ نسبة عمولة الزبون بنجاح', 'success');
     } catch (e) {
         ARAalert('خطأ: ' + e.message, 'error');
     }
@@ -3179,6 +3212,7 @@ function initDashboard() {
     initMap();
     bindMapSearch();
     loadCommission();
+    loadCustomerCommission();
     loadRidesCleanupSettings();
     loadStats();
     initRealtimeListeners();

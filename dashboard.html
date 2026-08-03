@@ -520,6 +520,21 @@
                     <div class="col-md-6">
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-percent text-gold me-2"></i>عمولة طلبات الزبون</h6>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="display-4 fw-bold text-gold my-3" id="currentCustomerCommission">5%</div>
+                                <p class="text-muted small">النسبة المخصومة من رصيد الزبون عند قبوله سعر التوصيل</p>
+                                <div class="input-group">
+                                    <input type="number" class="form-control text-center fw-bold" id="newCustomerCommission" min="0" max="100" placeholder="النسبة %">
+                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="saveCustomerCommission()">حفظ</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header bg-white border-bottom">
                                 <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-search text-gold me-2"></i>بحث عن سائق</h6>
                             </div>
                             <div class="card-body">
