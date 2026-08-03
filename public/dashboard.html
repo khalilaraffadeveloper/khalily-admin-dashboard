@@ -363,6 +363,23 @@
                         </div>
                     </div>
 
+                    <!-- Customer Profile Search -->
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-person-lines-fill me-2 text-gold"></i>بحث عن زبون وعرض كامل معلوماته</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group mb-3">
+                                    <input type="tel" class="form-control" id="searchCustomerProfilePhone" placeholder="رقم الهاتف">
+                                    <input type="text" class="form-control" id="searchCustomerProfileName" placeholder="أو الاسم">
+                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="searchCustomerProfile()">بحث</button>
+                                </div>
+                                <div id="customerProfileResult"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Customers List -->
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
@@ -513,6 +530,21 @@
                                 <div class="input-group">
                                     <input type="number" class="form-control text-center fw-bold" id="newCommission" min="0" max="100" placeholder="النسبة %">
                                     <button class="btn btn-dark-blue text-white fw-bold" onclick="saveCommission()">حفظ</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-percent text-gold me-2"></i>عمولة طلبات الزبون</h6>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="display-4 fw-bold text-gold my-3" id="currentCustomerCommission">5%</div>
+                                <p class="text-muted small">النسبة المخصومة من رصيد الزبون عند قبوله سعر التوصيل</p>
+                                <div class="input-group">
+                                    <input type="number" class="form-control text-center fw-bold" id="newCustomerCommission" min="0" max="100" placeholder="النسبة %">
+                                    <button class="btn btn-dark-blue text-white fw-bold" onclick="saveCustomerCommission()">حفظ</button>
                                 </div>
                             </div>
                         </div>
@@ -707,8 +739,10 @@
                                         <option value="new">جديد</option>
                                         <option value="price_sent">سعر مُرسل</option>
                                         <option value="accepted">مقبول</option>
+                                        <option value="saved">رُفض السعر</option>
                                         <option value="launched">مُطلق</option>
                                         <option value="in_progress">قيد التنفيذ</option>
+                                        <option value="no_drivers">بلا سائقين</option>
                                         <option value="completed">مكتملة</option>
                                         <option value="cancelled">ملغاة</option>
                                     </select>
@@ -721,8 +755,8 @@
                                             <tr>
                                                 <th>الزبون</th>
                                                 <th>مستلم</th>
-                                                <th class="d-none d-md-table-cell">حي المرسل</th>
-                                                <th class="d-none d-md-table-cell">حي المستلم</th>
+                                                <th class="d-none d-md-table-cell">نقطة الانطلاق</th>
+                                                <th class="d-none d-md-table-cell">نقطة الوجهة</th>
                                                 <th>السعر</th>
                                                 <th>الحالة</th>
                                                 <th class="d-none d-lg-table-cell">التاريخ</th>
@@ -986,8 +1020,15 @@
                     </div>
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
-                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-people me-2 text-gold"></i>منتجات الزبائن (المرفوعة من التطبيق) (<span id="customerProductCount">0</span>)</h6>
+                                <select class="form-select form-select-sm" id="customerProductFilter" style="width:auto" onchange="loadCustomerProductsList()">
+                                    <option value="all">الكل</option>
+                                    <option value="pending">بانتظار الموافقة</option>
+                                    <option value="approved">ظاهرة</option>
+                                    <option value="hidden">مخفية</option>
+                                    <option value="rejected">مرفوضة</option>
+                                </select>
                             </div>
                             <div class="card-body">
                                 <div id="customerProductsList" class="row g-3">
@@ -1042,6 +1083,14 @@
                                     <div id="storeImagePreview" class="d-none">
                                         <img src="" alt="معاينة" class="img-thumbnail rounded-3" style="max-height:120px;">
                                     </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">الموقع على الخريطة</label>
+                                    <div class="d-flex align-items-center gap-2 mt-2">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openStoreMapPicker()"><i class="bi bi-geo-alt me-1"></i>تحديد الموقع</button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm d-none" id="btnClearStoreLocation" onclick="clearStoreLocation()" title="إزالة الموقع"><i class="bi bi-x-lg"></i></button>
+                                    </div>
+                                    <div class="small text-muted mt-2" id="storeLocationText"><i class="bi bi-info-circle me-1"></i>لم يُحدد الموقع بعد — يستطيع السائق توجيه نفسه إلى المتجر</div>
                                 </div>
                                 <div class="col-12">
                                     <button class="btn btn-primary px-4" id="btnAddStore" onclick="addStore()"><i class="bi bi-plus-lg me-2"></i>إضافة المتجر</button>
@@ -1376,6 +1425,75 @@
         </div>
     </div>
 
+    <!-- EDIT CUSTOMER PRODUCT MODAL -->
+    <div class="modal fade" id="editCustomerProductModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold"><i class="bi bi-pencil-square me-2 text-gold"></i>تعديل منتج الزبون</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCustomerProductId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اسم المنتج</label>
+                        <input type="text" class="form-control" id="editCustomerProductName">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">السعر (MRU)</label>
+                            <input type="number" class="form-control" id="editCustomerProductPrice" min="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">العرض الشهري (MRU)</label>
+                            <input type="number" class="form-control" id="editCustomerProductMonthly" min="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">هاتف البائع</label>
+                        <input type="tel" class="form-control" id="editCustomerProductPhone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الوصف</label>
+                        <textarea class="form-control" id="editCustomerProductDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">عدد المشاهدات</label>
+                        <input type="text" class="form-control" id="editCustomerProductViews" readonly>
+                        <small class="text-muted">يُحسب تلقائياً من تطبيق الزبون</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditCustomerProductBtn">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STORE LOCATION MAP MODAL -->
+    <div class="modal fade" id="storeMapModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold"><i class="bi bi-geo-alt me-2 text-gold"></i>تحديد موقع المتجر على الخريطة</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="small text-muted mb-2"><i class="bi bi-hand-index-thumb me-1"></i>انقر على الخريطة لتحديد موقع المتجر</div>
+                    <div id="storeMapPicker" style="height:55vh;border-radius:12px;overflow:hidden;"></div>
+                </div>
+                <div class="modal-footer border-top d-flex justify-content-between">
+                    <div class="fw-semibold text-muted small" id="storeMapCoordsText">لم يُحدد بعد</div>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="button" class="btn btn-dark-blue text-white fw-bold" id="confirmStoreLocationBtn">تأكيد الموقع</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- EDIT ADMIN MODAL -->
     <div class="modal fade" id="editAdminModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -1562,10 +1680,17 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-2"><strong>الزبون:</strong> <span id="deliveryPriceCustomer"></span></div>
-                    <div class="mb-3"><strong>مستلم:</strong> <span id="deliveryPriceReceiver"></span></div>
+                    <div class="mb-2"><strong>مستلم:</strong> <span id="deliveryPriceReceiver"></span></div>
+                    <div class="mb-2"><strong>المرسل (الحي):</strong> <span id="deliveryPriceSender"></span></div>
+                    <div class="mb-2"><strong>المستلم (الحي):</strong> <span id="deliveryPriceReceiverDistrict"></span></div>
+                    <div class="mb-2"><strong>نقطة الانطلاق:</strong> <span id="deliveryPricePickup"></span></div>
+                    <div class="mb-2"><strong>نقطة الوجهة:</strong> <span id="deliveryPriceDropoff"></span></div>
+                    <div class="mb-2"><strong>ملاحظات:</strong> <span id="deliveryPriceNotes"></span></div>
+                    <div class="mb-3"><a href="#" target="_blank" rel="noopener" id="deliveryPriceMapLink" class="btn btn-sm btn-outline-primary"><i class="bi bi-geo-alt me-1"></i>فتح المسار في خرائط جوجل</a></div>
                     <input type="hidden" id="deliveryPriceId">
-                    <label class="form-label fw-bold">السعر (MRU)</label>
+                    <label class="form-label fw-bold">السعر التقديري (MRU)</label>
                     <input type="number" class="form-control" id="deliveryPriceValue" placeholder="مثال: 150">
+                    <div class="form-text">يستطيع المشرف الآن رؤية نقطتي الانطلاق والوجهة لتقدير السعر بدقة</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>

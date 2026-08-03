@@ -1319,6 +1319,12 @@ document.getElementById('confirmEditCreditBtn').addEventListener('click', async 
         editCreditModal.hide();
         loadDriversList();
         refreshDriverSearchResult();
+        notifyUser('drivers', id, {
+            type: 'credit_update',
+            title: 'تم تحديث رصيدك',
+            body: `أصبح رصيدك ${newVal} MRU`,
+            balance: String(newVal)
+        });
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
@@ -1366,10 +1372,19 @@ document.getElementById('confirmCreditBtn').addEventListener('click', async () =
     const amount = parseNum(document.getElementById('creditAmount').value);
     if (!amount || amount <= 0) return;
     try {
+        const before = await db.collection('drivers').doc(id).get();
+        const prev = (before.data() && before.data().credit) || 0;
         await db.collection('drivers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
         creditModal.hide();
         loadDriversList();
         refreshDriverSearchResult();
+        notifyUser('drivers', id, {
+            type: 'credit_update',
+            title: 'تم شحن رصيدك',
+            body: `تمت إضافة ${amount} MRU إلى رصيدك`,
+            amount: String(amount),
+            balance: String((prev + amount).toFixed(2))
+        });
     } catch (err) { console.error('Credit error:', err); }
 });
 
@@ -1437,6 +1452,12 @@ document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click'
         await db.collection('customers').doc(id).update({ credit: newVal });
         editCustomerCreditModal.hide();
         loadCustomersList();
+        notifyUser('customers', id, {
+            type: 'credit_update',
+            title: 'تم تحديث رصيدك',
+            body: `أصبح رصيدك ${newVal} MRU`,
+            balance: String(newVal)
+        });
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 });
 
@@ -1476,9 +1497,18 @@ document.getElementById('confirmCustomerCreditBtn').addEventListener('click', as
     const amount = parseFloat(document.getElementById('customerCreditAmount').value);
     if (!amount || amount <= 0) return;
     try {
+        const before = await db.collection('customers').doc(id).get();
+        const prev = (before.data() && before.data().credit) || 0;
         await db.collection('customers').doc(id).update({ credit: firebase.firestore.FieldValue.increment(amount) });
         customerCreditModal.hide();
         loadCustomersList();
+        notifyUser('customers', id, {
+            type: 'credit_update',
+            title: 'تم شحن رصيدك',
+            body: `تمت إضافة ${amount} MRU إلى رصيدك`,
+            amount: String(amount),
+            balance: String((prev + amount).toFixed(2))
+        });
     } catch (err) { console.error('Customer credit error:', err); }
 });
 
@@ -2079,6 +2109,37 @@ async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, ln
         }
     } catch (e) {
         addNotifLog('system', `FCM: تعذر الوصول للخادم — الطلب سيصل للسائقين المفتوحين فقط (${e.message})`);
+    }
+}
+
+// ============================================
+// SINGLE-USER PUSH (customer / driver)
+// type: credit_update | product_status | customer_announcement
+// ============================================
+async function notifyUser(collectionName, docId, payload) {
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection(collectionName).doc(docId).get();
+        if (!snap.exists) return;
+        const token = (snap.data() && snap.data().fcmToken) || '';
+        if (!token) {
+            addNotifLog('system', `لا يوجد رمز إشعارات لـ ${collectionName} (${docId})`);
+            return;
+        }
+        const { title, body, ...data } = payload;
+        const res = await fetch('/api/send-fcm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokens: [token], title, body, data })
+        });
+        const json = await res.json();
+        if (json.success) {
+            addNotifLog('system', `تم إرسال إشعار لـ ${collectionName}: ${title}`);
+        } else {
+            addNotifLog('system', `فشل إرسال إشعار (${json.error || 'unknown'})`);
+        }
+    } catch (e) {
+        addNotifLog('system', `تعذر إرسال إشعار (${e.message})`);
     }
 }
 
@@ -3484,8 +3545,23 @@ async function loadCustomerProductsList() {
 window.toggleCustomerProduct = async function(id, currentActive) {
     if (!requireDb()) return;
     try {
-        await db.collection('customer_products').doc(id).update({ active: !currentActive });
+        const snap = await db.collection('customer_products').doc(id).get();
+        const p = snap.data() || {};
+        const newActive = !currentActive;
+        await db.collection('customer_products').doc(id).update({ active: newActive, status: newActive ? 'approved' : 'hidden' });
         loadCustomerProductsList();
+        if (p.ownerPhone) {
+            const cust = await db.collection('customers').where('phone', '==', p.ownerPhone).get();
+            if (!cust.empty) {
+                notifyUser('customers', cust.docs[0].id, {
+                    type: 'product_status',
+                    title: newActive ? 'تمت الموافقة على منتجك' : 'تم إخفاء منتجك',
+                    body: p.name || 'منتجك',
+                    status: newActive ? 'approved' : 'hidden',
+                    productName: p.name || ''
+                });
+            }
+        }
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
@@ -3493,7 +3569,21 @@ window.deleteCustomerProduct = async function(id) {
     if (!(await ARAconfirm('حذف هذا المنتج؟'))) return;
     if (!requireDb()) return;
     try {
+        const snap = await db.collection('customer_products').doc(id).get();
+        const p = snap.data() || {};
         await db.collection('customer_products').doc(id).delete();
         loadCustomerProductsList();
+        if (p.ownerPhone) {
+            const cust = await db.collection('customers').where('phone', '==', p.ownerPhone).get();
+            if (!cust.empty) {
+                notifyUser('customers', cust.docs[0].id, {
+                    type: 'product_status',
+                    title: 'تم حذف منتجك',
+                    body: p.name || 'منتجك',
+                    status: 'deleted',
+                    productName: p.name || ''
+                });
+            }
+        }
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
