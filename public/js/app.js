@@ -415,6 +415,67 @@ function requestAudioPermission() {
 document.addEventListener('click', requestAudioPermission, { once: true });
 
 // ============================================
+// DESKTOP NOTIFICATIONS + BACKGROUND ALERT
+// ============================================
+let notifPermGranted = false;
+
+function initDesktopNotifications() {
+    if (!('Notification' in window)) { updateNotifPermButton(); return; }
+    notifPermGranted = Notification.permission === 'granted';
+    updateNotifPermButton();
+}
+
+async function requestDesktopNotifications() {
+    if (!('Notification' in window)) {
+        ARAalert('متصفحك لا يدعم إشعارات سطح المكتب', 'warning');
+        return;
+    }
+    if (Notification.permission === 'denied') {
+        ARAalert('تم رفض الإذن مسبقاً — افتح إعدادات الموقع واسمح بالإشعارات', 'warning');
+        return;
+    }
+    const perm = await Notification.requestPermission();
+    notifPermGranted = perm === 'granted';
+    updateNotifPermButton();
+    if (notifPermGranted) {
+        showDesktopNotification('تم تفعيل التنبيهات', 'ستصلك تنبيهات فورية عند قدوم أي طلب جديد حتى أثناء وجود المتصفح في الخلفية');
+        ARAalert('تم تفعيل إشعارات سطح المكتب بنجاح', 'success');
+    } else {
+        ARAalert('لم يتم منح إذن الإشعارات', 'warning');
+    }
+}
+
+function updateNotifPermButton() {
+    const btn = document.getElementById('enableDesktopNotifBtn');
+    if (!btn) return;
+    const supported = 'Notification' in window;
+    const show = supported && !notifPermGranted && Notification.permission !== 'denied';
+    btn.classList.toggle('d-none', !show);
+}
+
+function showDesktopNotification(title, body) {
+    if (!notifPermGranted) return;
+    try {
+        const n = new Notification(title, {
+            body: body,
+            icon: 'img/arava.png',
+            tag: 'arava-alert'
+        });
+        n.onclick = function () { window.focus(); n.close(); };
+    } catch (e) {}
+}
+
+function flashTab(prefix) {
+    const originalTitle = document.title;
+    const alertTitle = (prefix ? prefix + ' ' : '') + originalTitle;
+    let flashes = 0;
+    const interval = setInterval(function () {
+        document.title = (flashes++ % 2 === 0) ? alertTitle : originalTitle;
+        if (flashes >= 10) { clearInterval(interval); document.title = originalTitle; }
+    }, 600);
+}
+
+// ============================================
 // CLOCK
 // ============================================
 function updateClock() {
@@ -1562,10 +1623,14 @@ async function loadRidesList() {
                         rideStatusCache[id] = curr;
                         if (change.type === 'added' && !prev && curr !== 'pending' && curr !== 'no_drivers') {
                             playNotificationSound();
+                            showDesktopNotification(`🚀 رحلة جديدة: ${rd.passengerName || 'زبون'}`, `${labels[curr] || curr} — ${rd.fare || 0} MRU`);
+                            flashTab('🚀');
                             addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
                         }
                         if (change.type === 'modified' && prev && prev !== curr) {
                             playNotificationSound();
+                            showDesktopNotification(`${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`, `${rd.fare || 0} MRU — ${rd.from || ''} → ${rd.to || ''}`);
+                            flashTab('🔔');
                             if (curr === 'accepted') addNotifLog('ride_accepted', `✅ تم قبول الرحلة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
                             else if (curr === 'in_progress') addNotifLog('ride_in_progress', `🛵 بدء التنفيذ: ${rd.passengerName || 'زبون'}`);
                             else if (curr === 'completed') addNotifLog('ride_completed', `🏁 اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
@@ -1772,6 +1837,9 @@ function initDeliveriesListener() {
                 if (!deliveriesFirstSnapshot && newRequests.length > 0) {
                     newRequests.forEach(r => {
                         playNotificationSound();
+                        const notifBody = `من: ${r.customerName || r.customerPhone || 'زبون'} — المستلم: ${r.receiverDistrict || r.receiverPhone || '-'} — الحي: ${r.senderDistrict || '-'}`;
+                        showDesktopNotification('🚚 طلب توصيل جديد', notifBody);
+                        flashTab('🔴');
                         addNotifLog('delivery_new', `🚚 طلب توصيل جديد من ${r.customerName || r.customerPhone || 'زبون'} — المستلم: ${r.receiverDistrict || r.receiverPhone || '-'} — الحي: ${r.senderDistrict || '-'}`);
                         ARAalert(
                             `طلب توصيل جديد!\nمن: ${r.customerName || r.customerPhone || 'زبون'}\nالمستلم: ${r.receiverDistrict || r.receiverPhone || '-'}\nالحي: ${r.senderDistrict || '-'}`,
@@ -3213,6 +3281,7 @@ function initDashboard() {
     loadRidesCleanupSettings();
     loadStats();
     initRealtimeListeners();
+    initDesktopNotifications();
     applyRoleVisibility();
     checkDailyRidesCleanup();
     setInterval(loadStats, 60000);
