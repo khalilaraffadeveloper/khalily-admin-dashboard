@@ -1084,6 +1084,14 @@
                                         <img src="" alt="معاينة" class="img-thumbnail rounded-3" style="max-height:120px;">
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">الموقع على الخريطة</label>
+                                    <div class="d-flex align-items-center gap-2 mt-2">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openStoreMapPicker()"><i class="bi bi-geo-alt me-1"></i>تحديد الموقع</button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm d-none" id="btnClearStoreLocation" onclick="clearStoreLocation()" title="إزالة الموقع"><i class="bi bi-x-lg"></i></button>
+                                    </div>
+                                    <div class="small text-muted mt-2" id="storeLocationText"><i class="bi bi-info-circle me-1"></i>لم يُحدد الموقع بعد — يستطيع السائق توجيه نفسه إلى المتجر</div>
+                                </div>
                                 <div class="col-12">
                                     <button class="btn btn-primary px-4" id="btnAddStore" onclick="addStore()"><i class="bi bi-plus-lg me-2"></i>إضافة المتجر</button>
                                     <div class="mt-2 fw-semibold" id="addStoreStatus"></div>
@@ -1453,6 +1461,29 @@
                 <div class="modal-footer border-top">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                     <button type="button" class="btn btn-dark-blue text-white fw-bold" id="saveEditCustomerProductBtn">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STORE LOCATION MAP MODAL -->
+    <div class="modal fade" id="storeMapModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header border-bottom">
+                    <h6 class="fw-bold"><i class="bi bi-geo-alt me-2 text-gold"></i>تحديد موقع المتجر على الخريطة</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="small text-muted mb-2"><i class="bi bi-hand-index-thumb me-1"></i>انقر على الخريطة لتحديد موقع المتجر</div>
+                    <div id="storeMapPicker" style="height:55vh;border-radius:12px;overflow:hidden;"></div>
+                </div>
+                <div class="modal-footer border-top d-flex justify-content-between">
+                    <div class="fw-semibold text-muted small" id="storeMapCoordsText">لم يُحدد بعد</div>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="button" class="btn btn-dark-blue text-white fw-bold" id="confirmStoreLocationBtn">تأكيد الموقع</button>
+                    </div>
                 </div>
             </div>
         </div>

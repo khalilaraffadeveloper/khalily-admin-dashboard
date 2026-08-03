@@ -3253,6 +3253,8 @@ initDashboard();
 // STORES (SMART PROMOTIONS) MANAGEMENT
 // ============================================
 let storeImageFile = null;
+let storeLat = null;
+let storeLng = null;
 
 document.getElementById('storeImage')?.addEventListener('change', function(e) {
     storeImageFile = e.target.files[0] || null;
@@ -3302,12 +3304,17 @@ window.addStore = async function() {
             } catch (convErr) { console.warn('Image conversion failed:', convErr.message); }
         }
         const active = document.getElementById('storeActive').checked;
-        await db.collection('stores_promotion').add({
+        const storeData = {
             name, phone, district,
             images,
             active,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        if (storeLat !== null && storeLng !== null) {
+            storeData.lat = storeLat;
+            storeData.lng = storeLng;
+        }
+        await db.collection('stores_promotion').add(storeData);
         showStatus('addStoreStatus', 'تم إضافة المتجر بنجاح!', 'success');
         document.getElementById('storeName').value = '';
         document.getElementById('storePhone').value = '';
@@ -3315,6 +3322,9 @@ window.addStore = async function() {
         document.getElementById('storeImage').value = '';
         document.getElementById('storeImageUrl').value = '';
         storeImageFile = null;
+        storeLat = null;
+        storeLng = null;
+        updateStoreLocationUI();
         loadStoresList();
     } catch (err) {
         showStatus('addStoreStatus', 'خطأ: ' + err.message, 'error');
@@ -3348,9 +3358,13 @@ async function loadStoresList() {
                         </div>
                         ${imgHtml}
                         ${s.district ? `<p class="small text-muted mb-1"><i class="bi bi-geo-alt me-1"></i>${s.district}</p>` : ''}
+                        ${(s.lat !== undefined && s.lat !== null && s.lng !== undefined && s.lng !== null) ? '<p class="small mb-1 text-success"><i class="bi bi-geo-alt-fill me-1"></i>الموقع محدد على الخريطة</p>' : ''}
                         <div class="d-flex gap-2 flex-wrap">
                             <button onclick="callPhone('${s.phone || ''}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>
                             <button onclick="openWhatsApp('${s.phone || ''}','${encodeURIComponent(s.name || '')}')" class="btn btn-sm btn-success" style="background:#25D366;border-color:#25D366;"><i class="bi bi-whatsapp"></i> واتساب</button>
+                            ${(s.lat !== undefined && s.lat !== null && s.lng !== undefined && s.lng !== null)
+                                ? `<button class="btn btn-sm btn-info" onclick="openStoreNavigation(${s.lat}, ${s.lng})"><i class="bi bi-sign-turn-right-fill"></i> توجيه</button><button class="btn btn-sm btn-outline-primary" onclick="openStoreMapPicker('${doc.id}')"><i class="bi bi-geo-alt"></i> تعديل الموقع</button>`
+                                : `<button class="btn btn-sm btn-outline-primary" onclick="openStoreMapPicker('${doc.id}')"><i class="bi bi-geo-alt"></i> تحديد الموقع</button>`}
                             <button class="btn btn-sm ${active ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleStore('${doc.id}', ${active})"><i class="bi ${active ? 'bi-eye-slash' : 'bi-eye'}"></i></button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteStore('${doc.id}')"><i class="bi bi-trash"></i></button>
                         </div>
@@ -3378,6 +3392,104 @@ window.deleteStore = async function(id) {
         await db.collection('stores_promotion').doc(id).delete();
         loadStoresList();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+// ============================================
+// STORE LOCATION MAP PICKER
+// ============================================
+let storeMap = null;
+let storeMapMarker = null;
+let storeMapPickingFor = null; // null = form, otherwise store docId
+let storeMapChosen = null; // {lat, lng}
+
+function storeMapFocus(lat, lng) {
+    if (!storeMap) return;
+    storeMap.setView([lat, lng], 16);
+    if (storeMapMarker) storeMap.removeLayer(storeMapMarker);
+    storeMapMarker = L.marker([lat, lng]).addTo(storeMap);
+    document.getElementById('storeMapCoordsText').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+}
+
+window.openStoreMapPicker = function(storeId) {
+    storeMapPickingFor = storeId || null;
+    storeMapChosen = null;
+    const modalEl = document.getElementById('storeMapModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    modalEl.addEventListener('shown.bs.modal', function handler() {
+        modalEl.removeEventListener('shown.bs.modal', handler);
+        if (!storeMap) {
+            storeMap = L.map('storeMapPicker', { zoomControl: false }).setView([18.0735, -15.9582], 13);
+            L.control.zoom({ position: 'bottomright' }).addTo(storeMap);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap', maxZoom: 19
+            }).addTo(storeMap);
+            storeMap.on('click', (e) => {
+                storeMapChosen = { lat: e.latlng.lat, lng: e.latlng.lng };
+                if (storeMapMarker) storeMap.removeLayer(storeMapMarker);
+                storeMapMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(storeMap);
+                document.getElementById('storeMapCoordsText').textContent =
+                    `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+            });
+        }
+        storeMap.invalidateSize();
+        if (storeId) {
+            db.collection('stores_promotion').doc(storeId).get().then(doc => {
+                if (doc.exists) {
+                    const lat = doc.get('lat');
+                    const lng = doc.get('lng');
+                    if (typeof lat === 'number' && typeof lng === 'number') storeMapFocus(lat, lng);
+                }
+            }).catch(() => {});
+        } else if (storeLat !== null && storeLng !== null) {
+            storeMapFocus(storeLat, storeLng);
+        }
+    });
+};
+
+document.getElementById('confirmStoreLocationBtn')?.addEventListener('click', async () => {
+    if (!storeMapChosen) { ARAalert('انقر على الخريطة أولاً لتحديد الموقع', 'warning'); return; }
+    const modalEl = document.getElementById('storeMapModal');
+    const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+    if (storeMapPickingFor) {
+        try {
+            await db.collection('stores_promotion').doc(storeMapPickingFor).update({
+                lat: storeMapChosen.lat,
+                lng: storeMapChosen.lng
+            });
+            ARAalert('تم تحديث موقع المتجر بنجاح!', 'success');
+            loadStoresList();
+        } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+    } else {
+        storeLat = storeMapChosen.lat;
+        storeLng = storeMapChosen.lng;
+        updateStoreLocationUI();
+    }
+    modal?.hide();
+});
+
+window.clearStoreLocation = function() {
+    storeLat = null;
+    storeLng = null;
+    updateStoreLocationUI();
+};
+
+function updateStoreLocationUI() {
+    const text = document.getElementById('storeLocationText');
+    const clearBtn = document.getElementById('btnClearStoreLocation');
+    if (!text || !clearBtn) return;
+    if (storeLat !== null && storeLng !== null) {
+        text.innerHTML = `<i class="bi bi-geo-alt-fill me-1 text-success"></i>الموقع: <span class="text-dark fw-bold">${storeLat.toFixed(6)}, ${storeLng.toFixed(6)}</span>`;
+        clearBtn.classList.remove('d-none');
+    } else {
+        text.innerHTML = '<i class="bi bi-info-circle me-1"></i>لم يُحدد الموقع بعد — يستطيع السائق توجيه نفسه إلى المتجر';
+        clearBtn.classList.add('d-none');
+    }
+}
+
+window.openStoreNavigation = function(lat, lng) {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
 };
 
 // ============================================
