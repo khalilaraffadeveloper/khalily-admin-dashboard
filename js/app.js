@@ -646,7 +646,7 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
             });
 
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, passengerName, fare, pickupCoords.lat, pickupCoords.lng, pickupAddress, dropoffAddress, radius);
+                sendFCMNotifications(tokens, docRef.id, passengerName, fare, pickupCoords.lat, pickupCoords.lng, pickupAddress, dropoffAddress, radius, null, dropoffCoords.lat, dropoffCoords.lng);
             }
 
             showStatus('dispatchStatus', `تم الإرسال! ${nearby.length} سائق تم تنبيههم | ${realDistance.toFixed(1)} كم | ${fare} MRU`, 'success');
@@ -1678,7 +1678,7 @@ window.reLaunchRide = async function (rideId) {
                 sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius, {
                     notes: rideData.notes || '',
                     deliveryId: r.deliveryId || ''
-                });
+                }, rideData.dropoffLat, rideData.dropoffLng);
             }
             addNotifLog('dispatch', `إعادة إطلاق رحلة ${rideData.passengerName}: ${rideData.pickupAddress} → ${rideData.dropoffAddress} | ${rideData.realDistanceKm} كم | ${rideData.fare} MRU | تنبيه ${nearby.length} سائق`);
             ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
@@ -1887,6 +1887,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
     const lat = d.senderLat, lng = d.senderLng;
     const dropLat = d.dropoffLat || lat;
     const dropLng = d.dropoffLng || lng;
+    const realDist = (dropLat !== lat || dropLng !== lng) ? haversine(lat, lng, dropLat, dropLng) : 0;
     let radius = 20;
     try {
         const cfg = await db.collection('settings').doc('app_config').get();
@@ -1913,7 +1914,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
         dropoffLng: dropLng,
         pickupAddress: d.pickupAddress || d.senderDistrict || '',
         dropoffAddress: d.dropoffAddress || d.receiverDistrict || '',
-        realDistanceKm: 0,
+        realDistanceKm: Math.round(realDist * 100) / 100,
         searchRadiusKm: radius,
         fare: price,
         commissionPercent,
@@ -1948,7 +1949,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
                     notes: d.notes || '',
                     deliveryId: id,
                     deliveryPhase: 'at_sender'
-                });
+                }, dropLat, dropLng);
             }
             await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId: docRef.id });
             addNotifLog('delivery_dispatch', `تم إرسال التوصيلة ${id} إلى ${nearby.length} سائق | ${price} MRU`);
@@ -2066,12 +2067,14 @@ function downloadCSV(csv, filename) {
 // ============================================
 // FCM NOTIFICATIONS (stub)
 // ============================================
-async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius, extra) {
+async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius, extra, dropLat, dropLng) {
     console.log(`FCM: ${tokens.length} tokens, ride ${rideId}`);
     if (tokens.length === 0) {
         addNotifLog('system', `FCM: لا توجد رموز إشعارات للسائقين`);
         return;
     }
+    const dLat = dropLat != null ? dropLat : lat;
+    const dLng = dropLng != null ? dropLng : lng;
     const data = Object.assign({
         type: 'ride_request',
         rideId,
@@ -2080,8 +2083,8 @@ async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, ln
         pickupLat: String(lat || ''),
         pickupLng: String(lng || ''),
         pickupAddress: pickup || '',
-        dropoffLat: String(lat || ''),
-        dropoffLng: String(lng || ''),
+        dropoffLat: String(dLat || ''),
+        dropoffLng: String(dLng || ''),
         dropoffAddress: dropoff || '',
         distanceKm: String(radius || 0),
         fare: String(fare || 0),
