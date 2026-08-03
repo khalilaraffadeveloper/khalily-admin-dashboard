@@ -3770,6 +3770,7 @@ window.openEditCustomerProductModal = async function(id) {
         document.getElementById('editCustomerProductMonthly').value = p.monthlyPrice || 0;
         document.getElementById('editCustomerProductPhone').value = p.phone || '';
         document.getElementById('editCustomerProductDescription').value = p.description || '';
+        document.getElementById('editCustomerProductViews').value = (p.views || 0) + ' مشاهدة';
         editCustomerProductModal.show();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
