@@ -1685,18 +1685,14 @@ window.approveRechargeRequest = async function(requestId, customerId, amount) {
 
 window.rejectRechargeRequest = async function(requestId, customerId) {
     if (!requireDb()) return;
-    if (!(await ARAconfirm('سيتم رفض هذا الطلب كون المعلومات غير متطابقة. تأكيد؟'))) return;
+    if (!(await ARAconfirm('سيتم رفض وحذف هذا الطلب نهائياً. تأكيد؟'))) return;
     try {
         const reqSnap = await db.collection('recharge_requests').doc(requestId).get();
         const reqData = reqSnap.data();
-        await db.collection('recharge_requests').doc(requestId).update({
-            status: 'rejected',
-            processedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
-        });
         if (reqData && reqData.screenshotPath) {
             try { await firebase.storage().ref().child(reqData.screenshotPath).delete(); } catch (e) {}
         }
+        await db.collection('recharge_requests').doc(requestId).delete();
         if (customerId) {
             notifyUser('customers', customerId, {
                 type: 'recharge_rejected',
@@ -1704,7 +1700,7 @@ window.rejectRechargeRequest = async function(requestId, customerId) {
                 body: 'المعلومات غير متطابقة. يُرجى المحاولة مرة أخرى.'
             });
         }
-        ARAalert('تم رفض الطلب', 'info');
+        ARAalert('تم رفض وحذف الطلب', 'info');
     } catch (err) { console.error('Reject recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
