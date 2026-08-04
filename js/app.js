@@ -460,9 +460,8 @@ function navigateToPage(page) {
     currentPage = page;
     if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page !== 'deliveries' && deliveriesUnsubscribe) { deliveriesUnsubscribe(); deliveriesUnsubscribe = null; }
-    if (page !== 'customers' && rechargeRequestsUnsubscribe) { rechargeRequestsUnsubscribe(); rechargeRequestsUnsubscribe = null; }
     if (page === 'drivers') loadDriversList();
-    if (page === 'customers') { loadCustomersList(); loadRechargeRequests(); }
+    if (page === 'customers') loadCustomersList();
     if (page === 'deliveries') initDeliveriesListener();
     if (page === 'unregistered-customers') loadUnregisteredCustomers();
     if (page === 'rides') loadRidesList();
@@ -1555,96 +1554,6 @@ document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', as
         loadCustomersList();
     } catch (err) { console.error('Delete customer error:', err); }
 });
-
-// ============================================
-// RECHARGE REQUESTS
-// ============================================
-let rechargeRequestsUnsubscribe = null;
-
-async function loadRechargeRequests() {
-    if (!requireDb()) return;
-    if (rechargeRequestsUnsubscribe) { rechargeRequestsUnsubscribe(); rechargeRequestsUnsubscribe = null; }
-    const tbody = document.getElementById('rechargeRequestsTableBody');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الطلبات...</div></td></tr>';
-    try {
-        rechargeRequestsUnsubscribe = db.collection('recharge_requests')
-            .orderBy('createdAt', 'desc').limit(100)
-            .onSnapshot(snapshot => {
-                const labels = { pending: 'قيد الانتظار', approved: 'مقبول', rejected: 'مرفوض' };
-                const badgeCls = { pending: 'badge bg-warning text-dark', approved: 'badge bg-success', rejected: 'badge bg-danger' };
-                let count = 0;
-                snapshot.forEach(d => { if (d.data().status === 'pending') count++; });
-                document.getElementById('rechargeRequestsCount').textContent = count;
-                if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">لا توجد طلبات شحن</td></tr>';
-                    return;
-                }
-                tbody.innerHTML = snapshot.docs.map(d => {
-                    const r = d.data();
-                    const time = r.createdAt && r.createdAt.toDate
-                        ? r.createdAt.toDate().toLocaleString('ar-MA')
-                        : '-';
-                    const name = (r.customerName || 'زبون').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    let actions = '';
-                    if (r.status === 'pending') {
-                        actions = `<button class="btn-action btn-action-edit" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}',${r.amount||0})">قبول</button>
-                                   <button class="btn-action btn-action-delete" onclick="rejectRechargeRequest('${d.id}')">رفض</button>`;
-                    } else {
-                        actions = '<span class="text-muted small">تمت المعالجة</span>';
-                    }
-                    return `<tr>
-                        <td><strong>${name}</strong></td>
-                        <td><span dir="ltr">${r.customerPhone || '-'}</span></td>
-                        <td><strong>${r.amount || 0}</strong> MRU</td>
-                        <td class="small text-muted">${time}</td>
-                        <td><span class="${badgeCls[r.status] || 'badge bg-secondary'}">${labels[r.status] || r.status}</span></td>
-                        <td><div class="d-flex gap-1 flex-wrap">${actions}</div></td>
-                    </tr>`;
-                }).join('');
-            }, err => {
-                console.error('Recharge requests listener error:', err);
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">خطأ في تحميل الطلبات</td></tr>';
-            });
-    } catch (err) {
-        console.error('Load recharge requests error:', err);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">خطأ في تحميل الطلبات</td></tr>';
-    }
-}
-
-window.approveRechargeRequest = async function(requestId, customerId, amount) {
-    if (!requireDb()) return;
-    if (!customerId || !amount || amount <= 0) { ARAalert('بيانات الطلب ناقصة', 'warning'); return; }
-    if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد الزبون. تأكيد؟`))) return;
-    try {
-        await db.collection('customers').doc(customerId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
-        await db.collection('recharge_requests').doc(requestId).update({
-            status: 'approved',
-            processedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
-        });
-        loadCustomersList();
-        notifyUser('customers', customerId, {
-            type: 'credit_update',
-            title: 'تم شحن رصيدك',
-            body: `تم قبول طلب الشحن وإضافة ${amount} MRU إلى رصيدك`,
-            amount: String(amount)
-        });
-        ARAalert('تم قبول الطلب وشحن الرصيد', 'success');
-    } catch (err) { console.error('Approve recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
-};
-
-window.rejectRechargeRequest = async function(requestId) {
-    if (!requireDb()) return;
-    if (!(await ARAconfirm('سيتم رفض طلب الشحن. تأكيد؟'))) return;
-    try {
-        await db.collection('recharge_requests').doc(requestId).update({
-            status: 'rejected',
-            processedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
-        });
-        ARAalert('تم رفض الطلب', 'info');
-    } catch (err) { console.error('Reject recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
-};
 
 // Export customers CSV
 window.exportCustomersCSV = function () {
