@@ -1564,50 +1564,95 @@ document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', as
 async function loadRechargeRequests() {
     if (!requireDb()) return;
     if (rechargeRequestsUnsubscribe) { rechargeRequestsUnsubscribe(); rechargeRequestsUnsubscribe = null; }
-    const tbody = document.getElementById('rechargeRequestsTableBody');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الطلبات...</div></td></tr>';
+    const container = document.getElementById('rechargeRequestsContainer');
+    container.innerHTML = '<div class="text-center py-3"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الطلبات...</div></div>';
     try {
         rechargeRequestsUnsubscribe = db.collection('recharge_requests')
-            .orderBy('createdAt', 'desc').limit(100)
+            .orderBy('createdAt', 'desc').limit(50)
             .onSnapshot(snapshot => {
-                const labels = { pending: 'قيد الانتظار', approved: 'مقبول', rejected: 'مرفوض' };
-                const badgeCls = { pending: 'badge bg-warning text-dark', approved: 'badge bg-success', rejected: 'badge bg-danger' };
                 let count = 0;
                 snapshot.forEach(d => { if (d.data().status === 'pending') count++; });
                 document.getElementById('rechargeRequestsCount').textContent = count;
                 if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">لا توجد طلبات شحن</td></tr>';
+                    container.innerHTML = '<div class="text-center text-muted py-4">لا توجد طلبات شحن</div>';
                     return;
                 }
-                tbody.innerHTML = snapshot.docs.map(d => {
+                container.innerHTML = snapshot.docs.map(d => {
                     const r = d.data();
-                    const time = r.createdAt && r.createdAt.toDate
-                        ? r.createdAt.toDate().toLocaleString('ar-MA')
-                        : '-';
-                    const name = (r.customerName || 'زبون').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    let actions = '';
-                    if (r.status === 'pending') {
-                        actions = `<button class="btn-action btn-action-edit" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}',${r.amount||0})">قبول</button>
-                                   <button class="btn-action btn-action-delete" onclick="rejectRechargeRequest('${d.id}')">رفض</button>`;
-                    } else {
-                        actions = '<span class="text-muted small">تمت المعالجة</span>';
+                    const name = (r.customerName || 'زبون').replace(/</g, '&lt;');
+                    const phone = r.customerPhone || '-';
+                    const amount = r.amount || 0;
+                    const wallet = r.walletName || '-';
+                    const screenshotUrl = r.screenshotUrl || '';
+                    const status = r.status || 'pending';
+                    const createdAt = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate() : null;
+
+                    let timeInfo = '';
+                    let timeBadge = '';
+                    if (createdAt) {
+                        const now = new Date();
+                        const diffMin = Math.floor((now - createdAt) / 60000);
+                        const timeStr = createdAt.toLocaleString('ar-MA');
+                        if (status === 'pending') {
+                            if (diffMin < 10) {
+                                const remaining = 10 - diffMin;
+                                timeBadge = `<span class="badge bg-success">جديد (${remaining} دقيقة متبقية)</span>`;
+                            } else if (diffMin < 30) {
+                                timeBadge = `<span class="badge bg-warning text-dark">قديم (${diffMin} دقيقة)</span>`;
+                            } else {
+                                timeBadge = `<span class="badge bg-danger">منتهي الصلاحية (${diffMin} دقيقة)</span>`;
+                            }
+                        }
+                        timeInfo = `<small class="text-muted">${timeStr}</small> ${timeBadge}`;
                     }
-                    return `<tr>
-                        <td><strong>${name}</strong></td>
-                        <td><span dir="ltr">${r.customerPhone || '-'}</span></td>
-                        <td><strong>${r.amount || 0}</strong> MRU</td>
-                        <td class="small text-muted">${time}</td>
-                        <td><span class="${badgeCls[r.status] || 'badge bg-secondary'}">${labels[r.status] || r.status}</span></td>
-                        <td><div class="d-flex gap-1 flex-wrap">${actions}</div></td>
-                    </tr>`;
+
+                    let statusBadge = '';
+                    if (status === 'pending') statusBadge = '<span class="badge bg-warning text-dark">قيد الانتظار</span>';
+                    else if (status === 'approved') statusBadge = '<span class="badge bg-success">مقبول</span>';
+                    else if (status === 'rejected') statusBadge = '<span class="badge bg-danger">مرفوض</span>';
+                    else statusBadge = `<span class="badge bg-secondary">${status}</span>`;
+
+                    let screenshotHtml = '';
+                    if (screenshotUrl) {
+                        screenshotHtml = `<div class="mt-2 mb-2"><a href="${screenshotUrl}" target="_blank"><img src="${screenshotUrl}" class="img-fluid rounded" style="max-height:200px;cursor:pointer;border:2px solid #ddd;" alt="لقطة الشاشة" onerror="this.style.display='none'"></a></div>`;
+                    }
+
+                    let actions = '';
+                    if (status === 'pending') {
+                        actions = `
+                            <div class="d-flex gap-2 flex-wrap mt-2">
+                                <button class="btn btn-success fw-bold" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}',${amount})">
+                                    <i class="bi bi-check-circle me-1"></i>تزويد الرصيد
+                                </button>
+                                <button class="btn btn-danger fw-bold" onclick="rejectRechargeRequest('${d.id}','${r.customerId||''}')">
+                                    <i class="bi bi-x-circle me-1"></i>المعلومات غير متطابقة
+                                </button>
+                            </div>`;
+                    }
+
+                    return `<div class="card mb-3 border" style="border-color:${status==='pending'?'#ffc107':status==='approved'?'#198754':'#dc3545'} !important;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1"><i class="bi bi-person-fill me-1 text-dark-blue"></i>${name}</h6>
+                                    <div class="small text-muted mb-1"><i class="bi bi-phone me-1"></i>${phone}</div>
+                                    <div class="small"><strong>المحفظة:</strong> ${wallet} &nbsp;|&nbsp; <strong>المبلغ:</strong> <span class="text-success fw-bold">${amount} MRU</span></div>
+                                    <div class="small mt-1">${timeInfo}</div>
+                                </div>
+                                <div>${statusBadge}</div>
+                            </div>
+                            ${screenshotHtml}
+                            ${actions}
+                        </div>
+                    </div>`;
                 }).join('');
             }, err => {
                 console.error('Recharge requests listener error:', err);
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">خطأ في تحميل الطلبات</td></tr>';
+                container.innerHTML = '<div class="text-center text-danger py-4">خطأ في تحميل الطلبات</div>';
             });
     } catch (err) {
         console.error('Load recharge requests error:', err);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">خطأ في تحميل الطلبات</td></tr>';
+        container.innerHTML = '<div class="text-center text-danger py-4">خطأ في تحميل الطلبات</div>';
     }
 }
 
@@ -1617,11 +1662,16 @@ window.approveRechargeRequest = async function(requestId, customerId, amount) {
     if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد الزبون. تأكيد؟`))) return;
     try {
         await db.collection('customers').doc(customerId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
+        const reqSnap = await db.collection('recharge_requests').doc(requestId).get();
+        const reqData = reqSnap.data();
         await db.collection('recharge_requests').doc(requestId).update({
             status: 'approved',
             processedAt: firebase.firestore.FieldValue.serverTimestamp(),
             processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
         });
+        if (reqData && reqData.screenshotPath) {
+            try { await firebase.storage().ref().child(reqData.screenshotPath).delete(); } catch (e) {}
+        }
         loadCustomersList();
         notifyUser('customers', customerId, {
             type: 'credit_update',
@@ -1629,19 +1679,31 @@ window.approveRechargeRequest = async function(requestId, customerId, amount) {
             body: `تم قبول طلب الشحن وإضافة ${amount} MRU إلى رصيدك`,
             amount: String(amount)
         });
-        ARAalert('تم قبول الطلب وشحن الرصيد', 'success');
+        ARAalert('تم تزويد الرصيد بنجاح', 'success');
     } catch (err) { console.error('Approve recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
-window.rejectRechargeRequest = async function(requestId) {
+window.rejectRechargeRequest = async function(requestId, customerId) {
     if (!requireDb()) return;
-    if (!(await ARAconfirm('سيتم رفض طلب الشحن. تأكيد؟'))) return;
+    if (!(await ARAconfirm('سيتم رفض هذا الطلب كون المعلومات غير متطابقة. تأكيد؟'))) return;
     try {
+        const reqSnap = await db.collection('recharge_requests').doc(requestId).get();
+        const reqData = reqSnap.data();
         await db.collection('recharge_requests').doc(requestId).update({
             status: 'rejected',
             processedAt: firebase.firestore.FieldValue.serverTimestamp(),
             processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
         });
+        if (reqData && reqData.screenshotPath) {
+            try { await firebase.storage().ref().child(reqData.screenshotPath).delete(); } catch (e) {}
+        }
+        if (customerId) {
+            notifyUser('customers', customerId, {
+                type: 'recharge_rejected',
+                title: 'تم رفض طلب الشحن',
+                body: 'المعلومات غير متطابقة. يُرجى المحاولة مرة أخرى.'
+            });
+        }
         ARAalert('تم رفض الطلب', 'info');
     } catch (err) { console.error('Reject recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
 };

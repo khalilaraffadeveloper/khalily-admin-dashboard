@@ -331,24 +331,8 @@
                                 <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-cash-coin me-2 text-gold"></i>طلبات شحن الرصيد (<span id="rechargeRequestsCount">0</span>)</h6>
                                 <button class="btn btn-sm btn-outline-dark-blue" onclick="loadRechargeRequests()"><i class="bi bi-arrow-clockwise me-1"></i>تحديث</button>
                             </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle">
-                                        <thead class="table-dark-blue text-white">
-                                            <tr>
-                                                <th>الزبون</th>
-                                                <th>الهاتف</th>
-                                                <th>المبلغ (MRU)</th>
-                                                <th>التاريخ</th>
-                                                <th>الحالة</th>
-                                                <th>إجراءات</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="rechargeRequestsTableBody">
-                                            <tr><td colspan="6" class="text-center py-3 text-muted small">جاري تحميل الطلبات...</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div class="card-body" id="rechargeRequestsContainer">
+                                <div class="text-center text-muted py-3 small">جاري تحميل الطلبات...</div>
                             </div>
                         </div>
                     </div>
@@ -1637,6 +1621,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
