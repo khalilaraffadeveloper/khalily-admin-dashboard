@@ -8,6 +8,12 @@ let firebaseReady = false;
 let commissionPercent = 10;
 
 // ============================================
+// CUSTOMER PRODUCTS (realtime cache)
+// ============================================
+let allCustomerProducts = [];
+let customerProductsListener = null;
+
+// ============================================
 // AUTH CHECK
 // ============================================
 if (sessionStorage.getItem('ARAVA_admin_logged_in') !== 'true') {
@@ -749,6 +755,37 @@ window.saveCommission = async function () {
         commissionPercent = val;
         document.getElementById('currentCommission').textContent = `${val}%`;
         ARAalert('تم حفظ النسبة بنجاح', 'success');
+    } catch (e) {
+        ARAalert('خطأ: ' + e.message, 'error');
+    }
+};
+
+// ============================================
+// CUSTOMER RIDE COMMISSION (المخصومة من رصيد الزبون عند قبول السعر)
+// ============================================
+async function loadCustomerCommission() {
+    if (!requireDb()) return;
+    try {
+        const doc = await db.collection('settings').doc('app_config').get();
+        const pct = doc.exists ? (doc.data().customerRideCommissionPercent || 5) : 5;
+        document.getElementById('currentCustomerCommission').textContent = `${pct}%`;
+        document.getElementById('newCustomerCommission').value = pct;
+    } catch (e) {
+        console.log('Customer commission load error');
+    }
+}
+
+window.saveCustomerCommission = async function () {
+    if (!requireDb()) return;
+    const val = parseFloat(document.getElementById('newCustomerCommission').value);
+    if (isNaN(val) || val < 0 || val > 100) {
+        ARAalert('يرجى إدخال نسبة صحيحة (0-100)', 'warning');
+        return;
+    }
+    try {
+        await db.collection('settings').doc('app_config').set({ customerRideCommissionPercent: val }, { merge: true });
+        document.getElementById('currentCustomerCommission').textContent = `${val}%`;
+        ARAalert('تم حفظ نسبة عمولة الزبون بنجاح', 'success');
     } catch (e) {
         ARAalert('خطأ: ' + e.message, 'error');
     }
@@ -1677,7 +1714,7 @@ async function enrichRidesWithDrivers(rides, done) {
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
@@ -1703,6 +1740,7 @@ function renderRidesList(rides) {
             <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
+            <td class="d-none d-lg-table-cell" style="max-width:220px;">${escapeHtmlStr(r.notes) || '<span class="text-muted">-</span>'}</td>
             <td><small>${dist}</small></td>
             <td><strong>${fare}</strong> MRU</td>
             <td><strong class="text-danger">${comm}</strong> MRU <small class="text-muted">(${commPct}%)</small></td>
@@ -1751,6 +1789,7 @@ window.reLaunchRide = async function (rideId) {
             searchRadiusKm: radius,
             fare: r.fare || BASE_FARE,
             commissionPercent: r.commissionPercent || commissionPercent,
+            notes: r.notes || '',
             status: 'pending',
             reLaunchedFrom: rideId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1769,7 +1808,7 @@ window.reLaunchRide = async function (rideId) {
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius);
+                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius, { notes: rideData.notes || '' });
             }
             addNotifLog('dispatch', `إعادة إطلاق رحلة ${rideData.passengerName}: ${rideData.pickupAddress} → ${rideData.dropoffAddress} | ${rideData.realDistanceKm} كم | ${rideData.fare} MRU | تنبيه ${nearby.length} سائق`);
             ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
@@ -1804,6 +1843,15 @@ function fmtNum(n) {
     return String(n).replace(/[٠-٩۰-۹]/g, function (ch) {
         return String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(ch) % 10);
     });
+}
+
+function escapeHtmlStr(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // ============================================
@@ -1867,13 +1915,13 @@ function renderDeliveriesList(deliveries) {
     const tbody = document.getElementById('deliveriesTableBody');
     if (!tbody) return;
     if (deliveries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد توصيلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">لا توجد توصيلات</td></tr>';
         return;
     }
     const q = (document.getElementById('searchDeliveries')?.value || '').trim();
     const filtered = q ? deliveries.filter(d => (d.customerPhone || '').includes(q) || (d.receiverPhone || '').includes(q) || (d.customerName || '').includes(q)) : deliveries;
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد نتائج</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">لا توجد نتائج</td></tr>';
         return;
     }
     tbody.innerHTML = filtered.map(d => {
@@ -1903,6 +1951,7 @@ function renderDeliveriesList(deliveries) {
             <td><strong>${fmtNum(d.receiverPhone || '-')}</strong></td>
             <td class="d-none d-md-table-cell">${d.senderDistrict || fmtNum(d.senderPhone || '-')}</td>
             <td class="d-none d-md-table-cell">${d.receiverDistrict || '-'}</td>
+            <td class="d-none d-lg-table-cell" style="max-width:220px;">${escapeHtmlStr(d.notes) || '<span class="text-muted">-</span>'}</td>
             <td><strong class="text-gold">${price} MRU</strong></td>
             <td><span class="badge bg-${deliveryStatusColors[d.status] || 'secondary'}">${deliveryStatusLabels[d.status] || d.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
@@ -1992,6 +2041,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
         fare: price,
         commissionPercent,
         deliveryPhase: 'at_sender',
+        notes: d.notes || '',
         status: 'pending',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -2018,7 +2068,8 @@ window.dispatchDeliveryToDrivers = async function (id) {
                     senderDistrict: d.senderDistrict || '',
                     receiverDistrict: d.receiverDistrict || '',
                     deliveryId: id,
-                    deliveryPhase: 'at_sender'
+                    deliveryPhase: 'at_sender',
+                    notes: d.notes || ''
                 });
             }
             await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId: docRef.id });
@@ -3278,9 +3329,11 @@ function initDashboard() {
     initMap();
     bindMapSearch();
     loadCommission();
+    loadCustomerCommission();
     loadRidesCleanupSettings();
     loadStats();
     initRealtimeListeners();
+    initCustomerProductsListener();
     initDesktopNotifications();
     applyRoleVisibility();
     checkDailyRidesCleanup();
@@ -3321,6 +3374,56 @@ document.getElementById('storeImageUrl')?.addEventListener('input', function(e) 
     }
 });
 
+// ============================================
+// STORE LOCATION MAP PICKER
+// ============================================
+let storeMap = null;
+let storeMapMarker = null;
+let storeMapLocation = null;
+
+window.openStoreMapPicker = function() {
+    const modalEl = document.getElementById('storeMapModal');
+    const pickerEl = document.getElementById('storeMapPicker');
+    if (!modalEl || !pickerEl) return;
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    setTimeout(() => {
+        if (storeMap) { storeMap.invalidateSize(); return; }
+        storeMap = L.map('storeMapPicker', { zoomControl: true }).setView([18.0735, -15.9582], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap', maxZoom: 19
+        }).addTo(storeMap);
+        if (storeMapLocation) {
+            storeMapMarker = L.marker(storeMapLocation).addTo(storeMap);
+            storeMap.setView(storeMapLocation, 15);
+        }
+        storeMap.on('click', function(e) {
+            storeMapLocation = { lat: e.latlng.lat, lng: e.latlng.lng };
+            if (storeMapMarker) storeMapMarker.setLatLng(e.latlng);
+            else storeMapMarker = L.marker(e.latlng).addTo(storeMap);
+            document.getElementById('storeMapCoordsText').textContent =
+                'تم التحديد: ' + e.latlng.lat.toFixed(5) + ', ' + e.latlng.lng.toFixed(5);
+        });
+    }, 150);
+};
+
+document.getElementById('confirmStoreLocationBtn')?.addEventListener('click', function() {
+    if (!storeMapLocation) { ARAalert('انقر على الخريطة لتحديد موقع المتجر أولاً', 'warning'); return; }
+    bootstrap.Modal.getInstance(document.getElementById('storeMapModal'))?.hide();
+    document.getElementById('storeLocationText').innerHTML =
+        '<i class="bi bi-check-circle text-success me-1"></i>تم تحديد الموقع: ' +
+        storeMapLocation.lat.toFixed(5) + ', ' + storeMapLocation.lng.toFixed(5);
+    document.getElementById('btnClearStoreLocation').classList.remove('d-none');
+});
+
+window.clearStoreLocation = function() {
+    storeMapLocation = null;
+    if (storeMapMarker) { storeMapMarker.remove(); storeMapMarker = null; }
+    document.getElementById('storeLocationText').innerHTML =
+        '<i class="bi bi-info-circle me-1"></i>لم يُحدد الموقع بعد — يستطيع السائق توجيه نفسه إلى المتجر';
+    document.getElementById('btnClearStoreLocation').classList.add('d-none');
+    document.getElementById('storeMapCoordsText').textContent = 'لم يُحدد بعد';
+};
+
 window.addStore = async function() {
     if (!requireDb('addStoreStatus')) return;
     const name = document.getElementById('storeName').value.trim();
@@ -3347,6 +3450,8 @@ window.addStore = async function() {
             name, phone, district,
             images,
             active,
+            lat: storeMapLocation ? storeMapLocation.lat : null,
+            lng: storeMapLocation ? storeMapLocation.lng : null,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         showStatus('addStoreStatus', 'تم إضافة المتجر بنجاح!', 'success');
@@ -3356,6 +3461,7 @@ window.addStore = async function() {
         document.getElementById('storeImage').value = '';
         document.getElementById('storeImageUrl').value = '';
         storeImageFile = null;
+        clearStoreLocation();
         loadStoresList();
     } catch (err) {
         showStatus('addStoreStatus', 'خطأ: ' + err.message, 'error');
@@ -3385,7 +3491,10 @@ async function loadStoresList() {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
                             <h6 class="fw-bold mb-1">${s.name}</h6>
-                            <span class="badge ${active ? 'bg-success' : 'bg-secondary'}">${active ? 'ظاهر' : 'مخفي'}</span>
+                            <div class="d-flex gap-1">
+                                ${s.lat != null && s.lng != null ? '<span class="badge bg-info" title="له موقع على الخريطة"><i class="bi bi-geo-alt"></i></span>' : ''}
+                                <span class="badge ${active ? 'bg-success' : 'bg-secondary'}">${active ? 'ظاهر' : 'مخفي'}</span>
+                            </div>
                         </div>
                         ${imgHtml}
                         ${s.district ? `<p class="small text-muted mb-1"><i class="bi bi-geo-alt me-1"></i>${s.district}</p>` : ''}
@@ -3566,50 +3675,130 @@ window.deleteLadiesProduct = async function(id) {
 // ============================================
 // CUSTOMER PRODUCTS (UPLOADED FROM APP) MANAGEMENT
 // ============================================
-async function loadCustomerProductsList() {
-    if (!requireDb()) return;
+function initCustomerProductsListener() {
+    if (!db || customerProductsListener) return;
+    customerProductsListener = db.collection('customer_products')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(snapshot => {
+            allCustomerProducts = [];
+            snapshot.forEach(doc => {
+                allCustomerProducts.push({ id: doc.id, ...doc.data() });
+            });
+            const countEl = document.getElementById('customerProductCount');
+            if (countEl) countEl.textContent = allCustomerProducts.length;
+            if (currentPage === 'products') loadCustomerProductsList();
+        }, err => {
+            console.log('customer_products listener error', err);
+        });
+}
+
+function loadCustomerProductsList() {
     const list = document.getElementById('customerProductsList');
     if (!list) return;
-    list.innerHTML = '<div class="col-12 text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري التحميل...</div></div>';
-    try {
-        const snap = await db.collection('customer_products').orderBy('createdAt', 'desc').get();
-        document.getElementById('customerProductCount').textContent = snap.size;
-        if (snap.empty) {
-            list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات من الزبائن</div>';
-            return;
-        }
-        list.innerHTML = snap.docs.map(doc => {
-            const p = doc.data();
-            const active = p.active !== false;
-            const time = p.createdAt?.toDate ? fmtDate(p.createdAt.toDate()) : '';
-            const imgHtml = p.images && p.images.length > 0
-                ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.src='data:image/svg+xml,%253Csvg%2520xmlns%253D%2522http://www.w3.org/2000/svg%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%253E%253Crect%2520fill%253D%2522%2523f0f0f0%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%252F%253E%253Ctext%2520x%253D%252250%2525%2522%2520y%253D%252250%2525%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522%2523999%2522%2520font-size%253D%252240%2522%253E%25F0%259F%2596%25BC%253C%252Ftext%253E%253C%252Fsvg%253E'">`
-                : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-box fs-1 text-muted"></i></div>`;
-            return `<div class="col-md-4 col-sm-6">
-                <div class="card border-0 shadow-sm h-100 ${active ? '' : 'opacity-75'}">
-                    <div class="card-body">
-                        <div class="d-flex gap-1 align-items-center mb-1">
-                            <span class="badge ${active ? 'bg-success' : 'bg-secondary'}">${active ? 'ظاهر في التطبيق' : 'مخفي'}</span>
-                            <span class="badge bg-info">${p.views || 0} مشاهدة</span>
-                        </div>
-                        ${imgHtml}
-                        <h6 class="fw-bold mb-1">${p.name}</h6>
-                        <p class="small text-muted mb-1">${p.description || ''}</p>
-                        <h5 class="text-gold fw-bold mb-2">${p.price || 0} MRU</h5>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button onclick="callPhone('${p.phone||''}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>
-                            <button class="btn btn-sm ${active ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleCustomerProduct('${doc.id}', ${active})"><i class="bi ${active ? 'bi-eye-slash' : 'bi-eye'}"></i> ${active ? 'إخفاء' : 'إظهار'}</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomerProduct('${doc.id}')"><i class="bi bi-trash"></i></button>
-                        </div>
-                        <small class="text-muted d-block mt-2">${time}</small>
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-    } catch (err) {
-        list.innerHTML = '<div class="col-12 text-center text-danger py-4">خطأ في التحميل</div>';
+    const filter = document.getElementById('customerProductFilter')?.value || 'all';
+    let items = allCustomerProducts;
+    if (filter !== 'all') {
+        items = items.filter(p => {
+            const s = p.status || (p.active !== false ? 'approved' : 'hidden');
+            return s === filter;
+        });
     }
+    renderCustomerProductsList(list, items);
 }
+
+function renderCustomerProductsList(list, items) {
+    if (items.length === 0) {
+        list.innerHTML = '<div class="col-12 text-center text-muted py-4">لا توجد منتجات من الزبائن</div>';
+        return;
+    }
+    list.innerHTML = items.map(p => {
+        const active = p.active !== false;
+        const status = p.status || (active ? 'approved' : 'hidden');
+        const time = p.createdAt?.toDate ? fmtDate(p.createdAt.toDate()) : '';
+        const statusBadge = status === 'approved'
+            ? '<span class="badge bg-success">ظاهر في المتجر</span>'
+            : status === 'pending'
+                ? '<span class="badge bg-warning text-dark">بانتظار الموافقة</span>'
+                : status === 'rejected'
+                    ? '<span class="badge bg-danger">مرفوض</span>'
+                    : '<span class="badge bg-secondary">مخفي</span>';
+        const imgHtml = p.images && p.images.length > 0
+            ? `<img src="${p.images[0]}" style="width:100%;height:160px;object-fit:cover;border-radius:10px;" class="mb-2" onerror="this.src='data:image/svg+xml,%253Csvg%2520xmlns%253D%2522http://www.w3.org/2000/svg%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%253E%253Crect%2520fill%253D%2522%2523f0f0f0%2522%2520width%253D%2522200%2522%2520height%253D%2522200%2522%252F%253E%253Ctext%2520x%253D%252250%2525%2522%2520y%253D%252250%2525%2522%2520text-anchor%253D%2522middle%2522%2520fill%253D%2522%2523999%2522%2520font-size%253D%252240%2522%253E%25F0%259F%2596%25BC%253C%252Ftext%253E%253C%252Fsvg%253E'">`
+            : `<div class="mb-2" style="width:100%;height:160px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-box fs-1 text-muted"></i></div>`;
+        let actions = '';
+        if (status === 'pending') {
+            actions += `<button class="btn btn-sm btn-success" onclick="approveCustomerProduct('${p.id}')"><i class="bi bi-check-lg"></i> قبول</button> `;
+            actions += `<button class="btn btn-sm btn-outline-danger" onclick="rejectCustomerProduct('${p.id}')"><i class="bi bi-x-lg"></i> رفض</button> `;
+        }
+        if (active) {
+            actions += `<button class="btn btn-sm btn-outline-warning" onclick="toggleCustomerProduct('${p.id}', true)"><i class="bi bi-eye-slash"></i> إخفاء</button> `;
+        } else if (status !== 'rejected') {
+            actions += `<button class="btn btn-sm btn-outline-success" onclick="toggleCustomerProduct('${p.id}', false)"><i class="bi bi-eye"></i> إظهار</button> `;
+        }
+        actions += `<button class="btn btn-sm btn-outline-danger" onclick="deleteCustomerProduct('${p.id}')"><i class="bi bi-trash"></i></button>`;
+        return `<div class="col-md-4 col-sm-6">
+            <div class="card border-0 shadow-sm h-100 ${active ? '' : 'opacity-75'}">
+                <div class="card-body">
+                    <div class="d-flex gap-1 align-items-center mb-1 flex-wrap">
+                        ${statusBadge}
+                        <span class="badge bg-info">${p.views || 0} مشاهدة</span>
+                    </div>
+                    ${imgHtml}
+                    <h6 class="fw-bold mb-1">${p.name}</h6>
+                    <p class="small text-muted mb-1">${p.description || ''}</p>
+                    <h5 class="text-gold fw-bold mb-1">${p.price || 0} MRU</h5>
+                    ${p.monthlyPrice ? `<div class="small mb-1">العرض الشهري: <strong>${p.monthlyPrice} MRU</strong></div>` : ''}
+                    ${p.ownerPhone ? `<div class="small text-muted mb-1">الزبون: <span dir="ltr">${escapeHtmlStr(p.ownerPhone)}</span></div>` : ''}
+                    <div class="d-flex gap-2 flex-wrap">
+                        ${p.phone ? `<button onclick="callPhone('${p.phone.replace(/'/g, '')}')" class="btn btn-sm btn-success"><i class="bi bi-telephone-fill"></i> اتصال</button>` : ''}
+                        ${actions}
+                    </div>
+                    <small class="text-muted d-block mt-2">${time}</small>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function notifyCustomerProduct(ownerPhone, title, body, status, productName) {
+    if (!ownerPhone) return;
+    db.collection('customers').where('phone', '==', ownerPhone).get()
+        .then(cust => {
+            if (!cust.empty) {
+                notifyUser('customers', cust.docs[0].id, {
+                    type: 'product_status',
+                    title: title,
+                    body: body,
+                    status: status,
+                    productName: productName || ''
+                });
+            }
+        })
+        .catch(() => {});
+}
+
+window.approveCustomerProduct = async function(id) {
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('customer_products').doc(id).get();
+        const p = snap.data() || {};
+        await db.collection('customer_products').doc(id).update({ active: true, status: 'approved' });
+        ARAalert('تم قبول المنتج وأصبح ظاهراً في المتجر الذكي', 'success');
+        notifyCustomerProduct(p.ownerPhone, 'تمت الموافقة على منتجك', p.name || 'منتجك', 'approved', p.name || '');
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.rejectCustomerProduct = async function(id) {
+    if (!(await ARAconfirm('رفض هذا المنتج؟ لن يظهر في المتجر وسيتم إشعار الزبون.'))) return;
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('customer_products').doc(id).get();
+        const p = snap.data() || {};
+        await db.collection('customer_products').doc(id).update({ active: false, status: 'rejected' });
+        ARAalert('تم رفض المنتج', 'success');
+        notifyCustomerProduct(p.ownerPhone, 'تم رفض منتجك', p.name || 'منتجك', 'rejected', p.name || '');
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
 
 window.toggleCustomerProduct = async function(id, currentActive) {
     if (!requireDb()) return;
@@ -3618,41 +3807,19 @@ window.toggleCustomerProduct = async function(id, currentActive) {
         const p = snap.data() || {};
         const newActive = !currentActive;
         await db.collection('customer_products').doc(id).update({ active: newActive, status: newActive ? 'approved' : 'hidden' });
-        loadCustomerProductsList();
-        if (p.ownerPhone) {
-            const cust = await db.collection('customers').where('phone', '==', p.ownerPhone).get();
-            if (!cust.empty) {
-                notifyUser('customers', cust.docs[0].id, {
-                    type: 'product_status',
-                    title: newActive ? 'تمت الموافقة على منتجك' : 'تم إخفاء منتجك',
-                    body: p.name || 'منتجك',
-                    status: newActive ? 'approved' : 'hidden',
-                    productName: p.name || ''
-                });
-            }
-        }
+        ARAalert(newActive ? 'تم إظهار المنتج في المتجر الذكي' : 'تم إخفاء المنتج', 'success');
+        notifyCustomerProduct(p.ownerPhone, newActive ? 'تمت الموافقة على منتجك' : 'تم إخفاء منتجك', p.name || 'منتجك', newActive ? 'approved' : 'hidden', p.name || '');
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
 window.deleteCustomerProduct = async function(id) {
-    if (!(await ARAconfirm('حذف هذا المنتج؟'))) return;
+    if (!(await ARAconfirm('حذف هذا المنتج نهائياً؟ سيتم إشعار الزبون.'))) return;
     if (!requireDb()) return;
     try {
         const snap = await db.collection('customer_products').doc(id).get();
         const p = snap.data() || {};
         await db.collection('customer_products').doc(id).delete();
-        loadCustomerProductsList();
-        if (p.ownerPhone) {
-            const cust = await db.collection('customers').where('phone', '==', p.ownerPhone).get();
-            if (!cust.empty) {
-                notifyUser('customers', cust.docs[0].id, {
-                    type: 'product_status',
-                    title: 'تم حذف منتجك',
-                    body: p.name || 'منتجك',
-                    status: 'deleted',
-                    productName: p.name || ''
-                });
-            }
-        }
+        ARAalert('تم حذف المنتج', 'success');
+        notifyCustomerProduct(p.ownerPhone, 'تم حذف منتجك', p.name || 'منتجك', 'deleted', p.name || '');
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
