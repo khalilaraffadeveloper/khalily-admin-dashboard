@@ -2286,6 +2286,28 @@ async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, ln
 }
 
 // ============================================
+// ============================================
+// NOTIFY USER
+// ============================================
+async function notifyUser(collectionName, docId, payload) {
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection(collectionName).doc(docId).get();
+        if (!snap.exists) {
+            addNotifLog('system', `المستخدم غير موجود: ${collectionName} (${docId})`);
+            return;
+        }
+        const token = (snap.data() && snap.data().fcmToken) || '';
+        if (!token) {
+            addNotifLog('system', `لا يوجد رمز إشعارات لـ ${collectionName} (${docId})`);
+            return;
+        }
+        addNotifLog('system', `تم تجهيز إشعار لـ ${collectionName}: ${payload.title || ''}`);
+    } catch (e) {
+        addNotifLog('system', `تعذر إرسال إشعار (${e.message})`);
+    }
+}
+
 // NOTIFICATION LOG
 // ============================================
 let notifLog = [];
