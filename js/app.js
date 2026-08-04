@@ -2297,12 +2297,19 @@ async function notifyUser(collectionName, docId, payload) {
             addNotifLog('system', `المستخدم غير موجود: ${collectionName} (${docId})`);
             return;
         }
-        const token = (snap.data() && snap.data().fcmToken) || '';
-        if (!token) {
-            addNotifLog('system', `لا يوجد رمز إشعارات لـ ${collectionName} (${docId})`);
-            return;
-        }
-        addNotifLog('system', `تم تجهيز إشعار لـ ${collectionName}: ${payload.title || ''}`);
+        const cleanData = {};
+        Object.keys(payload || {}).forEach(k => {
+            const v = payload[k];
+            if (v !== undefined && v !== null) cleanData[k] = String(v);
+        });
+        await db.collection('notifications').add({
+            userId: docId,
+            role: collectionName === 'drivers' ? 'driver' : 'customer',
+            ...cleanData,
+            read: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        addNotifLog('system', `تم إرسال إشعار لـ ${collectionName}: ${payload.title || ''}`);
     } catch (e) {
         addNotifLog('system', `تعذر إرسال إشعار (${e.message})`);
     }
