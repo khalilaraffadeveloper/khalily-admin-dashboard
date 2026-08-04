@@ -1587,7 +1587,7 @@ async function loadRechargeRequests() {
                     let screenshotHtml = '';
                     const b64 = r.screenshotBase64 || '';
                     if (b64) {
-                        screenshotHtml = `<div class="mt-2 mb-2"><img src="data:image/jpeg;base64,${b64}" class="img-fluid rounded" style="max-height:200px;cursor:pointer;border:2px solid #ddd;" alt="لقطة الشاشة" onclick="window.open(this.src,'_blank')"></div>`;
+                        screenshotHtml = `<div class="mt-2 mb-2"><img src="data:image/jpeg;base64,${b64}" class="img-fluid rounded recharge-screenshot" style="max-height:200px;cursor:pointer;border:2px solid #ddd;" alt="لقطة الشاشة" onclick="showRechargeScreenshot('${d.id}','${b64}')"></div>`;
                     }
 
                     let timeBadge = '';
@@ -1670,6 +1670,36 @@ window.rejectRechargeRequest = async function(requestId, customerId) {
         ARAalert('تم رفض وحذف الطلب', 'info');
     } catch (err) { console.error('Reject recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
 };
+
+// Fullscreen screenshot viewer for recharge requests
+const screenshotData = {};
+
+window.showRechargeScreenshot = function (requestId, b64) {
+    if (b64) screenshotData[requestId] = b64;
+    const src = b64 || screenshotData[requestId] || '';
+    const img = document.getElementById('rechargeScreenshotImg');
+    if (img) img.src = 'data:image/jpeg;base64,' + src;
+    const modal = document.getElementById('rechargeScreenshotModal');
+    if (modal) modal.classList.add('show');
+};
+
+window.closeRechargeScreenshot = function () {
+    const modal = document.getElementById('rechargeScreenshotModal');
+    if (modal) modal.classList.remove('show');
+};
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeRechargeScreenshot();
+});
+
+document.addEventListener('click', function (e) {
+    const modal = document.getElementById('rechargeScreenshotModal');
+    if (modal && modal.classList.contains('show')) {
+        if (e.target.id === 'rechargeScreenshotModal' || e.target.classList.contains('modal-body')) {
+            closeRechargeScreenshot();
+        }
+    }
+});
 
 // Export customers CSV
 window.exportCustomersCSV = function () {

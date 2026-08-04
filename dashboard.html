@@ -337,6 +337,23 @@
                         </div>
                     </div>
 
+                    <!-- Recharge Screenshot Fullscreen Modal -->
+                    <div class="modal fade" id="rechargeScreenshotModal" tabindex="-1" aria-hidden="true" style="background:rgba(0,0,0,0.9);">
+                        <div class="modal-dialog modal-fullscreen" style="max-width:100vw;margin:0;">
+                            <div class="modal-content" style="background:transparent;border:none;">
+                                <div class="modal-header border-0">
+                                    <button type="button" class="btn btn-close btn-close-white ms-auto" onclick="closeRechargeScreenshot()" aria-label="إغلاق"></button>
+                                </div>
+                                <div class="modal-body d-flex align-items-center justify-content-center p-2">
+                                    <img id="rechargeScreenshotImg" src="" alt="لقطة شاشة التحويل" class="img-fluid" style="max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;">
+                                </div>
+                                <div class="modal-footer border-0 justify-content-center pb-4">
+                                    <button class="btn btn-gold fw-bold px-4" onclick="closeRechargeScreenshot()">إغلاق</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Register New Customer -->
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
