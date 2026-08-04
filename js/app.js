@@ -1568,58 +1568,54 @@ async function loadRechargeRequests() {
     container.innerHTML = '<div class="text-center py-3"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الطلبات...</div></div>';
     try {
         rechargeRequestsUnsubscribe = db.collection('recharge_requests')
-            .orderBy('createdAt', 'desc').limit(50)
+            .orderBy('createdAt', 'desc').limit(100)
             .onSnapshot(snapshot => {
-                let count = 0;
-                snapshot.forEach(d => { if (d.data().status === 'pending') count++; });
-                document.getElementById('rechargeRequestsCount').textContent = count;
-                if (snapshot.empty) {
-                    container.innerHTML = '<div class="text-center text-muted py-4">لا توجد طلبات شحن</div>';
+                const pendingDocs = snapshot.docs.filter(d => d.data().status === 'pending');
+                document.getElementById('rechargeRequestsCount').textContent = pendingDocs.length;
+                if (pendingDocs.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted py-4">لا توجد طلبات شحن معلّقة</div>';
                     return;
                 }
-                container.innerHTML = snapshot.docs.map(d => {
+                container.innerHTML = pendingDocs.map(d => {
                     const r = d.data();
                     const name = (r.customerName || 'زبون').replace(/</g, '&lt;');
                     const phone = r.customerPhone || '-';
                     const amount = r.amount || 0;
                     const wallet = r.walletName || '-';
-                    const screenshotUrl = r.screenshotUrl || '';
-                    const status = r.status || 'pending';
                     const createdAt = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate() : null;
 
-                    let timeInfo = '';
+                    let screenshotHtml = '';
+                    const b64 = r.screenshotBase64 || '';
+                    if (b64) {
+                        screenshotHtml = `<div class="mt-2 mb-2"><img src="data:image/jpeg;base64,${b64}" class="img-fluid rounded" style="max-height:200px;cursor:pointer;border:2px solid #ddd;" alt="لقطة الشاشة" onclick="window.open(this.src,'_blank')"></div>`;
+                    }
+
                     let timeBadge = '';
                     if (createdAt) {
                         const now = new Date();
                         const diffMin = Math.floor((now - createdAt) / 60000);
                         const timeStr = createdAt.toLocaleString('ar-MA');
-                        if (status === 'pending') {
-                            if (diffMin < 10) {
-                                const remaining = 10 - diffMin;
-                                timeBadge = `<span class="badge bg-success">جديد (${remaining} دقيقة متبقية)</span>`;
-                            } else if (diffMin < 30) {
-                                timeBadge = `<span class="badge bg-warning text-dark">قديم (${diffMin} دقيقة)</span>`;
-                            } else {
-                                timeBadge = `<span class="badge bg-danger">منتهي الصلاحية (${diffMin} دقيقة)</span>`;
-                            }
+                        if (diffMin < 10) {
+                            const remaining = 10 - diffMin;
+                            timeBadge = `<small class="text-muted">${timeStr}</small> <span class="badge bg-success">جديد (${remaining} دقيقة متبقية)</span>`;
+                        } else if (diffMin < 30) {
+                            timeBadge = `<small class="text-muted">${timeStr}</small> <span class="badge bg-warning text-dark">قديم (${diffMin} دقيقة)</span>`;
+                        } else {
+                            timeBadge = `<small class="text-muted">${timeStr}</small> <span class="badge bg-danger">منتهي الصلاحية (${diffMin} دقيقة)</span>`;
                         }
-                        timeInfo = `<small class="text-muted">${timeStr}</small> ${timeBadge}`;
                     }
 
-                    let statusBadge = '';
-                    if (status === 'pending') statusBadge = '<span class="badge bg-warning text-dark">قيد الانتظار</span>';
-                    else if (status === 'approved') statusBadge = '<span class="badge bg-success">مقبول</span>';
-                    else if (status === 'rejected') statusBadge = '<span class="badge bg-danger">مرفوض</span>';
-                    else statusBadge = `<span class="badge bg-secondary">${status}</span>`;
-
-                    let screenshotHtml = '';
-                    if (screenshotUrl) {
-                        screenshotHtml = `<div class="mt-2 mb-2"><a href="${screenshotUrl}" target="_blank"><img src="${screenshotUrl}" class="img-fluid rounded" style="max-height:200px;cursor:pointer;border:2px solid #ddd;" alt="لقطة الشاشة" onerror="this.style.display='none'"></a></div>`;
-                    }
-
-                    let actions = '';
-                    if (status === 'pending') {
-                        actions = `
+                    return `<div class="card mb-3 border" style="border-color:#ffc107 !important;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1"><i class="bi bi-person-fill me-1 text-dark-blue"></i>${name}</h6>
+                                    <div class="small text-muted mb-1"><i class="bi bi-phone me-1"></i>${phone}</div>
+                                    <div class="small"><strong>المحفظة:</strong> ${wallet} &nbsp;|&nbsp; <strong>المبلغ:</strong> <span class="text-success fw-bold">${amount} MRU</span></div>
+                                    <div class="small mt-1">${timeBadge}</div>
+                                </div>
+                            </div>
+                            ${screenshotHtml}
                             <div class="d-flex gap-2 flex-wrap mt-2">
                                 <button class="btn btn-success fw-bold" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}',${amount})">
                                     <i class="bi bi-check-circle me-1"></i>تزويد الرصيد
@@ -1627,22 +1623,7 @@ async function loadRechargeRequests() {
                                 <button class="btn btn-danger fw-bold" onclick="rejectRechargeRequest('${d.id}','${r.customerId||''}')">
                                     <i class="bi bi-x-circle me-1"></i>المعلومات غير متطابقة
                                 </button>
-                            </div>`;
-                    }
-
-                    return `<div class="card mb-3 border" style="border-color:${status==='pending'?'#ffc107':status==='approved'?'#198754':'#dc3545'} !important;">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                                <div>
-                                    <h6 class="fw-bold mb-1"><i class="bi bi-person-fill me-1 text-dark-blue"></i>${name}</h6>
-                                    <div class="small text-muted mb-1"><i class="bi bi-phone me-1"></i>${phone}</div>
-                                    <div class="small"><strong>المحفظة:</strong> ${wallet} &nbsp;|&nbsp; <strong>المبلغ:</strong> <span class="text-success fw-bold">${amount} MRU</span></div>
-                                    <div class="small mt-1">${timeInfo}</div>
-                                </div>
-                                <div>${statusBadge}</div>
                             </div>
-                            ${screenshotHtml}
-                            ${actions}
                         </div>
                     </div>`;
                 }).join('');
@@ -1662,16 +1643,7 @@ window.approveRechargeRequest = async function(requestId, customerId, amount) {
     if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد الزبون. تأكيد؟`))) return;
     try {
         await db.collection('customers').doc(customerId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
-        const reqSnap = await db.collection('recharge_requests').doc(requestId).get();
-        const reqData = reqSnap.data();
-        await db.collection('recharge_requests').doc(requestId).update({
-            status: 'approved',
-            processedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
-        });
-        if (reqData && reqData.screenshotPath) {
-            try { await firebase.storage().ref().child(reqData.screenshotPath).delete(); } catch (e) {}
-        }
+        await db.collection('recharge_requests').doc(requestId).delete();
         loadCustomersList();
         notifyUser('customers', customerId, {
             type: 'credit_update',
@@ -1687,11 +1659,6 @@ window.rejectRechargeRequest = async function(requestId, customerId) {
     if (!requireDb()) return;
     if (!(await ARAconfirm('سيتم رفض وحذف هذا الطلب نهائياً. تأكيد؟'))) return;
     try {
-        const reqSnap = await db.collection('recharge_requests').doc(requestId).get();
-        const reqData = reqSnap.data();
-        if (reqData && reqData.screenshotPath) {
-            try { await firebase.storage().ref().child(reqData.screenshotPath).delete(); } catch (e) {}
-        }
         await db.collection('recharge_requests').doc(requestId).delete();
         if (customerId) {
             notifyUser('customers', customerId, {
