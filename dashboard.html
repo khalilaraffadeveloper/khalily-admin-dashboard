@@ -28,6 +28,7 @@
             </a>
             <a href="#" class="sidebar-link" data-page="customers">
                 <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
+                <span class="badge bg-danger rounded-pill d-none float-start" id="sidebarRechargeBadge">0</span>
             </a>
             <a href="#" class="sidebar-link" data-page="unregistered-customers">
                 <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
@@ -99,6 +100,7 @@
                     </a>
                     <a href="#" class="sidebar-link" data-page="customers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
+                        <span class="badge bg-danger rounded-pill d-none float-start" id="sidebarRechargeBadgeMobile">0</span>
                     </a>
             <a href="#" class="sidebar-link" data-page="unregistered-customers" data-bs-dismiss="offcanvas">
                 <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
@@ -328,7 +330,7 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-cash-coin me-2 text-gold"></i>طلبات شحن الرصيد (<span id="rechargeRequestsCount">0</span>)</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-cash-coin me-2 text-gold"></i>طلبات شحن الرصيد (زبائن وسائقين) (<span id="rechargeRequestsCount">0</span>)</h6>
                                 <button class="btn btn-sm btn-outline-dark-blue" onclick="loadRechargeRequests()"><i class="bi bi-arrow-clockwise me-1"></i>تحديث</button>
                             </div>
                             <div class="card-body" id="rechargeRequestsContainer">
@@ -523,6 +525,7 @@
                                     <tr>
                                         <th>الزبون</th>
                                         <th class="d-none d-md-table-cell">هاتف الزبون</th>
+                                        <th class="d-none d-md-table-cell">هاتف المستلم</th>
                                         <th class="d-none d-md-table-cell">الانطلاق</th>
                                         <th class="d-none d-md-table-cell">الوجهة</th>
                                         <th>المسافة</th>
@@ -1725,6 +1728,46 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
                     <button type="button" class="btn btn-gold text-white fw-bold" id="confirmDeliveryPriceBtn">إرسال السعر</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT RIDE COORDINATES MODAL -->
+    <div class="modal fade" id="editRideCoordsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold text-dark-blue"><i class="bi bi-geo-alt me-2 text-gold"></i>تعديل إحداثيات الرحلة</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2"><strong>الزبون:</strong> <span id="editCoordsCustomer"></span></div>
+                    <div class="alert alert-warning py-2 mb-3 small d-none" id="editCoordsLockNote"></div>
+                    <input type="hidden" id="editCoordsRideId">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">إحداثيات الانطلاق (lat)</label>
+                            <input type="number" step="any" class="form-control" id="editPickupLat" placeholder="18.0735">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">إحداثيات الانطلاق (lng)</label>
+                            <input type="number" step="any" class="form-control" id="editPickupLng" placeholder="-15.9583">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">إحداثيات الوجهة (lat)</label>
+                            <input type="number" step="any" class="form-control" id="editDropoffLat" placeholder="18.0735">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small">إحداثيات الوجهة (lng)</label>
+                            <input type="number" step="any" class="form-control" id="editDropoffLng" placeholder="-15.9583">
+                        </div>
+                    </div>
+                    <div class="form-text mt-2">إحداثيات الزبون (طرف في الرحلة) محفوظة تلقائياً من موقعه وتظهر للقراءة فقط.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="button" class="btn btn-gold text-white fw-bold" onclick="saveRideCoords()">حفظ الإحداثيات</button>
                 </div>
             </div>
         </div>

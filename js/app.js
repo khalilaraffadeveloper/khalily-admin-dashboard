@@ -997,6 +997,80 @@ function initRealtimeListeners() {
             const mobileCount = document.querySelector('.onlineCount-mobile');
             if (mobileCount) mobileCount.textContent = onlineIds.size;
         });
+
+    // ------------------------------------------------------------
+    // GLOBAL ALERTS: new recharge requests (customer OR driver)
+    // ------------------------------------------------------------
+    let firstRechargeAlertSnapshot = true;
+    const seenRechargeAlertIds = {};
+    db.collection('recharge_requests').where('status', '==', 'pending')
+        .onSnapshot(snapshot => {
+            const pendingDocs = snapshot.docs;
+            const currentIds = new Set(pendingDocs.map(d => d.id));
+
+            const countEl = document.getElementById('rechargeRequestsCount');
+            if (countEl) countEl.textContent = pendingDocs.length;
+            ['sidebarRechargeBadge', 'sidebarRechargeBadgeMobile'].forEach(badgeId => {
+                const badgeEl = document.getElementById(badgeId);
+                if (badgeEl) {
+                    badgeEl.textContent = pendingDocs.length;
+                    badgeEl.classList.toggle('d-none', pendingDocs.length === 0);
+                }
+            });
+
+            if (firstRechargeAlertSnapshot) {
+                firstRechargeAlertSnapshot = false;
+                pendingDocs.forEach(d => seenRechargeAlertIds[d.id] = true);
+                return;
+            }
+
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added' && !seenRechargeAlertIds[change.doc.id]) {
+                    seenRechargeAlertIds[change.doc.id] = true;
+                    const r = change.doc.data();
+                    const isDriver = r.role === 'driver';
+                    const who = isDriver ? (r.driverName || 'سائق') : (r.customerName || 'زبون');
+                    playNotificationSound();
+                    addNotifLog('recharge_request', `💰 طلب شحن جديد (${isDriver ? 'سائق' : 'زبون'}): ${who} — ${r.amount || 0} MRU`);
+                }
+            });
+
+            pendingDocs.forEach(d => seenRechargeAlertIds[d.id] = true);
+            Object.keys(seenRechargeAlertIds).forEach(id => {
+                if (!currentIds.has(id)) delete seenRechargeAlertIds[id];
+            });
+        }, err => {
+            console.error('Recharge alert listener error:', err);
+        });
+
+    // ------------------------------------------------------------
+    // GLOBAL ALERT: new pending ride request from customer
+    // ------------------------------------------------------------
+    let firstPendingRideAlertSnapshot = true;
+    const seenPendingRideAlertIds = {};
+    db.collection('rides').where('status', '==', 'pending')
+        .onSnapshot(snapshot => {
+            const currentIds = new Set(snapshot.docs.map(d => d.id));
+            if (firstPendingRideAlertSnapshot) {
+                firstPendingRideAlertSnapshot = false;
+                snapshot.docs.forEach(d => seenPendingRideAlertIds[d.id] = true);
+                return;
+            }
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added' && !seenPendingRideAlertIds[change.doc.id]) {
+                    seenPendingRideAlertIds[change.doc.id] = true;
+                    const rd = change.doc.data();
+                    playNotificationSound();
+                    addNotifLog('new_ride', `🚕 طلب رحلة جديد: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
+                }
+            });
+            snapshot.docs.forEach(d => seenPendingRideAlertIds[d.id] = true);
+            Object.keys(seenPendingRideAlertIds).forEach(id => {
+                if (!currentIds.has(id)) delete seenPendingRideAlertIds[id];
+            });
+        }, err => {
+            console.error('Pending ride alert listener error:', err);
+        });
 }
 
 // ============================================
@@ -1578,8 +1652,10 @@ async function loadRechargeRequests() {
                 }
                 container.innerHTML = pendingDocs.map(d => {
                     const r = d.data();
-                    const name = (r.customerName || 'زبون').replace(/</g, '&lt;');
-                    const phone = r.customerPhone || '-';
+                    const isDriver = r.role === 'driver';
+                    const roleLabel = isDriver ? 'سائق' : 'زبون';
+                    const name = (r.driverName || r.customerName || (isDriver ? 'سائق' : 'زبون')).replace(/</g, '&lt;');
+                    const phone = r.driverPhone || r.customerPhone || '-';
                     const amount = r.amount || 0;
                     const wallet = r.walletName || '-';
                     const createdAt = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate() : null;
@@ -1605,10 +1681,15 @@ async function loadRechargeRequests() {
                         }
                     }
 
+                    const roleBadge = isDriver
+                        ? `<span class="badge bg-dark-blue mb-1"><i class="bi bi-person-badge me-1"></i>طلب سائق</span>`
+                        : `<span class="badge bg-primary mb-1"><i class="bi bi-person-fill me-1"></i>طلب زبون</span>`;
+
                     return `<div class="card mb-3 border" style="border-color:#ffc107 !important;">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                                 <div>
+                                    ${roleBadge}
                                     <h6 class="fw-bold mb-1"><i class="bi bi-person-fill me-1 text-dark-blue"></i>${name}</h6>
                                     <div class="small text-muted mb-1"><i class="bi bi-phone me-1"></i>${phone}</div>
                                     <div class="small"><strong>المحفظة:</strong> ${wallet} &nbsp;|&nbsp; <strong>المبلغ:</strong> <span class="text-success fw-bold">${amount} MRU</span></div>
@@ -1617,10 +1698,10 @@ async function loadRechargeRequests() {
                             </div>
                             ${screenshotHtml}
                             <div class="d-flex gap-2 flex-wrap mt-2">
-                                <button class="btn btn-success fw-bold" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}',${amount})">
+                                <button class="btn btn-success fw-bold" onclick="approveRechargeRequest('${d.id}')">
                                     <i class="bi bi-check-circle me-1"></i>تزويد الرصيد
                                 </button>
-                                <button class="btn btn-danger fw-bold" onclick="rejectRechargeRequest('${d.id}','${r.customerId||''}')">
+                                <button class="btn btn-danger fw-bold" onclick="rejectRechargeRequest('${d.id}')">
                                     <i class="bi bi-x-circle me-1"></i>المعلومات غير متطابقة
                                 </button>
                             </div>
@@ -1637,15 +1718,44 @@ async function loadRechargeRequests() {
     }
 }
 
-window.approveRechargeRequest = async function(requestId, customerId, amount) {
+window.approveRechargeRequest = async function(requestId) {
     if (!requireDb()) return;
-    if (!customerId || !amount || amount <= 0) { ARAalert('بيانات الطلب ناقصة', 'warning'); return; }
-    if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد الزبون. تأكيد؟`))) return;
+    let r;
     try {
-        await db.collection('customers').doc(customerId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
+        const snap = await db.collection('recharge_requests').doc(requestId).get();
+        if (!snap.exists) { ARAalert('الطلب غير موجود', 'warning'); return; }
+        r = snap.data();
+    } catch (err) { console.error('Fetch recharge error:', err); ARAalert('خطأ في جلب الطلب: ' + err.message, 'error'); return; }
+
+    const isDriver = r.role === 'driver';
+    const who = isDriver ? 'السائق' : 'الزبون';
+    const amount = r.amount || 0;
+    let targetCol = isDriver ? 'drivers' : 'customers';
+    let targetId = isDriver ? (r.driverId || '') : (r.customerId || '');
+
+    if (isDriver && !targetId && r.driverPhone) {
+        try {
+            const byPhone = await db.collection('drivers').where('phone', '==', r.driverPhone).limit(1).get();
+            if (!byPhone.empty) { targetId = byPhone.docs[0].id; }
+        } catch (e) { console.error('Driver phone lookup error:', e); }
+    }
+    if (!isDriver && !targetId && r.customerPhone) {
+        try {
+            const byPhone = await db.collection('customers').where('phone', '==', r.customerPhone).limit(1).get();
+            if (!byPhone.empty) { targetId = byPhone.docs[0].id; }
+        } catch (e) { console.error('Customer phone lookup error:', e); }
+    }
+
+    if (!targetId || !amount || amount <= 0) {
+        ARAalert('بيانات الطلب ناقصة: تعذّر تحديد حساب ' + who + ' المرتبط بهذا الطلب', 'warning');
+        return;
+    }
+    if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد ${who}. تأكيد؟`))) return;
+    try {
+        await db.collection(targetCol).doc(targetId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
         await db.collection('recharge_requests').doc(requestId).delete();
-        loadCustomersList();
-        notifyUser('customers', customerId, {
+        if (!isDriver) loadCustomersList();
+        notifyUser(targetCol, targetId, {
             type: 'credit_update',
             title: 'تم شحن رصيدك',
             body: `تم قبول طلب الشحن وإضافة ${amount} MRU إلى رصيدك`,
@@ -1655,17 +1765,25 @@ window.approveRechargeRequest = async function(requestId, customerId, amount) {
     } catch (err) { console.error('Approve recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
-window.rejectRechargeRequest = async function(requestId, customerId) {
+window.rejectRechargeRequest = async function(requestId) {
     if (!requireDb()) return;
     if (!(await ARAconfirm('سيتم رفض وحذف هذا الطلب نهائياً. تأكيد؟'))) return;
+    let r = null;
     try {
+        const snap = await db.collection('recharge_requests').doc(requestId).get();
+        if (snap.exists) r = snap.data();
         await db.collection('recharge_requests').doc(requestId).delete();
-        if (customerId) {
-            notifyUser('customers', customerId, {
-                type: 'recharge_rejected',
-                title: 'تم رفض طلب الشحن',
-                body: 'المعلومات غير متطابقة. يُرجى المحاولة مرة أخرى.'
-            });
+        if (r) {
+            const isDriver = r.role === 'driver';
+            const targetCol = isDriver ? 'drivers' : 'customers';
+            const targetId = isDriver ? (r.driverId || '') : (r.customerId || '');
+            if (targetId) {
+                notifyUser(targetCol, targetId, {
+                    type: 'recharge_rejected',
+                    title: 'تم رفض طلب الشحن',
+                    body: 'المعلومات غير متطابقة. يُرجى المحاولة مرة أخرى.'
+                });
+            }
         }
         ARAalert('تم رفض وحذف الطلب', 'info');
     } catch (err) { console.error('Reject recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
@@ -1719,7 +1837,7 @@ async function loadRidesList() {
     if (!requireDb()) return;
     if (ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     const tbody = document.getElementById('ridesTableBody');
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>';
     try {
         ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
             .onSnapshot(snapshot => {
@@ -1758,11 +1876,11 @@ async function loadRidesList() {
                 });
             }, err => {
                 console.error('Rides listener error:', err);
-                tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
             });
     } catch (err) {
         console.error('Load rides error:', err);
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
 
@@ -1785,7 +1903,7 @@ async function enrichRidesWithDrivers(rides, done) {
 function renderRidesList(rides) {
     const tbody = document.getElementById('ridesTableBody');
     if (rides.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4">لا توجد رحلات</td></tr>';
         return;
     }
     const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
@@ -1801,14 +1919,24 @@ function renderRidesList(rides) {
         const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
         const driverName = driver ? driver.name : (r.assignedDriverId ? '...' : '-');
         const driverPhone = driver ? driver.phone : '-';
-        const actionBtn = canCancel.includes(r.status)
-            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>`
-            : canRelaunch.includes(r.status)
-                ? `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button>`
-                : '';
+        let actionBtn = '';
+        if (canCancel.includes(r.status)) {
+            actionBtn += `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button> `;
+        }
+        if (canRelaunch.includes(r.status)) {
+            actionBtn += `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button> `;
+        }
+        if (r.status === 'cancelled' || r.status === 'no_drivers') {
+            actionBtn += `<button class="btn-action btn-action-delete mt-1" onclick="deleteRide('${r.id}')"><i class="bi bi-trash"></i></button>`;
+        }
+        if (['pending', 'accepted', 'in_progress', 'no_drivers'].includes(r.status)) {
+            actionBtn += `<button class="btn-action btn-action-edit mt-1" onclick="openEditCoordsModal('${r.id}')"><i class="bi bi-geo-alt me-1"></i>إحداثيات</button>`;
+        }
+        if (!actionBtn) actionBtn = '-';
         return `<tr>
             <td><strong>${r.passengerName || '-'}</strong></td>
             <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
+            <td class="d-none d-md-table-cell"><small dir="ltr">${r.receiverPhone || '-'}</small></td>
             <td class="d-none d-md-table-cell">${r.pickupAddress || '-'}</td>
             <td class="d-none d-md-table-cell">${r.dropoffAddress || '-'}</td>
             <td><small>${dist}</small></td>
@@ -1827,9 +1955,113 @@ window.cancelRide = async function (rideId) {
     if (!(await ARAconfirm('هل أنت متأكد من إلغاء هذه الرحلة؟'))) return;
     if (!requireDb()) return;
     try {
-        await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
+        await db.collection('rides').doc(rideId).update({
+            status: 'cancelled',
+            cancelledBy: 'admin',
+            cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         if (currentPage === 'rides') loadRidesList();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.deleteRide = async function (rideId) {
+    if (!(await ARAconfirm('حذف هذه الرحلة نهائياً؟ لا يمكن التراجع عن هذا الإجراء.'))) return;
+    if (!requireDb()) return;
+    try {
+        await db.collection('rides').doc(rideId).delete();
+        if (currentPage === 'rides') loadRidesList();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+let editingRideId = null;
+
+function getRideCoordinateLocks(r) {
+    const customerPhone = r.passengerPhone || '';
+    const isDelivery = r.type === 'delivery';
+    const locks = { pickup: false, dropoff: false };
+    if (!customerPhone) return locks;
+    if (isDelivery) {
+        if (r.senderPhone === customerPhone) locks.pickup = true;
+        if (r.receiverPhone === customerPhone) locks.dropoff = true;
+    } else {
+        locks.pickup = true;
+    }
+    return locks;
+}
+
+window.openEditCoordsModal = function (rideId) {
+    const r = allRides.find(x => x.id === rideId);
+    if (!r) return;
+    editingRideId = rideId;
+    document.getElementById('editCoordsRideId').value = rideId;
+    document.getElementById('editCoordsCustomer').textContent = `${r.passengerName || '-'} (${r.passengerPhone || '-'})`;
+
+    const locks = getRideCoordinateLocks(r);
+    const setVal = (id, v) => {
+        document.getElementById(id).value = (v != null && !isNaN(v)) ? v : '';
+    };
+    setVal('editPickupLat', r.pickupLat);
+    setVal('editPickupLng', r.pickupLng);
+    setVal('editDropoffLat', r.dropoffLat);
+    setVal('editDropoffLng', r.dropoffLng);
+
+    document.getElementById('editPickupLat').disabled = locks.pickup;
+    document.getElementById('editPickupLng').disabled = locks.pickup;
+    document.getElementById('editDropoffLat').disabled = locks.dropoff;
+    document.getElementById('editDropoffLng').disabled = locks.dropoff;
+
+    const note = document.getElementById('editCoordsLockNote');
+    const parts = [];
+    if (locks.pickup) parts.push('إحداثيات الانطلاق (موقع الزبون)');
+    if (locks.dropoff) parts.push('إحداثيات الوجهة (موقع الزبون)');
+    note.textContent = parts.length ? ('قراءة فقط: ' + parts.join('، ') + ' — محفوظة تلقائياً من موقع الزبون.') : '';
+    note.classList.toggle('d-none', parts.length === 0);
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('editRideCoordsModal')).show();
+};
+
+window.saveRideCoords = async function () {
+    if (!editingRideId) return;
+    if (!requireDb()) return;
+    const r = allRides.find(x => x.id === editingRideId);
+    if (!r) return;
+    const locks = getRideCoordinateLocks(r);
+
+    const pickupLat = parseFloat(document.getElementById('editPickupLat').value);
+    const pickupLng = parseFloat(document.getElementById('editPickupLng').value);
+    const dropoffLat = parseFloat(document.getElementById('editDropoffLat').value);
+    const dropoffLng = parseFloat(document.getElementById('editDropoffLng').value);
+
+    const check = (lat, lng) => (isFinite(lat) && isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180);
+
+    const update = {};
+    if (!locks.pickup) {
+        if (!check(pickupLat, pickupLng)) { ARAalert('أدخل إحداثيات انطلاق صحيحة (خط الطول وخط العرض)', 'warning'); return; }
+        update.pickupLat = pickupLat;
+        update.pickupLng = pickupLng;
+    }
+    if (!locks.dropoff) {
+        if (!check(dropoffLat, dropoffLng)) { ARAalert('أدخل إحداثيات وجهة صحيحة (خط الطول وخط العرض)', 'warning'); return; }
+        update.dropoffLat = dropoffLat;
+        update.dropoffLng = dropoffLng;
+    }
+
+    const newPickupLat = locks.pickup ? (r.pickupLat || 0) : pickupLat;
+    const newPickupLng = locks.pickup ? (r.pickupLng || 0) : pickupLng;
+    const newDropoffLat = locks.dropoff ? (r.dropoffLat || 0) : dropoffLat;
+    const newDropoffLng = locks.dropoff ? (r.dropoffLng || 0) : dropoffLng;
+    if (newPickupLat && newDropoffLat && (newPickupLat !== newDropoffLat || newPickupLng !== newDropoffLng)) {
+        update.realDistanceKm = Math.round(haversine(newPickupLat, newPickupLng, newDropoffLat, newDropoffLng) * 100) / 100;
+    }
+
+    try {
+        await db.collection('rides').doc(editingRideId).update(update);
+        bootstrap.Modal.getInstance(document.getElementById('editRideCoordsModal'))?.hide();
+        editingRideId = null;
+        ARAalert('تم حفظ الإحداثيات بنجاح', 'success');
+    } catch (err) {
+        ARAalert('خطأ: ' + err.message, 'error');
+    }
 };
 
 window.reLaunchRide = async function (rideId) {
@@ -1846,6 +2078,7 @@ window.reLaunchRide = async function (rideId) {
         const radius = r.searchRadiusKm || 3;
         const lat = r.pickupLat || 0;
         const lng = r.pickupLng || 0;
+        const del = firebase.firestore.FieldValue.delete();
         const rideData = {
             passengerName: r.passengerName || '',
             passengerPhone: r.passengerPhone || '',
@@ -1861,24 +2094,35 @@ window.reLaunchRide = async function (rideId) {
             fare: r.fare || BASE_FARE,
             commissionPercent: r.commissionPercent || commissionPercent,
             status: 'pending',
-            reLaunchedFrom: rideId,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            notifiedDrivers: [],
+            // إعادة نفس السجل: مسح بيانات القبول/الإلغاء السابقة حتى يمكن إعادة التخصيص
+            assignedDriverId: del,
+            assignedDriverName: del,
+            acceptedAt: del,
+            acceptedBy: del,
+            cancelledBy: del,
+            cancelledAt: del,
+            cancelledReason: del,
+            completedAt: del,
+            completionCode: del,
+            driverRating: del
         };
-        const docRef = await db.collection('rides').add(rideData);
+        await db.collection('rides').doc(rideId).update(rideData);
         const nearby = await findNearbyDrivers(lat, lng, radius);
         if (nearby.length === 0) {
-            await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
+            await db.collection('rides').doc(rideId).update({ status: 'no_drivers' });
             addNotifLog('dispatch', `فشل إعادة الإطلاق: لا يوجد سائقون في نطاق ${radius} كم`);
             ARAalert('لا يوجد سائقون متاحون في النطاق. الرحلة جديدة الآن كرحلة بلا سائق.', 'error');
         } else {
             const nearbyIds = nearby.map(d => d.id);
             const tokens = nearby.filter(d => d.fcmToken).map(d => d.fcmToken);
-            await db.collection('rides').doc(docRef.id).update({
+            await db.collection('rides').doc(rideId).update({
                 notifiedDrivers: nearbyIds,
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius, {
+                sendFCMNotifications(tokens, rideId, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius, {
                     notes: rideData.notes || '',
                     deliveryId: r.deliveryId || ''
                 }, rideData.dropoffLat, rideData.dropoffLng);
@@ -1940,6 +2184,7 @@ function initDeliveriesListener() {
                 const newRequests = [];
                 snap.forEach(doc => {
                     const data = doc.data();
+                    if (data.status === 'launched') return; // أُرسلت للسائقين: تختفي من سجل الطلبات فوراً
                     allDeliveries.push({ id: doc.id, ...data });
                     if (data.status === 'new' && !seenDeliveryIds.has(doc.id)) {
                         seenDeliveryIds.add(doc.id);
@@ -2085,12 +2330,16 @@ window.dispatchDeliveryToDrivers = async function (id) {
     if (!requireDb()) return;
     const price = d.pendingPrice != null ? d.pendingPrice : (d.fare != null ? d.fare : 0);
     if (!price || price <= 0) { ARAalert('أدخل سعراً أولاً عبر زر "إرسال السعر"', 'warning'); return; }
-    if (!d.senderLat && !d.senderLng) { ARAalert('لا توجد إحداثيات لنقطة الانطلاق على هذه التوصيلة', 'warning'); return; }
+    const hasPickup = !!(d.senderLat && d.senderLng);
+    const hasDropoff = !!(d.dropoffLat && d.dropoffLng) || !!(d.receiverLat && d.receiverLng);
+    if (!hasPickup && !hasDropoff) { ARAalert('لا توجد إحداثيات لنقطة الانطلاق أو الوجهة على هذه التوصيلة', 'warning'); return; }
+    if (!hasPickup) { ARAalert('تنبيه: لا توجد إحداثيات لنقطة الانطلاق — عدّلها من سجل الرحلات بعد الإرسال.', 'warning'); }
 
-    const lat = d.senderLat, lng = d.senderLng;
-    const dropLat = d.dropoffLat || lat;
-    const dropLng = d.dropoffLng || lng;
-    const realDist = (dropLat !== lat || dropLng !== lng) ? haversine(lat, lng, dropLat, dropLng) : 0;
+    const lat = d.senderLat || 0;
+    const lng = d.senderLng || 0;
+    const dropLat = d.dropoffLat || d.receiverLat || lat;
+    const dropLng = d.dropoffLng || d.receiverLng || lng;
+    const realDist = hasPickup ? haversine(lat, lng, dropLat, dropLng) : 0;
     let radius = 20;
     try {
         const cfg = await db.collection('settings').doc('app_config').get();
@@ -2127,22 +2376,62 @@ window.dispatchDeliveryToDrivers = async function (id) {
     };
 
     try {
-        const docRef = await db.collection('rides').add(rideData);
-        const nearby = await findNearbyDrivers(lat, lng, radius);
+        // إعادة استخدام سجل الرحلة السابق إذا كان للتوصيلة رحلة ملغاة أو بلا سائق — لمنع التكرار
+        let rideDocRef = null;
+        let rideExists = false;
+        if (d.rideId) {
+            const existingSnap = await db.collection('rides').doc(d.rideId).get();
+            if (existingSnap.exists) {
+                const existingStatus = existingSnap.data().status;
+                if (existingStatus === 'cancelled' || existingStatus === 'no_drivers') {
+                    rideDocRef = existingSnap.ref;
+                    rideExists = true;
+                } else if (existingStatus === 'pending' || existingStatus === 'accepted' || existingStatus === 'in_progress') {
+                    ARAalert('هذه التوصيلة لديها رحلة نشطة بالفعل', 'warning');
+                    return;
+                }
+            }
+        }
+
+        const del = firebase.firestore.FieldValue.delete();
+        if (rideExists) {
+            // تحديث نفس المستند ومسح بيانات القبول/الإلغاء السابقة
+            await rideDocRef.update({
+                ...rideData,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                notifiedDrivers: [],
+                assignedDriverId: del,
+                assignedDriverName: del,
+                acceptedAt: del,
+                acceptedBy: del,
+                cancelledBy: del,
+                cancelledAt: del,
+                cancelledReason: del,
+                completedAt: del,
+                completionCode: del,
+                driverRating: del
+            });
+        } else {
+            rideDocRef = await db.collection('rides').add(rideData);
+        }
+        const rideId = rideDocRef.id;
+        const searchLat = hasPickup ? lat : dropLat;
+        const searchLng = hasPickup ? lng : dropLng;
+        const nearby = await findNearbyDrivers(searchLat, searchLng, radius);
         if (nearby.length === 0) {
-            await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
-            await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId: docRef.id });
+            await db.collection('rides').doc(rideId).update({ status: 'no_drivers' });
+            await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId });
             addNotifLog('delivery_dispatch', 'لا يوجد سائقون متاحون: ' + id);
             ARAalert('لا يوجد سائقون متاحون في النطاق حالياً', 'warning');
         } else {
             const nearbyIds = nearby.map(x => x.id);
             const tokens = nearby.filter(x => x.fcmToken).map(x => x.fcmToken);
-            await db.collection('rides').doc(docRef.id).update({
+            await db.collection('rides').doc(rideId).update({
                 notifiedDrivers: nearbyIds,
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, 'طلب توصيل', price, lat, lng, d.pickupAddress || d.senderDistrict || '', d.dropoffAddress || d.receiverDistrict || '', radius, {
+                sendFCMNotifications(tokens, rideId, 'طلب توصيل', price, lat, lng, d.pickupAddress || d.senderDistrict || '', d.dropoffAddress || d.receiverDistrict || '', radius, {
                     senderPhone: d.senderPhone || '',
                     receiverPhone: d.receiverPhone || '',
                     senderDistrict: d.senderDistrict || '',
@@ -2154,7 +2443,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
                     deliveryPhase: 'at_sender'
                 }, dropLat, dropLng);
             }
-            await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId: docRef.id });
+            await db.collection('delivery_requests').doc(id).update({ status: 'launched', rideId });
             addNotifLog('delivery_dispatch', `تم إرسال التوصيلة ${id} إلى ${nearby.length} سائق | ${price} MRU`);
             ARAalert(`تم الإرسال! ${nearby.length} سائق تم تنبيههم`, 'success');
         }
@@ -2245,7 +2534,7 @@ window.exportDriversCSV = function () {
 
 window.exportRidesCSV = function () {
     if (allRides.length === 0) { ARAalert('لا توجد رحلات للتصدير', 'info'); return; }
-    let csv = '\uFEFF' + 'الزبون,هاتف الزبون,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,اسم السائق,هاتف السائق,الحالة,التاريخ\n';
+    let csv = '\uFEFF' + 'الزبون,هاتف الزبون,هاتف المستلم,نقطة الانطلاق,الوجهة,المسافة,السعر,العمولة,اسم السائق,هاتف السائق,الحالة,التاريخ\n';
     allRides.forEach(r => {
         const created = r.createdAt?.toDate ? fmtDate(r.createdAt.toDate()) : '';
         const fare = r.fare || 0;
@@ -2253,7 +2542,7 @@ window.exportRidesCSV = function () {
         const driver = r.assignedDriverId ? (driversInfoCache[r.assignedDriverId] || null) : null;
         const driverName = driver ? driver.name : '';
         const driverPhone = driver ? driver.phone : '';
-        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${driverName},${driverPhone},${r.status||''},${created}\n`;
+        csv += `${r.passengerName||''},${r.passengerPhone||''},${r.receiverPhone||''},${r.pickupAddress||''},${r.dropoffAddress||''},${r.realDistanceKm||''},${fare},${comm},${driverName},${driverPhone},${r.status||''},${created}\n`;
     });
     downloadCSV(csv, 'ARAVA_rides.csv');
 };
@@ -2375,6 +2664,7 @@ function renderNotifLog() {
         'ride_in_progress': { cls: 'log-badge-success', label: 'جارية' },
         'dispatch': { cls: 'log-badge-info', label: 'إرسال' },
         'delivery_dispatch': { cls: 'log-badge-warning', label: 'توصيل' },
+        'recharge_request': { cls: 'log-badge-warning', label: 'طلب شحن' },
         'system': { cls: 'log-badge-info', label: 'نظام' },
     };
     container.innerHTML = notifLog.map(n => {
