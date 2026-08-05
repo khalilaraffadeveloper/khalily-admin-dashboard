@@ -47,7 +47,10 @@
                 <i class="bi bi-envelope-fill"></i> الرسائل
             </a>
             <a href="#" class="sidebar-link" data-page="announcements">
-                <i class="bi bi-bullhorn-fill"></i> الإعلانات
+                <i class="bi bi-bullhorn-fill"></i> إعلانات السائقين
+            </a>
+            <a href="#" class="sidebar-link" data-page="customer-announcements">
+                <i class="bi bi-bullhorn-fill"></i> إعلانات الزبائن
             </a>
             <a href="#" class="sidebar-link admin-only" data-page="admins">
                 <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
@@ -119,7 +122,10 @@
                         <i class="bi bi-envelope-fill"></i> الرسائل
                     </a>
                     <a href="#" class="sidebar-link" data-page="announcements" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-bullhorn-fill"></i> الإعلانات
+                        <i class="bi bi-bullhorn-fill"></i> إعلانات السائقين
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="customer-announcements" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-bullhorn-fill"></i> إعلانات الزبائن
                     </a>
                     <a href="#" class="sidebar-link admin-only" data-page="admins" data-bs-dismiss="offcanvas">
                         <i class="bi bi-shield-lock-fill"></i> إدارة المشرفين
@@ -844,6 +850,53 @@
                             </div>
                             <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
                                 <div id="annListContainer">
+                                    <div class="text-center text-muted py-4 small">لا توجد إعلانات بعد</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- CUSTOMER ANNOUNCEMENTS PAGE -->
+        <div class="page-content d-none" id="page-customer-announcements">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-bullhorn-fill me-2 text-gold"></i>إرسال إعلان لجميع الزبائن</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">عنوان الإعلان</label>
+                                        <input type="text" class="form-control" id="custAnnTitle" placeholder="مثال: عروض نهاية الأسبوع" maxlength="80">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-bold">نص الإعلان</label>
+                                        <textarea class="form-control" id="custAnnContent" rows="3" placeholder="اكتب نص الإعلان الذي سيصل لجميع الزبائن..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="mt-3 d-flex align-items-center gap-3">
+                                    <button class="btn btn-gold text-white fw-bold" onclick="sendCustomerAnnouncement()">
+                                        <i class="bi bi-broadcast me-1"></i>إرسال للجميع
+                                    </button>
+                                    <span class="text-muted small"><i class="bi bi-people-fill me-1"></i>سيصل الإعلان لجميع الزبائن الحاليين والمستقبليين</span>
+                                </div>
+                                <div class="mt-2 fw-semibold" id="custAnnSendStatus"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-envelope-paper-fill me-2 text-gold"></i>إعلانات الزبائن المرسلة (<span id="custAnnCount">0</span>)</h6>
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearOldCustomerAnnouncements()"><i class="bi bi-trash me-1"></i>مسح الكل</button>
+                            </div>
+                            <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
+                                <div id="custAnnListContainer">
                                     <div class="text-center text-muted py-4 small">لا توجد إعلانات بعد</div>
                                 </div>
                             </div>
