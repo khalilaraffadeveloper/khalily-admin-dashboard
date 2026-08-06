@@ -78,6 +78,16 @@ async function doLogin() {
                     matched = { name: user, isFirebase: true, role: 'supervisor', permissions: [] };
                 }
             }
+            // مزامنة: إذا عُدّلت كلمة المرور من اللوحة (حقل Firestore)، تُرفض كلمة مرور حساب المصادقة القديمة
+            if (firebaseUser && matched) {
+                try {
+                    const syncQ = await db.collection('admins').where('authUid', '==', firebaseUser.uid).limit(1).get();
+                    if (!syncQ.empty) {
+                        const storedPass = syncQ.docs[0].data().password;
+                        if (storedPass && storedPass !== pass) matched = null;
+                    }
+                } catch (e) {}
+            }
         } catch (authErr) {
             console.log('Firebase Auth failed:', authErr.code);
         }
