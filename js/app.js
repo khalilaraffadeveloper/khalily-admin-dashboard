@@ -112,6 +112,21 @@ const PAGE_PERM = {
 
 const ALL_PERMISSIONS = Object.keys(PERMISSION_KEYS);
 
+// الصلاحية الفرعية تمنح صفحتها تلقائياً (مثال: customers_add تعطي صفحة الزبائن)
+const PARENT_PAGE = {
+    drivers_add: 'drivers', drivers_edit: 'drivers', drivers_delete: 'drivers',
+    drivers_service: 'drivers', drivers_credit: 'drivers',
+    customers_add: 'customers', customers_edit: 'customers', customers_delete: 'customers',
+    customers_credit: 'customers', recharge_approve: 'customers'
+};
+
+const PAGE_ORDER = [
+    'map', 'reports', 'drivers', 'customers', 'deliveries', 'rides',
+    'unregistered-customers', 'devices', 'messages', 'announcements',
+    'customer-announcements', 'promotions', 'products', 'stores', 'ladies',
+    'settings', 'admins'
+];
+
 function adminRole() {
     return sessionStorage.getItem('ARAVA_admin_role') || 'admin';
 }
@@ -124,8 +139,29 @@ function adminPermissions() {
     return p;
 }
 
+function effectivePermissions() {
+    const base = adminPermissions();
+    const out = new Set(base);
+    base.forEach(p => { if (PARENT_PAGE[p]) out.add(PARENT_PAGE[p]); });
+    return Array.from(out);
+}
+
 function canPerm(perm) {
-    return adminPermissions().indexOf(perm) !== -1;
+    return effectivePermissions().indexOf(perm) !== -1;
+}
+
+function firstAllowedPage() {
+    for (const p of PAGE_ORDER) {
+        if (PAGE_PERM[p] && canPerm(PAGE_PERM[p])) return p;
+    }
+    return null;
+}
+
+function goToDefaultPage() {
+    const p = firstAllowedPage();
+    if (p) { navigateToPage(p); return; }
+    document.querySelectorAll('.sidebar-link').forEach(n => n.classList.remove('active'));
+    ARAalert('لا توجد أي صفحة متاحة لك حالياً. راجع مدير النظام.', 'warning');
 }
 
 function guardPerm(perm, msg) {
@@ -659,8 +695,8 @@ document.querySelectorAll('.sidebar-link').forEach(item => {
     });
 });
 
-// Initial page load
-navigateToPage('map');
+// Initial page load: التوجيه التلقائي لأول صفحة يملك المستخدم صلاحية الوصول إليها
+goToDefaultPage();
 
 // ============================================
 // DISPATCH PANEL (Custom RTL-safe)
@@ -3476,6 +3512,70 @@ window.deleteAdmin = async function (id, name) {
 // ============================================
 // ROLE-BASED VISIBILITY
 // ============================================
+const FN_PERM = {
+    addAdmin: 'admins', addLadiesProduct: 'ladies', addProduct: 'products',
+    addPromotion: 'promotions', addStore: 'stores',
+    clearNotifLog: 'settings', clearOldAnnouncements: 'announcements',
+    clearOldCustomerAnnouncements: 'customer_announcements', clearOldMessages: 'messages',
+    clearRidesNow: 'rides', clearStoreLocation: 'stores', confirmResetAllData: 'settings',
+    exportCustomersCSV: 'customers', exportDriversCSV: 'drivers', exportRidesCSV: 'rides',
+    exportUnregisteredCustomersCSV: 'unregistered',
+    openStoreMapPicker: 'stores', saveCommission: 'settings', saveCustomerCommission: 'settings',
+    searchCustomerProfile: 'customers', searchDriverByPhone: 'drivers',
+    sendAnnouncement: 'announcements', sendCustomerAnnouncement: 'customer_announcements',
+    setServiceForAll: 'drivers_service',
+    approveCustomerProduct: 'products', approveRechargeRequest: 'recharge_approve',
+    cancelRide: 'rides', deleteAdmin: 'admins', deleteAnnouncement: 'announcements',
+    deleteCustomerAnnouncement: 'customer_announcements', deleteCustomerProduct: 'products',
+    deleteDelivery: 'deliveries', deleteLadiesProduct: 'ladies', deleteProduct: 'products',
+    deletePromotion: 'promotions', deleteSentCustomerMsg: 'messages', deleteSentMsg: 'messages',
+    deleteStore: 'stores', dispatchDeliveryToDrivers: 'deliveries',
+    openCreditModal: 'drivers_credit', openCustomerCreditModal: 'customers_credit',
+    openCustomerPasswordModal: 'customers_edit', openDeleteCustomerModal: 'customers_delete',
+    openDeleteModal: 'drivers_delete', openDeliveryPriceModal: 'deliveries',
+    openEditAdminModal: 'admins', openEditCreditModal: 'drivers_credit',
+    openEditCustomerCreditModal: 'customers_credit', openEditCustomerModal: 'customers_edit',
+    openEditModal: 'drivers_edit', openPasswordModal: 'drivers_edit', quickAddCredit: 'drivers_credit',
+    rejectCustomerProduct: 'products', rejectRechargeRequest: 'recharge_approve',
+    reLaunchRide: 'rides', setDeliveryStatus: 'deliveries', toggleCustomerProduct: 'products',
+    toggleDriverService: 'drivers_service', toggleDriverStatus: 'drivers_edit',
+    toggleLadiesProduct: 'ladies', toggleStore: 'stores'
+};
+
+const ID_PERM = {
+    registerDriverBtn: 'drivers_add', registerCustomerBtn: 'customers_add',
+    confirmCreditBtn: 'drivers_credit', confirmEditCreditBtn: 'drivers_credit',
+    confirmCustomerCreditBtn: 'customers_credit', confirmEditCustomerCreditBtn: 'customers_credit',
+    confirmDeleteBtn: 'drivers_delete', confirmDeleteCustomerBtn: 'customers_delete',
+    confirmServiceBtn: 'drivers_service', savePasswordBtn: 'drivers_edit',
+    saveCustomerPasswordBtn: 'customers_edit', saveEditBtn: 'drivers_edit',
+    saveEditCustomerBtn: 'customers_edit', saveEditAdminBtn: 'admins'
+};
+
+function hideByPermission(root) {
+    const scope = root || document;
+    scope.querySelectorAll('[onclick]').forEach(el => {
+        const m = (el.getAttribute('onclick') || '').trim().match(/^([a-zA-Z_][a-zA-Z0-9_]*)/);
+        const fn = m && m[1];
+        const req = fn && FN_PERM[fn];
+        if (!req) return;
+        if (!el.hasAttribute('data-gated')) {
+            el.setAttribute('data-gated', '1');
+            el.setAttribute('data-gated-orig', el.style.display || '');
+        }
+        el.style.display = canPerm(req) ? el.getAttribute('data-gated-orig') : 'none';
+    });
+    Object.keys(ID_PERM).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (!el.hasAttribute('data-gated')) {
+            el.setAttribute('data-gated', '1');
+            el.setAttribute('data-gated-orig', el.style.display || '');
+        }
+        el.style.display = canPerm(ID_PERM[id]) ? el.getAttribute('data-gated-orig') : 'none';
+    });
+}
+
 function applyRoleVisibility() {
     const role = adminRole();
     document.querySelectorAll('.admin-only').forEach(el => {
@@ -3493,7 +3593,21 @@ function applyRoleVisibility() {
     if (nameEl) nameEl.textContent = sessionStorage.getItem('ARAVA_admin_name') || '';
     const roleEl = document.getElementById('adminRoleLabel');
     if (roleEl) roleEl.textContent = role === 'admin' ? 'مدير عام' : 'مشرف';
+    hideByPermission(document);
 }
+
+// إخفاء تلقائي لأي أزرار تُضاف ديناميكياً (بعد أي عملية render)
+(function watchDynamicButtons() {
+    if (!document.body) return;
+    const observer = new MutationObserver(muts => {
+        let changed = false;
+        for (const m of muts) {
+            if (m.type === 'childList' && m.addedNodes.length) { changed = true; break; }
+        }
+        if (changed) hideByPermission(document);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
 
 // ============================================
 // PROMOTIONS MANAGEMENT
