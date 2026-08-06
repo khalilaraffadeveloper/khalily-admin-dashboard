@@ -79,6 +79,7 @@ async function doLogin() {
                 }
             }
             // مزامنة: إذا عُدّلت كلمة المرور من اللوحة (حقل Firestore)، تُرفض كلمة مرور حساب المصادقة القديمة
+            // (اللوحة تسمح للمالك بتغيير كلمة مرور أي مشرف عبر تحديث حقل password في Firestore)
             if (firebaseUser && matched) {
                 try {
                     const syncQ = await db.collection('admins').where('authUid', '==', firebaseUser.uid).limit(1).get();
