@@ -502,6 +502,7 @@ const pageTitles = {
     customers: 'إدارة الزبائن',
     deliveries: 'التوصيلات',
     'unregistered-customers': 'الزبناء غير المسجلين',
+    devices: 'الأجهزة',
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
@@ -533,6 +534,7 @@ function navigateToPage(page) {
     if (page !== 'customers' && rechargeRequestsUnsubscribe) { rechargeRequestsUnsubscribe(); rechargeRequestsUnsubscribe = null; }
     if (page === 'drivers') loadDriversList();
     if (page === 'customers') { loadCustomersList(); loadRechargeRequests(); }
+    if (page === 'devices') loadDevices();
     if (page === 'deliveries') initDeliveriesListener();
     if (page === 'unregistered-customers') loadUnregisteredCustomers();
     if (page === 'rides') loadRidesList();
@@ -4164,7 +4166,6 @@ async function loadReports() {
     const body = document.getElementById('reportSummaryCards');
     if (!body) return;
     body.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="bi bi-hourglass-split me-2"></i>جاري تجميع البيانات...</div>';
-
     try {
         try {
             const cfg = await db.collection('settings').doc('app_config').get();
@@ -4382,4 +4383,100 @@ if (reportRefreshBtn) {
         }
         loadReports();
     });
+}
+
+// ============================================
+// DEVICES REPORT
+// ============================================
+async function loadDevices() {
+    if (!requireDb()) return;
+    const tbody = document.getElementById('devicesTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الأجهزة...</div></td></tr>';
+    const setCount = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    try {
+        const [sd, sc] = await Promise.all([
+            db.collection('drivers').get(),
+            db.collection('customers').get()
+        ]);
+
+        const devices = new Map();
+        let driverUnknown = 0, customerUnknown = 0;
+        const brandCount = {};
+
+        const handle = (doc, role, isDriver) => {
+            const d = doc.data();
+            const name = d.name || '-';
+            const phone = d.phone || '-';
+            const did = (d.deviceId || '').trim();
+            const brand = d.deviceBrand || '';
+            const model = d.deviceModel || '';
+            if (brand) brandCount[brand] = (brandCount[brand] || 0) + 1;
+            if (!did) {
+                if (isDriver) driverUnknown++; else customerUnknown++;
+                return;
+            }
+            if (!devices.has(did)) devices.set(did, { deviceId: did, brand, model, roles: new Set(), accounts: [] });
+            const dev = devices.get(did);
+            dev.roles.add(role);
+            if (brand && !dev.brand) dev.brand = brand;
+            if (model && !dev.model) dev.model = model;
+            dev.accounts.push({ name, phone, isDriver, isOnline: isDriver ? !!d.isOnline : null });
+        };
+
+        sd.forEach(doc => handle(doc, 'سائق', true));
+        sc.forEach(doc => handle(doc, 'زبون', false));
+
+        let driverDev = 0, customerDev = 0;
+        devices.forEach(dev => {
+            if (dev.roles.has('سائق')) driverDev++;
+            if (dev.roles.has('زبون')) customerDev++;
+        });
+
+        setCount('devTotalCount', devices.size);
+        setCount('devDriverCount', driverDev);
+        setCount('devCustomerCount', customerDev);
+        setCount('devUnknownCount', driverUnknown + customerUnknown);
+
+        const brandChart = document.getElementById('devBrandChart');
+        if (brandChart) {
+            const brands = Object.keys(brandCount);
+            if (brands.length === 0) {
+                brandChart.innerHTML = '<span class="text-muted small">لا توجد بيانات ماركات بعد — تظهر بعد تسجيل الدخول من التطبيق المحدّث.</span>';
+            } else {
+                brandChart.innerHTML = brands.map(b =>
+                    `<span class="badge bg-dark-blue px-3 py-2" style="font-size:13px;">${b}: <strong>${brandCount[b]}</strong></span>`
+                ).join('');
+            }
+        }
+
+        const rows = [];
+        devices.forEach(dev => {
+            const roleBadge = Array.from(dev.roles).map(r => r === 'سائق'
+                ? '<span class="badge bg-success">سائق</span>'
+                : '<span class="badge bg-primary">زبون</span>').join(' ');
+            const statuses = dev.accounts.map(a => {
+                if (!a.isDriver) return `${a.name} (${a.phone})`;
+                return `${a.name} (${a.phone}) ${a.isOnline ? '<span class="badge bg-success">متاح</span>' : '<span class="badge bg-secondary">غير متاح</span>'}`;
+            }).join('<br>');
+            rows.push(`<tr>
+                <td>${rows.length + 1}</td>
+                <td><code dir="ltr">${dev.deviceId}</code></td>
+                <td>${roleBadge}</td>
+                <td>${statuses}</td>
+                <td><span dir="ltr">${dev.accounts.map(a => a.phone).join(', ')}</span></td>
+                <td>${dev.brand ? `<span class="badge bg-info text-dark">${dev.brand}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td>${dev.model ? `<span class="badge bg-light text-dark border">${dev.model}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td>${dev.roles.has('سائق') ? (dev.accounts.find(a => a.isDriver)?.isOnline ? '<span class="badge bg-success">متاح</span>' : '<span class="badge bg-secondary">غير متاح</span>') : '<span class="text-muted">—</span>'}</td>
+            </tr>`);
+        });
+
+        tbody.innerHTML = rows.length
+            ? rows.join('')
+            : '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد أجهزة مسجلة بعد</td></tr>';
+    } catch (err) {
+        console.error('Load devices error:', err);
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
+    }
 }
