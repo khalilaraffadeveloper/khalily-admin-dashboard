@@ -669,6 +669,9 @@ function navigateToPage(page) {
     currentPage = page;
     if (page === 'deliveries') { unreadDeliveries = 0; updateNavBadges(); }
     if (page === 'rides') { unreadRides = 0; updateNavBadges(); }
+    if (page === 'customers') { unreadRecharges = 0; updateNavBadges(); }
+    if (page === 'drivers') { unreadDriverEvents = 0; updateNavBadges(); }
+    if (page === 'products') { unreadProducts = 0; updateNavBadges(); }
     if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page !== 'deliveries' && deliveriesUnsubscribe) { deliveriesUnsubscribe(); deliveriesUnsubscribe = null; }
     if (page !== 'customers' && rechargeRequestsUnsubscribe) { rechargeRequestsUnsubscribe(); rechargeRequestsUnsubscribe = null; }
@@ -845,6 +848,7 @@ document.getElementById('dispatchBtn').addEventListener('click', async () => {
         };
 
         const docRef = await db.collection('rides').add(rideData);
+        markSelfTouched(docRef.id);
         const nearby = await findNearbyDrivers(pickupCoords.lat, pickupCoords.lng, radius);
 
         if (nearby.length === 0) {
@@ -1148,13 +1152,15 @@ window.refreshDriverSearchResult = async function () {
 // REAL-TIME LISTENERS
 // ============================================
 let activeRidesMap = {};
-let rideStatusCache = {};
 
 // ============================================
 // NAV BADGES (red mark on incoming-notification buttons)
 // ============================================
 let unreadDeliveries = 0;
 let unreadRides = 0;
+let unreadRecharges = 0;
+let unreadProducts = 0;
+let unreadDriverEvents = 0;
 
 function setNavBadge(id, count) {
     const el = document.getElementById(id);
@@ -1168,6 +1174,197 @@ function updateNavBadges() {
     setNavBadge('deliveriesNavBadgeMobile', unreadDeliveries);
     setNavBadge('ridesNavBadge', unreadRides);
     setNavBadge('ridesNavBadgeMobile', unreadRides);
+    setNavBadge('customersNavBadge', unreadRecharges);
+    setNavBadge('customersNavBadgeMobile', unreadRecharges);
+    setNavBadge('driversNavBadge', unreadDriverEvents);
+    setNavBadge('driversNavBadgeMobile', unreadDriverEvents);
+    setNavBadge('productsNavBadge', unreadProducts);
+    setNavBadge('productsNavBadgeMobile', unreadProducts);
+}
+
+// ============================================
+// نظام التنبيه الموحد (حدث من مستخدم → لوحة التحكم)
+// يعرض التنبيه فوراً، وإذا كان المشرف يعدّل (نافذة مفتوحة أو كتابة في حقل)
+// يؤجَّل التنبيه حتى يخرج من التعديل الحالي.
+// ============================================
+var pendingEventAlerts = [];
+var selfTouched = {};
+
+function markSelfTouched(id) { selfTouched[id] = Date.now(); }
+
+function isSelfTouched(id) {
+    if (selfTouched[id] && (Date.now() - selfTouched[id]) < 8000) { delete selfTouched[id]; return true; }
+    return false;
+}
+
+function isAdminEditing() {
+    const araOverlay = document.getElementById('araModalOverlay');
+    if (araOverlay && araOverlay.classList.contains('show')) return true;
+    if (document.querySelector('.modal.show')) return true;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable)) return true;
+    return false;
+}
+
+function deliverEventAlert(a) {
+    playNotificationSound();
+    if (a.title && a.body) showDesktopNotification(a.title, a.body);
+    if (a.tab) flashTab(a.tab);
+    if (a.popup) ARAalert(a.popup, a.type || 'info');
+    if (a.log) addNotifLog(a.log.tag, a.log.msg);
+}
+
+function queueEventAlert(a) {
+    if (isAdminEditing()) { pendingEventAlerts.push(a); return; }
+    deliverEventAlert(a);
+}
+
+function flushPendingEventAlerts() {
+    if (isAdminEditing()) return;
+    while (pendingEventAlerts.length) deliverEventAlert(pendingEventAlerts.shift());
+}
+document.addEventListener('hidden.bs.modal', function () { setTimeout(flushPendingEventAlerts, 60); });
+document.addEventListener('focusout', function () { setTimeout(flushPendingEventAlerts, 120); });
+document.addEventListener('click', function () { setTimeout(flushPendingEventAlerts, 80); });
+
+// ============================================
+// مراقبو الأحداث الواردة (دائمون حتى خارج الصفحات)
+// يلتقطون كل حدث صادر من زبون أو سائق نحو اللوحة
+// ============================================
+var deliveryWatchFirst = true;
+var rideWatchFirst = true;
+var rideWatchStatus = {};
+var rechargeWatchFirst = true;
+var rechargeSeen = {};
+var driverStatusFirst = true;
+var driverStatusCache = {};
+var productsWatchFirst = true;
+var productsSeen = {};
+
+function initEventWatchers() {
+    if (!db) return;
+
+    // 1) طلب توصيل جديد من زبون
+    db.collection('delivery_requests').where('status', '==', 'new')
+        .onSnapshot(snap => {
+            if (deliveryWatchFirst) { deliveryWatchFirst = false; return; }
+            snap.docChanges().forEach(ch => {
+                if (ch.type !== 'added') return;
+                const d = ch.doc.data();
+                if (isSelfTouched(ch.doc.id)) return;
+                unreadDeliveries++;
+                updateNavBadges();
+                const from = d.customerName || d.customerPhone || 'زبون';
+                const to = d.receiverDistrict || d.receiverPhone || '-';
+                const dist = d.senderDistrict || '-';
+                const body = `من: ${from} — المستلم: ${to} — الحي: ${dist}`;
+                queueEventAlert({
+                    title: '🚚 طلب توصيل جديد',
+                    body: body,
+                    tab: '🔴',
+                    popup: `طلب توصيل جديد!\nمن: ${from}\nالمستلم: ${to}\nالحي: ${dist}`,
+                    type: 'info',
+                    log: { tag: 'delivery_new', msg: `🚚 طلب توصيل جديد من ${from} — المستلم: ${to} — الحي: ${dist}` }
+                });
+            });
+        }, err => { console.log('delivery watcher error', err); });
+
+    // 2) أحداث الرحلات (قبول/إنجاز/إلغاء...) من السائق
+    db.collection('rides').orderBy('createdAt', 'desc').limit(100)
+        .onSnapshot(snap => {
+            const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
+            const statusIcons = { pending: '⏳', accepted: '✅', in_progress: '🛵', completed: '🏁', cancelled: '❌', no_drivers: '🚫' };
+            if (rideWatchFirst) {
+                snap.forEach(d => { rideWatchStatus[d.id] = d.data().status; });
+                rideWatchFirst = false;
+                return;
+            }
+            snap.docChanges().forEach(ch => {
+                const id = ch.doc.id;
+                const rd = ch.doc.data();
+                const curr = rd.status || '';
+                const prev = rideWatchStatus[id];
+                if (isSelfTouched(id)) { rideWatchStatus[id] = curr; return; }
+                if (ch.type === 'added' && prev === undefined && curr !== 'pending' && curr !== 'no_drivers') {
+                    unreadRides++;
+                    updateNavBadges();
+                    queueEventAlert({
+                        title: `🚀 رحلة جديدة: ${rd.passengerName || 'زبون'}`,
+                        body: `${labels[curr] || curr} — ${rd.fare || 0} MRU`,
+                        tab: '🚀',
+                        popup: `🚀 رحلة جديدة!\n${rd.passengerName || 'زبون'}\n${labels[curr] || curr} — ${rd.fare || 0} MRU`,
+                        type: 'info',
+                        log: { tag: 'ride_' + curr, msg: `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU` }
+                    });
+                } else if (ch.type === 'modified' && prev !== undefined && prev !== curr) {
+                    unreadRides++;
+                    updateNavBadges();
+                    queueEventAlert({
+                        title: `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`,
+                        body: `${rd.fare || 0} MRU — ${rd.pickupAddress || ''} → ${rd.dropoffAddress || ''}`,
+                        tab: '🔔',
+                        popup: `${statusIcons[curr] || '📌'} ${labels[curr] || curr}\n${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`,
+                        type: 'info',
+                        log: { tag: 'ride_' + curr, msg: `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU` }
+                    });
+                }
+                rideWatchStatus[id] = curr;
+            });
+        }, err => { console.log('ride watcher error', err); });
+
+    // 3) طلب شحن رصيد جديد من سائق أو زبون
+    db.collection('recharge_requests').where('status', '==', 'pending')
+        .onSnapshot(snap => {
+            if (rechargeWatchFirst) {
+                snap.forEach(d => { rechargeSeen[d.id] = true; });
+                rechargeWatchFirst = false;
+                return;
+            }
+            snap.docChanges().forEach(ch => {
+                if (ch.type !== 'added' || rechargeSeen[ch.doc.id]) return;
+                rechargeSeen[ch.doc.id] = true;
+                const r = ch.doc.data();
+                const who = r.role === 'driver' ? (r.driverName || 'سائق') : (r.customerName || 'زبون');
+                unreadRecharges++;
+                updateNavBadges();
+                queueEventAlert({
+                    title: '💰 طلب شحن رصيد جديد',
+                    body: `${who} — ${r.amount || 0} MRU (${r.walletName || 'محفظة'})`,
+                    tab: '💰',
+                    popup: `طلب شحن رصيد!\n${who}\nالمبلغ: ${r.amount || 0} MRU\nالمحفظة: ${r.walletName || '-'}`,
+                    type: 'info',
+                    log: { tag: 'recharge_new', msg: `💰 طلب شحن ${r.amount || 0} MRU من ${who}` }
+                });
+            });
+        }, err => { console.log('recharge watcher error', err); });
+
+    // 4) اتصال / انقطاع سائق
+    db.collection('drivers').onSnapshot(snap => {
+        if (driverStatusFirst) {
+            snap.forEach(d => { driverStatusCache[d.id] = d.data().isOnline === true; });
+            driverStatusFirst = false;
+            return;
+        }
+        snap.docChanges().forEach(ch => {
+            if (ch.type !== 'added' && ch.type !== 'modified') return;
+            const id = ch.doc.id;
+            const d = ch.doc.data();
+            const online = d.isOnline === true;
+            const prev = driverStatusCache[id];
+            if (prev === undefined || prev === online) { driverStatusCache[id] = online; return; }
+            driverStatusCache[id] = online;
+            unreadDriverEvents++;
+            updateNavBadges();
+            queueEventAlert({
+                title: online ? '🛵 سائق متصل الآن' : '🛑 سائق غير متصل',
+                body: `${d.name || 'سائق'} ${online ? 'أصبح متاحاً' : 'أصبح غير متاح'}`,
+                tab: online ? '🟢' : '🔴',
+                popup: `${d.name || 'سائق'} ${online ? 'أصبح متاحاً الآن' : 'أصبح غير متاح الآن'}`,
+                type: online ? 'success' : 'warning',
+                log: { tag: online ? 'driver_online' : 'driver_offline', msg: `${d.name || 'سائق'} ${online ? 'متصل' : 'غير متصل'}` }
+            });
+        });
+    }, err => { console.log('driver status watcher error', err); });
 }
 
 function initRealtimeListeners() {
@@ -2076,40 +2273,6 @@ async function loadRidesList() {
     try {
         ridesListUnsubscribe = db.collection('rides').orderBy('createdAt', 'desc').limit(100)
             .onSnapshot(snapshot => {
-                const labels = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق' };
-                const statusIcons = { pending: '⏳', accepted: '✅', in_progress: '🛵', completed: '🏁', cancelled: '❌', no_drivers: '🚫' };
-
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'modified' || change.type === 'added') {
-                        const rd = change.doc.data();
-                        const id = change.doc.id;
-                        const curr = rd.status;
-                        const prev = rideStatusCache[id];
-                        rideStatusCache[id] = curr;
-                        if (change.type === 'added' && !prev && curr !== 'pending' && curr !== 'no_drivers') {
-                            playNotificationSound();
-                            unreadRides++;
-                            updateNavBadges();
-                            showDesktopNotification(`🚀 رحلة جديدة: ${rd.passengerName || 'زبون'}`, `${labels[curr] || curr} — ${rd.fare || 0} MRU`);
-                            flashTab('🚀');
-                            addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                        }
-                        if (change.type === 'modified' && prev && prev !== curr) {
-                            playNotificationSound();
-                            unreadRides++;
-                            updateNavBadges();
-                            showDesktopNotification(`${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`, `${rd.fare || 0} MRU — ${rd.from || ''} → ${rd.to || ''}`);
-                            flashTab('🔔');
-                            if (curr === 'accepted') addNotifLog('ride_accepted', `✅ تم قبول الرحلة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                            else if (curr === 'in_progress') addNotifLog('ride_in_progress', `🛵 بدء التنفيذ: ${rd.passengerName || 'زبون'}`);
-                            else if (curr === 'completed') addNotifLog('ride_completed', `🏁 اكتملت: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
-                            else if (curr === 'cancelled') addNotifLog('ride_cancelled', `❌ تم الإلغاء: ${rd.passengerName || 'زبون'}`);
-                            else addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`);
-                        }
-                    }
-                });
-                snapshot.forEach(doc => { rideStatusCache[doc.id] = doc.data().status; });
-
                 allRides = [];
                 snapshot.forEach(doc => allRides.push({ id: doc.id, ...doc.data() }));
                 enrichRidesWithDrivers(allRides, () => {
@@ -2190,6 +2353,7 @@ window.cancelRide = async function (rideId) {
     if (!(await ARAconfirm('هل أنت متأكد من إلغاء هذه الرحلة؟'))) return;
     if (!requireDb()) return;
     try {
+        markSelfTouched(rideId);
         const snap = await db.collection('rides').doc(rideId).get();
         let deliveryId = null;
         if (snap.exists) deliveryId = snap.data().deliveryId || null;
@@ -2249,6 +2413,7 @@ window.reLaunchRide = async function (rideId) {
     if (!requireDb()) return;
     if (!(await ARAconfirm('سيتم إطلاق نفس الرحلة مرة أخرى بنفس المعلومات وتنبيه السائقين القريبين. متابعة؟'))) return;
     try {
+        markSelfTouched(rideId);
         const snap = await db.collection('rides').doc(rideId).get();
         if (!snap.exists) { ARAalert('الرحلة غير موجودة', 'error'); return; }
         const r = snap.data();
@@ -2349,8 +2514,6 @@ function escapeHtmlStr(s) {
 const deliveryStatusLabels = { new: 'جديد', price_sent: 'سعر مرسل', accepted: 'نشط (مقبول)', launched: 'في الطريق', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة' };
 const deliveryStatusColors = { new: 'warning', price_sent: 'info', accepted: 'primary', launched: 'success', in_progress: 'success', completed: 'purple', cancelled: 'danger' };
 let allDeliveries = [];
-let seenDeliveryIds = new Set();
-let deliveriesFirstSnapshot = true;
 
 function initDeliveriesListener() {
     if (!requireDb()) return;
@@ -2362,31 +2525,9 @@ function initDeliveriesListener() {
         deliveriesUnsubscribe = db.collection('delivery_requests').orderBy('createdAt', 'desc').limit(150)
             .onSnapshot(snap => {
                 allDeliveries = [];
-                const newRequests = [];
                 snap.forEach(doc => {
-                    const data = doc.data();
-                    allDeliveries.push({ id: doc.id, ...data });
-                    if (data.status === 'new' && !seenDeliveryIds.has(doc.id)) {
-                        seenDeliveryIds.add(doc.id);
-                        newRequests.push({ id: doc.id, ...data });
-                    }
+                    allDeliveries.push({ id: doc.id, ...doc.data() });
                 });
-                if (!deliveriesFirstSnapshot && newRequests.length > 0) {
-                    newRequests.forEach(r => {
-                        playNotificationSound();
-                        unreadDeliveries++;
-                        updateNavBadges();
-                        const notifBody = `من: ${r.customerName || r.customerPhone || 'زبون'} — المستلم: ${r.receiverDistrict || r.receiverPhone || '-'} — الحي: ${r.senderDistrict || '-'}`;
-                        showDesktopNotification('🚚 طلب توصيل جديد', notifBody);
-                        flashTab('🔴');
-                        addNotifLog('delivery_new', `🚚 طلب توصيل جديد من ${r.customerName || r.customerPhone || 'زبون'} — المستلم: ${r.receiverDistrict || r.receiverPhone || '-'} — الحي: ${r.senderDistrict || '-'}`);
-                        ARAalert(
-                            `طلب توصيل جديد!\nمن: ${r.customerName || r.customerPhone || 'زبون'}\nالمستلم: ${r.receiverDistrict || r.receiverPhone || '-'}\nالحي: ${r.senderDistrict || '-'}`,
-                            'info'
-                        );
-                    });
-                }
-                deliveriesFirstSnapshot = false;
                 const s = document.getElementById('filterDeliveryStatus')?.value || 'all';
                 loadDeliveriesList(s);
             }, err => {
@@ -2489,6 +2630,7 @@ window.setDeliveryStatus = async function (id, status) {
                 if (rSnap.exists) {
                     const rSt = rSnap.data().status || '';
                     if (['pending', 'accepted', 'in_progress', 'launched'].includes(rSt)) {
+                        markSelfTouched(rideId);
                         await db.collection('rides').doc(rideId).update({
                             status: 'cancelled',
                             cancelledBy: 'admin',
@@ -2607,6 +2749,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
             rideDocRef = await db.collection('rides').add(rideData);
         }
         const rideId = rideDocRef.id;
+        markSelfTouched(rideId);
         const searchLat = hasPickup ? lat : dropLat;
         const searchLng = hasPickup ? lng : dropLng;
         const nearby = await findNearbyDrivers(searchLat, searchLng, radius);
@@ -4074,7 +4217,9 @@ window.addProduct = async function() {
 
         const alsoCustomer = document.getElementById('prodAlsoCustomer')?.checked;
         if (alsoCustomer) {
-            await db.collection('customer_products').add({
+            const cpRef = db.collection('customer_products').doc();
+            markSelfTouched(cpRef.id);
+            await cpRef.set({
                 name, type, price, phone, description, videoUrl, images,
                 active: true,
                 ownerPhone: phone,
@@ -4185,6 +4330,7 @@ function initDashboard() {
     loadStats();
     initRealtimeListeners();
     initCustomerProductsListener();
+    initEventWatchers();
     initDesktopNotifications();
     applyRoleVisibility();
     checkDailyRidesCleanup();
@@ -4531,6 +4677,24 @@ function initCustomerProductsListener() {
     customerProductsListener = db.collection('customer_products')
         .orderBy('createdAt', 'desc')
         .onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added' && !productsSeen[change.doc.id]) {
+                    productsSeen[change.doc.id] = true;
+                    if (productsWatchFirst || isSelfTouched(change.doc.id)) return;
+                    const p = change.doc.data();
+                    unreadProducts++;
+                    updateNavBadges();
+                    queueEventAlert({
+                        title: '🛍️ منتج جديد من زبون',
+                        body: `${p.name || 'منتج'} — ${p.price || 0} MRU`,
+                        tab: '🛍️',
+                        popup: `منتج جديد!\n${p.name || 'منتج'}\nالسعر: ${p.price || 0} MRU`,
+                        type: 'info',
+                        log: { tag: 'product_new', msg: `🛍️ منتج جديد: ${p.name || ''} — ${p.price || 0} MRU` }
+                    });
+                }
+            });
+            productsWatchFirst = false;
             allCustomerProducts = [];
             snapshot.forEach(doc => {
                 allCustomerProducts.push({ id: doc.id, ...doc.data() });
