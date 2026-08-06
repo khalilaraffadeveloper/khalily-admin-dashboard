@@ -2680,14 +2680,20 @@ window.confirmResetAllData = async function () {
         ARAalert('هذا الإجراء متاح فقط لصلاحية مدير عام', 'warning');
         return;
     }
-    if (!(await ARAconfirm('⚠️ تحذير! سيتم حذف جميع الرحلات والسائقين والزبائن والرسائل بشكل نهائي. هل أنت متأكد؟'))) return;
-    if (!(await ARAconfirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟'))) return;
+    if (!(await ARAconfirm('⚠️ تحذير! سيتم حذف جميع البيانات (الرحلات، السائقين، الزبائن، الرسائل، الإعلانات، المنتجات، المتاجر، طلبات الشحن، الإشعارات) بشكل نهائي. حساب المالك وسجلات المشرفين تبقى كما هي. هل أنت متأكد؟'))) return;
+    if (!(await ARAconfirm('❌ تأكيد نهائي: لا يمكن التراجع عن هذا الإجراء، وسيبقى حساب المالك فقط محفوظاً. هل تريد المتابعة؟'))) return;
     const status = document.getElementById('resetStatus');
     status.innerHTML = '<span class="text-danger"><i class="bi bi-hourglass-split me-1"></i>جاري مسح البيانات...</span>';
     requireDb('resetStatus');
-    const collections = ['rides', 'customers', 'drivers', 'messages'];
+    // ملاحظة: مجموعة 'admins' مستبعدة عمداً حتى لا يمكن مسح حساب المالك أو أي مشرف بهذا الزر.
+    const collections = [
+        'rides', 'drivers', 'customers', 'messages', 'customer_messages',
+        'announcements', 'customer_announcements', 'promotions', 'products',
+        'customer_products', 'ladies_products', 'stores_promotion',
+        'delivery_requests', 'recharge_requests', 'notifications'
+    ];
     let completed = 0;
-    collections.forEach(async (col) => {
+    for (const col of collections) {
         try {
             const snapshot = await db.collection(col).get();
             const ids = snapshot.docs.map(d => d.id);
@@ -2699,13 +2705,13 @@ window.confirmResetAllData = async function () {
             }
             completed++;
             if (completed === collections.length) {
-                status.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>تم مسح جميع البيانات بنجاح!</span>';
+                status.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>تم مسح جميع البيانات بنجاح، وبقي حساب المالك كما هو!</span>';
                 setTimeout(() => location.reload(), 2000);
             }
         } catch (e) {
             status.innerHTML = `<span class="text-danger">خطأ في ${col}: ${e.message}</span>`;
         }
-    });
+    }
 };
 
 // ============================================
@@ -3323,6 +3329,13 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
     try {
         const target = editingAdminData || (await db.collection('admins').doc(id).get()).data();
 
+        // حساب المالك محمي: لا يمكن تغيير دوره إطلاقاً
+        if (target.username === 'khalilarafa' && role !== 'admin') {
+            statusEl.textContent = 'حساب المالك محمي ولا يمكن تغيير دوره.';
+            statusEl.className = 'fw-semibold text-danger';
+            return;
+        }
+
         if (target.role === 'admin' && role !== 'admin') {
             const snapshot = await db.collection('admins').get();
             const admins = [];
@@ -3423,8 +3436,16 @@ window.addAdmin = async function () {
 
 window.deleteAdmin = async function (id, name) {
     if (!guardPerm('admins', 'ليست لديك صلاحية إدارة المشرفين')) return;
-    if (!(await ARAconfirm(`هل أنت متأكد من حذف المشرف "${name}"؟`))) return;
     if (!requireDb()) return;
+
+    // حساب المالك محمي: لا يمكن حذفه إطلاقاً
+    const ownerDoc = await db.collection('admins').doc(id).get();
+    if (ownerDoc.exists && ownerDoc.data().username === 'khalilarafa') {
+        ARAalert('حساب المالك محمي ولا يمكن حذفه.', 'warning');
+        return;
+    }
+
+    if (!(await ARAconfirm(`هل أنت متأكد من حذف المشرف "${name}"؟`))) return;
 
     // Prevent deleting the last admin
     try {
