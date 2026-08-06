@@ -2414,9 +2414,16 @@ window.dispatchDeliveryToDrivers = async function (id) {
     if (!requireDb()) return;
     const price = d.pendingPrice != null ? d.pendingPrice : (d.fare != null ? d.fare : 0);
     if (!price || price <= 0) { ARAalert('أدخل سعراً أولاً عبر زر "إرسال السعر"', 'warning'); return; }
-    if (!d.senderLat && !d.senderLng) { ARAalert('لا توجد إحداثيات لنقطة الانطلاق على هذه التوصيلة', 'warning'); return; }
+    const hasPickup = !!(d.senderLat && d.senderLng);
+    const hasDropoff = !!(d.dropoffLat && d.dropoffLng) || !!(d.receiverLat && d.receiverLng);
+    if (!hasPickup && !hasDropoff) { ARAalert('لا توجد إحداثيات لنقطة الانطلاق أو الوجهة على هذه التوصيلة', 'warning'); return; }
+    if (!hasPickup) { ARAalert('تنبيه: لا توجد إحداثيات لنقطة الانطلاق — عدّلها من سجل الرحلات بعد الإرسال.', 'warning'); }
 
-    const lat = d.senderLat, lng = d.senderLng;
+    const lat = d.senderLat || 0;
+    const lng = d.senderLng || 0;
+    const dropLat = d.dropoffLat || d.receiverLat || lat;
+    const dropLng = d.dropoffLng || d.receiverLng || lng;
+    const realDist = hasPickup ? haversine(lat, lng, dropLat, dropLng) : 0;
     let radius = 20;
     try {
         const cfg = await db.collection('settings').doc('app_config').get();
@@ -2436,49 +2443,91 @@ window.dispatchDeliveryToDrivers = async function (id) {
         receiverName: '',
         senderDistrict: d.senderDistrict || '',
         receiverDistrict: d.receiverDistrict || '',
+        notes: d.notes || '',
         pickupLat: lat,
         pickupLng: lng,
-        dropoffLat: lat,
-        dropoffLng: lng,
-        pickupAddress: d.senderDistrict || 'نقطة الانطلاق',
-        dropoffAddress: d.receiverDistrict || 'نقطة الوصول',
-        realDistanceKm: 0,
+        dropoffLat: dropLat,
+        dropoffLng: dropLng,
+        pickupAddress: d.pickupAddress || d.senderDistrict || '',
+        dropoffAddress: d.dropoffAddress || d.receiverDistrict || '',
+        realDistanceKm: Math.round(realDist * 100) / 100,
         searchRadiusKm: radius,
         fare: price,
         commissionPercent,
         deliveryPhase: 'at_sender',
-        notes: d.notes || '',
         status: 'pending',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     try {
-        const docRef = await db.collection('rides').add(rideData);
-        const nearby = await findNearbyDrivers(lat, lng, radius);
+        // إعادة استخدام سجل الرحلة السابق إذا كان للتوصيلة رحلة ملغاة أو بلا سائق — لمنع التكرار
+        let rideDocRef = null;
+        let rideExists = false;
+        if (d.rideId) {
+            const existingSnap = await db.collection('rides').doc(d.rideId).get();
+            if (existingSnap.exists) {
+                const existingStatus = existingSnap.data().status;
+                if (existingStatus === 'cancelled' || existingStatus === 'no_drivers') {
+                    rideDocRef = existingSnap.ref;
+                    rideExists = true;
+                } else if (existingStatus === 'pending' || existingStatus === 'accepted' || existingStatus === 'in_progress') {
+                    ARAalert('هذه التوصيلة لديها رحلة نشطة بالفعل', 'warning');
+                    return;
+                }
+            }
+        }
+
+        const del = firebase.firestore.FieldValue.delete();
+        if (rideExists) {
+            // تحديث نفس المستند ومسح بيانات القبول/الإلغاء السابقة
+            await rideDocRef.update({
+                ...rideData,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                notifiedDrivers: [],
+                assignedDriverId: del,
+                assignedDriverName: del,
+                acceptedAt: del,
+                acceptedBy: del,
+                cancelledBy: del,
+                cancelledAt: del,
+                cancelledReason: del,
+                completedAt: del,
+                completionCode: del,
+                driverRating: del
+            });
+        } else {
+            rideDocRef = await db.collection('rides').add(rideData);
+        }
+        const rideId = rideDocRef.id;
+        const searchLat = hasPickup ? lat : dropLat;
+        const searchLng = hasPickup ? lng : dropLng;
+        const nearby = await findNearbyDrivers(searchLat, searchLng, radius);
         if (nearby.length === 0) {
-            await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
-            await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId: docRef.id });
+            await db.collection('rides').doc(rideId).update({ status: 'no_drivers' });
+            await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId });
             addNotifLog('delivery_dispatch', 'لا يوجد سائقون متاحون: ' + id);
             ARAalert('لا يوجد سائقون متاحون في النطاق حالياً', 'warning');
         } else {
             const nearbyIds = nearby.map(x => x.id);
             const tokens = nearby.filter(x => x.fcmToken).map(x => x.fcmToken);
-            await db.collection('rides').doc(docRef.id).update({
+            await db.collection('rides').doc(rideId).update({
                 notifiedDrivers: nearbyIds,
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, 'طلب توصيل', price, lat, lng, d.senderDistrict || '', d.receiverDistrict || '', radius, {
+                sendFCMNotifications(tokens, rideId, 'طلب توصيل', price, lat, lng, d.pickupAddress || d.senderDistrict || '', d.dropoffAddress || d.receiverDistrict || '', radius, {
                     senderPhone: d.senderPhone || '',
                     receiverPhone: d.receiverPhone || '',
                     senderDistrict: d.senderDistrict || '',
                     receiverDistrict: d.receiverDistrict || '',
+                    pickupAddress: d.pickupAddress || d.senderDistrict || '',
+                    dropoffAddress: d.dropoffAddress || d.receiverDistrict || '',
+                    notes: d.notes || '',
                     deliveryId: id,
-                    deliveryPhase: 'at_sender',
-                    notes: d.notes || ''
-                });
+                    deliveryPhase: 'at_sender'
+                }, dropLat, dropLng);
             }
-            await db.collection('delivery_requests').doc(id).update({ status: 'accepted', rideId: docRef.id });
+            await db.collection('delivery_requests').doc(id).update({ status: 'launched', rideId });
             addNotifLog('delivery_dispatch', `تم إرسال التوصيلة ${id} إلى ${nearby.length} سائق | ${price} MRU`);
             ARAalert(`تم الإرسال! ${nearby.length} سائق تم تنبيههم`, 'success');
         }
@@ -2594,12 +2643,14 @@ function downloadCSV(csv, filename) {
 // ============================================
 // FCM NOTIFICATIONS (stub)
 // ============================================
-async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius, extra) {
+async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, lng, pickup, dropoff, radius, extra, dropLat, dropLng) {
     console.log(`FCM: ${tokens.length} tokens, ride ${rideId}`);
     if (tokens.length === 0) {
-        addNotifLog('system', `FCM: لا توجد رموز إشعارات للسائقين`);
+        addNotifLog('system', `FCM: لا توجد رموز إشعار متوفرة`);
         return;
     }
+    const dLat = dropLat != null ? dropLat : lat;
+    const dLng = dropLng != null ? dropLng : lng;
     const data = Object.assign({
         type: 'ride_request',
         rideId,
@@ -2608,8 +2659,8 @@ async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, ln
         pickupLat: String(lat || ''),
         pickupLng: String(lng || ''),
         pickupAddress: pickup || '',
-        dropoffLat: String(lat || ''),
-        dropoffLng: String(lng || ''),
+        dropoffLat: String(dLat || ''),
+        dropoffLng: String(dLng || ''),
         dropoffAddress: dropoff || '',
         distanceKm: String(radius || 0),
         fare: String(fare || 0),
