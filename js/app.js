@@ -4083,7 +4083,7 @@ async function loadReports() {
 
         const ridesSnap = from ? await db.collection('rides').where('createdAt', '>=', from).get() : await db.collection('rides').get();
         const delSnap = from ? await db.collection('delivery_requests').where('createdAt', '>=', from).get() : await db.collection('delivery_requests').get();
-        const recSnap = from ? await db.collection('recharge_requests').where('createdAt', '>=', from).get() : await db.collection('recharge_requests').get();
+        const recSnap = await db.collection('recharge_requests').where('status', '==', 'approved').get();
 
         const dayMap = {};
         const statusCount = {};
@@ -4103,6 +4103,7 @@ async function loadReports() {
             const r = doc.data();
             const t = reportTs(r.createdAt);
             if (!t) return;
+            if (to && t > to) return;
             const fare = parseFloat(r.fare) || 0;
             const comm = r.commissionAmount != null ? (parseFloat(r.commissionAmount) || 0) : Math.round(fare * commissionPercent / 100);
             const st = r.status || 'unknown';
@@ -4124,17 +4125,22 @@ async function loadReports() {
             const d = doc.data();
             const t = reportTs(d.createdAt);
             if (!t) return;
+            if (to && t > to) return;
+            if (d.status === 'cancelled') return;
             const price = parseFloat(d.pendingPrice != null ? d.pendingPrice : (d.fare != null ? d.fare : d.price)) || 0;
-            if (d.status !== 'cancelled') { totalDel++; delFare += price; }
+            totalDel++; delFare += price;
             pushDay(t, x => { x.deliveries++; x.delFare += price; });
         });
 
         recSnap.forEach(doc => {
             const r = doc.data();
-            const t = reportTs(r.createdAt);
-            if (!t) return;
             const amt = parseFloat(r.amount) || 0;
-            if (r.status === 'approved') { totalRecharge += amt; pushDay(t, x => { x.recharge += amt; }); }
+            const t = reportTs(r.processedAt) || reportTs(r.createdAt);
+            if (!t) return;
+            if (from && t < from) return;
+            if (to && t > to) return;
+            totalRecharge += amt;
+            pushDay(t, x => { x.recharge += amt; });
         });
 
         const cards = [
