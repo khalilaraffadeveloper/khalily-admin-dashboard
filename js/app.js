@@ -1156,11 +1156,80 @@ function renderDriversList(drivers) {
                     <button class="btn-action btn-action-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>
                     <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${d.id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
                     <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>
+                    ${d.disabled ? '' : `<button class="btn-action ${d.isOnline ? 'btn-action-delete' : 'btn-action-on'}" onclick="toggleDriverService('${d.id}','${safeName}',${!d.isOnline})">${d.isOnline ? 'إيقاف الخدمة' : 'تشغيل الخدمة'}</button>`}
                     <button class="btn-action btn-action-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>
                 </div>
             </td>
         </tr>`;
     }).join('');
+}
+
+async function setServiceForAll(on) {
+    if (!requireDb()) return;
+    const notify = document.getElementById('serviceNotifyDrivers').checked;
+    const statusEl = document.getElementById('serviceStatus');
+    statusEl.className = 'text-primary fw-semibold mt-2';
+    statusEl.textContent = on ? 'جاري تشغيل الخدمة للجميع...' : 'جاري إيقاف الخدمة للجميع...';
+    try {
+        const snap = await db.collection('drivers').get();
+        const batch = db.batch();
+        let changed = 0;
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d.disabled) return;
+            if (!!d.isOnline === on) return;
+            batch.update(doc.ref, { isOnline: on });
+            if (notify) {
+                batch.set(db.collection('notifications').doc(), {
+                    userId: doc.id,
+                    read: false,
+                    type: 'generic',
+                    title: on ? 'الخدمة مفعّلة' : 'الخدمة متوقفة',
+                    body: on ? 'تم تشغيل خدمتك من لوحة التحكم. أنت الآن متاح لاستقبال الرحلات.' : 'تم إيقاف خدمتك من لوحة التحكم.',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            changed++;
+        });
+        if (changed === 0) {
+            statusEl.className = 'text-warning fw-semibold mt-2';
+            statusEl.textContent = on ? 'جميع السائقين الخدمة مفعّلة بالفعل.' : 'جميع السائقين الخدمة متوقفة بالفعل.';
+            return;
+        }
+        await batch.commit();
+        statusEl.className = 'text-success fw-semibold mt-2';
+        statusEl.textContent = `تم ${on ? 'تشغيل' : 'إيقاف'} الخدمة لـ ${changed} سائق${notify ? ' مع إرسال إشعار صوتي' : ''}.`;
+        loadDriversList();
+    } catch (err) {
+        console.error('Set service error:', err);
+        statusEl.className = 'text-danger fw-semibold mt-2';
+        statusEl.textContent = 'خطأ: ' + err.message;
+    }
+}
+
+async function toggleDriverService(id, name, on) {
+    if (!requireDb()) return;
+    const notify = document.getElementById('serviceNotifyDrivers').checked;
+    const ok = confirm(`${on ? 'تشغيل' : 'إيقاف'} الخدمة للسائق «${name}»؟${notify ? ' (سيُرسل إشعار صوتي للسائق)' : ''}`);
+    if (!ok) return;
+    try {
+        const batch = db.batch();
+        batch.update(db.collection('drivers').doc(id), { isOnline: on });
+        if (notify) {
+            batch.set(db.collection('notifications').doc(), {
+                userId: id,
+                read: false,
+                type: 'generic',
+                title: on ? 'الخدمة مفعّلة' : 'الخدمة متوقفة',
+                body: on ? 'تم تشغيل خدمتك من لوحة التحكم. أنت الآن متاح لاستقبال الرحلات.' : 'تم إيقاف خدمتك من لوحة التحكم.',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        await batch.commit();
+        loadDriversList();
+    } catch (err) {
+        alert('خطأ: ' + err.message);
+    }
 }
 
 document.getElementById('searchDrivers').addEventListener('input', filterDrivers);
