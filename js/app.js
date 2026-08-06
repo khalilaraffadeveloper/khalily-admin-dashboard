@@ -3408,22 +3408,23 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
         await db.collection('admins').doc(id).update({ name, role, permissions });
         let passwordMsg = '';
         if (newPass) {
-            if (target.authUid) {
-                const currentUser = firebase.auth().currentUser;
-                if (currentUser && currentUser.uid === target.authUid) {
-                    try {
-                        await currentUser.updatePassword(newPass);
-                        await db.collection('admins').doc(id).update({ password: newPass });
-                        passwordMsg = ' وتحديث كلمة المرور';
-                    } catch (e) {
-                        passwordMsg = ' (فشل تحديث كلمة مرور المصادقة)';
-                    }
-                } else {
-                    passwordMsg = ' (كلمة المرور لم تتغير: مرتبطة بحساب بريد إلكتروني، غيّرها من حسابه الخاص)';
+            const currentUser = firebase.auth().currentUser;
+            const myUsername = sessionStorage.getItem('ARAVA_admin_username') || '';
+            const isSelfUid = !!(target.authUid && currentUser && currentUser.uid === target.authUid);
+            const isSelf = isSelfUid || myUsername === target.username;
+            if (isSelfUid) {
+                try {
+                    await currentUser.updatePassword(newPass);
+                    await db.collection('admins').doc(id).update({ password: newPass });
+                    passwordMsg = ' وتحديث كلمة المرور';
+                } catch (e) {
+                    passwordMsg = ' (فشل تحديث كلمة مرور المصادقة)';
                 }
+            } else if (target.username === 'khalilarafa' && !isSelf) {
+                passwordMsg = ' (كلمة مرور حساب المالك محمية: لا يمكن تغييرها من حساب آخر)';
             } else {
                 await db.collection('admins').doc(id).update({ password: newPass });
-                passwordMsg = ' وتحديث كلمة المرور';
+                passwordMsg = ' وتغيير كلمة المرور بنجاح';
             }
         }
         const currentUser = firebase.auth().currentUser;
