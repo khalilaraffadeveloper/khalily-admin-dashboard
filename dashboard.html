@@ -23,12 +23,14 @@
             <a href="#" class="sidebar-link active" data-page="map">
                 <i class="bi bi-geo-alt-fill"></i> الخريطة المباشرة
             </a>
+            <a href="#" class="sidebar-link" data-page="reports">
+                <i class="bi bi-graph-up-arrow"></i> التقارير والإحصائيات
+            </a>
             <a href="#" class="sidebar-link" data-page="drivers">
                 <i class="bi bi-people-fill"></i> إدارة السائقين
             </a>
             <a href="#" class="sidebar-link" data-page="customers">
                 <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
-                <span class="badge bg-danger rounded-pill d-none float-start" id="sidebarRechargeBadge">0</span>
             </a>
             <a href="#" class="sidebar-link" data-page="unregistered-customers">
                 <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
@@ -98,12 +100,14 @@
                     <a href="#" class="sidebar-link active" data-page="map" data-bs-dismiss="offcanvas">
                         <i class="bi bi-geo-alt-fill"></i> الخريطة المباشرة
                     </a>
+                    <a href="#" class="sidebar-link" data-page="reports" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-graph-up-arrow"></i> التقارير والإحصائيات
+                    </a>
                     <a href="#" class="sidebar-link" data-page="drivers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-people-fill"></i> إدارة السائقين
                     </a>
                     <a href="#" class="sidebar-link" data-page="customers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
-                        <span class="badge bg-danger rounded-pill d-none float-start" id="sidebarRechargeBadgeMobile">0</span>
                     </a>
             <a href="#" class="sidebar-link" data-page="unregistered-customers" data-bs-dismiss="offcanvas">
                 <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
@@ -238,6 +242,72 @@
             </div>
         </div>
 
+        <!-- REPORTS PAGE -->
+        <div class="page-content d-none" id="page-reports">
+            <div class="container-fluid py-3">
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <label class="fw-bold mb-0">الفترة:</label>
+                            <button class="btn btn-sm btn-outline-primary report-range active" data-days="7">آخر 7 أيام</button>
+                            <button class="btn btn-sm btn-outline-primary report-range" data-days="30">آخر 30 يوم</button>
+                            <button class="btn btn-sm btn-outline-primary report-range" data-days="90">آخر 90 يوم</button>
+                            <button class="btn btn-sm btn-outline-primary report-range" data-days="0">كل الفترة</button>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <label class="fw-bold mb-0">من:</label>
+                            <input type="date" id="reportFrom" class="form-control form-control-sm" style="width:145px">
+                            <label class="fw-bold mb-0">إلى:</label>
+                            <input type="date" id="reportTo" class="form-control form-control-sm" style="width:145px">
+                            <button class="btn btn-sm btn-gold text-white fw-bold" id="reportRefreshBtn"><i class="bi bi-arrow-repeat me-1"></i>توليد التقرير</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3" id="reportSummaryCards"></div>
+
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-bar-chart-fill me-1"></i>الرحلات والإيرادات اليومية</div>
+                            <div class="card-body"><canvas id="reportDailyChart" height="110"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-pie-chart-fill me-1"></i>توزيع حالات الرحلات</div>
+                            <div class="card-body"><canvas id="reportStatusChart" height="110"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-trophy-fill me-1"></i>أفضل السائقين</div>
+                            <div class="table-responsive" style="max-height:380px">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead><tr><th>#</th><th>السائق</th><th>الهاتف</th><th>الرحلات</th><th>الإيرادات</th><th>التقييم</th></tr></thead>
+                                    <tbody id="reportTopDrivers"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-table me-1"></i>ملخص يومي</div>
+                            <div class="table-responsive" style="max-height:380px">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead><tr><th>التاريخ</th><th>الرحلات</th><th>إيراد الرحلات</th><th>العمولات</th><th>التوصيل</th><th>الشحن المقبول</th></tr></thead>
+                                    <tbody id="reportDailyTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- DRIVERS PAGE -->
         <div class="page-content d-none" id="page-drivers">
             <div class="container-fluid p-3 p-md-4">
@@ -336,27 +406,26 @@
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-cash-coin me-2 text-gold"></i>طلبات شحن الرصيد (زبائن وسائقين) (<span id="rechargeRequestsCount">0</span>)</h6>
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-cash-coin me-2 text-gold"></i>طلبات شحن الرصيد (<span id="rechargeRequestsCount">0</span>)</h6>
                                 <button class="btn btn-sm btn-outline-dark-blue" onclick="loadRechargeRequests()"><i class="bi bi-arrow-clockwise me-1"></i>تحديث</button>
                             </div>
-                            <div class="card-body" id="rechargeRequestsContainer">
-                                <div class="text-center text-muted py-3 small">جاري تحميل الطلبات...</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recharge Screenshot Fullscreen Modal -->
-                    <div class="modal fade" id="rechargeScreenshotModal" tabindex="-1" aria-hidden="true" style="background:rgba(0,0,0,0.9);">
-                        <div class="modal-dialog modal-fullscreen" style="max-width:100vw;margin:0;">
-                            <div class="modal-content" style="background:transparent;border:none;">
-                                <div class="modal-header border-0">
-                                    <button type="button" class="btn btn-close btn-close-white ms-auto" onclick="closeRechargeScreenshot()" aria-label="إغلاق"></button>
-                                </div>
-                                <div class="modal-body d-flex align-items-center justify-content-center p-2">
-                                    <img id="rechargeScreenshotImg" src="" alt="لقطة شاشة التحويل" class="img-fluid" style="max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;">
-                                </div>
-                                <div class="modal-footer border-0 justify-content-center pb-4">
-                                    <button class="btn btn-gold fw-bold px-4" onclick="closeRechargeScreenshot()">إغلاق</button>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-dark-blue text-white">
+                                            <tr>
+                                                <th>الزبون</th>
+                                                <th>الهاتف</th>
+                                                <th>المبلغ (MRU)</th>
+                                                <th>التاريخ</th>
+                                                <th>الحالة</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="rechargeRequestsTableBody">
+                                            <tr><td colspan="6" class="text-center py-3 text-muted small">جاري تحميل الطلبات...</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -531,9 +600,9 @@
                                     <tr>
                                         <th>الزبون</th>
                                         <th class="d-none d-md-table-cell">هاتف الزبون</th>
-                                        <th class="d-none d-md-table-cell">هاتف المستلم</th>
                                         <th class="d-none d-md-table-cell">الانطلاق</th>
                                         <th class="d-none d-md-table-cell">الوجهة</th>
+                                        <th class="d-none d-lg-table-cell">ملاحظات الزبون</th>
                                         <th>المسافة</th>
                                         <th>السعر</th>
                                         <th>العمولة</th>
@@ -545,7 +614,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="ridesTableBody">
-                                    <tr><td colspan="12" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>
+                                    <tr><td colspan="13" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الرحلات...</div></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -627,10 +696,11 @@
                     </div>
                     <div class="col-12">
                         <div class="card shadow-sm border-0">
-                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-bell-fill text-gold me-2"></i>سجل الإشعارات</h6>
                                 <div class="d-flex gap-2 align-items-center">
                                     <span class="badge bg-success" id="notifLogCount">0</span>
+                                    <button class="btn btn-sm btn-outline-primary d-none" id="enableDesktopNotifBtn" onclick="requestDesktopNotifications()"><i class="bi bi-bell me-1"></i>تفعيل تنبيه سطح المكتب</button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="clearNotifLog()"><i class="bi bi-trash me-1"></i>مسح</button>
                                 </div>
                             </div>
@@ -796,6 +866,7 @@
                                                 <th>مستلم</th>
                                                 <th class="d-none d-md-table-cell">نقطة الانطلاق</th>
                                                 <th class="d-none d-md-table-cell">نقطة الوجهة</th>
+                                                <th class="d-none d-lg-table-cell">ملاحظات الزبون</th>
                                                 <th>السعر</th>
                                                 <th>الحالة</th>
                                                 <th class="d-none d-lg-table-cell">التاريخ</th>
@@ -1695,6 +1766,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index:1100;">
@@ -1786,46 +1858,6 @@
         </div>
     </div>
 
-    <!-- EDIT RIDE COORDINATES MODAL -->
-    <div class="modal fade" id="editRideCoordsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h6 class="modal-title fw-bold text-dark-blue"><i class="bi bi-geo-alt me-2 text-gold"></i>تعديل إحداثيات الرحلة</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-2"><strong>الزبون:</strong> <span id="editCoordsCustomer"></span></div>
-                    <div class="alert alert-warning py-2 mb-3 small d-none" id="editCoordsLockNote"></div>
-                    <input type="hidden" id="editCoordsRideId">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold small">إحداثيات الانطلاق (lat)</label>
-                            <input type="number" step="any" class="form-control" id="editPickupLat" placeholder="18.0735">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold small">إحداثيات الانطلاق (lng)</label>
-                            <input type="number" step="any" class="form-control" id="editPickupLng" placeholder="-15.9583">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold small">إحداثيات الوجهة (lat)</label>
-                            <input type="number" step="any" class="form-control" id="editDropoffLat" placeholder="18.0735">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold small">إحداثيات الوجهة (lng)</label>
-                            <input type="number" step="any" class="form-control" id="editDropoffLng" placeholder="-15.9583">
-                        </div>
-                    </div>
-                    <div class="form-text mt-2">إحداثيات الزبون (طرف في الرحلة) محفوظة تلقائياً من موقعه وتظهر للقراءة فقط.</div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-                    <button type="button" class="btn btn-gold text-white fw-bold" onclick="saveRideCoords()">حفظ الإحداثيات</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- CUSTOM MODAL -->
     <div class="ara-modal-overlay" id="araModalOverlay">
         <div class="ara-modal" id="araModal">
@@ -1841,6 +1873,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260806"></script>
+    <script src="js/app.js?v=20260807"></script>
 </body>
 </html>

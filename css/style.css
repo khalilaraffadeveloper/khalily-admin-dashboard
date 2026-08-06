@@ -320,43 +320,4 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
-/* ============ RECHARGE SCREENSHOT FULLSCREEN MODAL ============ */
-#rechargeScreenshotModal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 1100;
-    background: rgba(0,0,0,0.92);
-}
-#rechargeScreenshotModal.show {
-    display: block;
-}
-#rechargeScreenshotModal .modal-dialog {
-    max-width: 100vw;
-    margin: 0;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-#rechargeScreenshotModal .modal-content {
-    background: transparent;
-    border: none;
-    height: 100vh;
-}
-#rechargeScreenshotModal .modal-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-    overflow: auto;
-}
-#rechargeScreenshotModal .btn-close-white {
-    opacity: 1;
-    filter: none;
-}
-#rechargeScreenshotModal .btn-gold {
-    border-radius: 50px;
-    box-shadow: 0 4px 14px rgba(212,168,67,0.5);
-}
-
 /* ============ BOOTSTRAP OVERRIDES ============ */
