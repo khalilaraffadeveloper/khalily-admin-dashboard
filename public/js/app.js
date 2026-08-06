@@ -210,6 +210,7 @@ let allCustomers = [];
 let allRides = [];
 let ridesListUnsubscribe = null;
 let deliveriesUnsubscribe = null;
+let rechargeRequestsUnsubscribe = null;
 let driversInfoCache = {};
 let currentPage = 'map';
 
@@ -504,6 +505,7 @@ const pageTitles = {
     rides: 'سجل الرحلات',
     settings: 'الإعدادات',
     messages: 'الرسائل',
+    reports: 'التقارير والإحصائيات',
     announcements: 'الإعلانات',
     'customer-announcements': 'إعلانات الزبائن',
     admins: 'إدارة المشرفين',
@@ -543,6 +545,7 @@ function navigateToPage(page) {
     if (page === 'products') { loadProductsList(); loadCustomerProductsList(); }
     if (page === 'stores') loadStoresList();
     if (page === 'ladies') loadLadiesProducts();
+    if (page === 'reports') loadReports();
 }
 
 document.querySelectorAll('.sidebar-link').forEach(item => {
@@ -1632,7 +1635,6 @@ document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', as
 // ============================================
 // RECHARGE REQUESTS
 // ============================================
-let rechargeRequestsUnsubscribe = null;
 
 async function loadRechargeRequests() {
     if (!requireDb()) return;
@@ -4001,3 +4003,262 @@ window.deleteCustomerProduct = async function(id) {
         notifyCustomerProduct(p.ownerPhone, 'تم حذف منتجك', p.name || 'منتجك', 'deleted', p.name || '');
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
+
+// ============================================
+// REPORTS & STATISTICS
+// ============================================
+let reportRangeDays = 7;
+let reportCustomFrom = null;
+let reportCustomTo = null;
+let reportCharts = { daily: null, status: null };
+
+function reportMoney(n) {
+    try { return fmtNum(Math.round(n).toLocaleString('en-US')); } catch (e) { return String(Math.round(n)); }
+}
+
+function reportDayKey(d) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return dd + '/' + mm;
+}
+
+function reportYMD(d) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function reportTs(v) {
+    if (!v) return null;
+    try {
+        const d = v.toDate ? v.toDate() : new Date(v);
+        return isNaN(d.getTime()) ? null : d;
+    } catch (e) { return null; }
+}
+
+window.setReportRange = function (days) {
+    reportRangeDays = days;
+    reportCustomFrom = null;
+    reportCustomTo = null;
+    document.querySelectorAll('.report-range').forEach(b => b.classList.toggle('active', Number(b.dataset.days) === days));
+    loadReports();
+};
+
+async function loadReports() {
+    if (!requireDb()) return;
+    const body = document.getElementById('reportSummaryCards');
+    if (!body) return;
+    body.innerHTML = '<div class="col-12 text-center text-muted py-5"><i class="bi bi-hourglass-split me-2"></i>جاري تجميع البيانات...</div>';
+
+    try {
+        try {
+            const cfg = await db.collection('settings').doc('app_config').get();
+            if (cfg.exists) commissionPercent = cfg.data().commissionPercent || 10;
+        } catch (e) {}
+
+        const to = reportCustomTo || new Date();
+        if (!reportCustomTo) to.setHours(23, 59, 59, 999);
+        let from = reportCustomFrom;
+        if (!from && reportRangeDays > 0) {
+            from = new Date();
+            from.setDate(from.getDate() - reportRangeDays);
+            from.setHours(0, 0, 0, 0);
+        }
+
+        const fromInput = document.getElementById('reportFrom');
+        const toInput = document.getElementById('reportTo');
+        if (fromInput) fromInput.value = from ? reportYMD(from) : '';
+        if (toInput) toInput.value = reportYMD(to);
+
+        const driversMap = {};
+        const driverNames = {};
+        try {
+            const ds = await db.collection('drivers').get();
+            ds.forEach(d => {
+                const dd = d.data();
+                driversMap[d.id] = { name: dd.name || 'سائق', phone: dd.phone || '-' };
+                driverNames[d.id] = dd.name || 'سائق';
+            });
+        } catch (e) {}
+
+        const ridesSnap = from ? await db.collection('rides').where('createdAt', '>=', from).get() : await db.collection('rides').get();
+        const delSnap = from ? await db.collection('delivery_requests').where('createdAt', '>=', from).get() : await db.collection('delivery_requests').get();
+        const recSnap = from ? await db.collection('recharge_requests').where('createdAt', '>=', from).get() : await db.collection('recharge_requests').get();
+
+        const dayMap = {};
+        const statusCount = {};
+        const driverAgg = {};
+        const pushDay = (t, cb) => {
+            if (!t) return;
+            const key = reportDayKey(t);
+            if (!dayMap[key]) dayMap[key] = { key, rides: 0, fare: 0, comm: 0, deliveries: 0, delFare: 0, recharge: 0 };
+            cb(dayMap[key]);
+        };
+
+        let totalRides = 0, completedRides = 0, totalFare = 0, totalComm = 0;
+        let totalDel = 0, delFare = 0, totalRecharge = 0;
+        const uniqCustomers = new Set();
+
+        ridesSnap.forEach(doc => {
+            const r = doc.data();
+            const t = reportTs(r.createdAt);
+            if (!t) return;
+            const fare = parseFloat(r.fare) || 0;
+            const comm = r.commissionAmount != null ? (parseFloat(r.commissionAmount) || 0) : Math.round(fare * commissionPercent / 100);
+            const st = r.status || 'unknown';
+            statusCount[st] = (statusCount[st] || 0) + 1;
+            totalRides++;
+            totalFare += fare;
+            totalComm += comm;
+            if (st === 'completed') completedRides++;
+            if (r.passengerPhone) uniqCustomers.add(r.passengerPhone);
+            pushDay(t, x => { x.rides++; x.fare += fare; x.comm += comm; });
+            if (r.driverId) {
+                if (!driverAgg[r.driverId]) driverAgg[r.driverId] = { id: r.driverId, rides: 0, fare: 0 };
+                driverAgg[r.driverId].rides++;
+                driverAgg[r.driverId].fare += fare;
+            }
+        });
+
+        delSnap.forEach(doc => {
+            const d = doc.data();
+            const t = reportTs(d.createdAt);
+            if (!t) return;
+            const price = parseFloat(d.pendingPrice != null ? d.pendingPrice : (d.fare != null ? d.fare : d.price)) || 0;
+            if (d.status !== 'cancelled') { totalDel++; delFare += price; }
+            pushDay(t, x => { x.deliveries++; x.delFare += price; });
+        });
+
+        recSnap.forEach(doc => {
+            const r = doc.data();
+            const t = reportTs(r.createdAt);
+            if (!t) return;
+            const amt = parseFloat(r.amount) || 0;
+            if (r.status === 'approved') { totalRecharge += amt; pushDay(t, x => { x.recharge += amt; }); }
+        });
+
+        const cards = [
+            { label: 'إجمالي الرحلات', value: fmtNum(totalRides.toLocaleString('en-US')), icon: 'bi-journal-text', color: 'text-dark-blue' },
+            { label: 'رحلات مكتملة', value: fmtNum(completedRides.toLocaleString('en-US')), icon: 'bi-check-circle', color: 'text-success' },
+            { label: 'إيراد الرحلات (MRU)', value: reportMoney(totalFare), icon: 'bi-cash-stack', color: 'text-primary' },
+            { label: 'العمولات (MRU)', value: reportMoney(totalComm), icon: 'bi-percent', color: 'text-danger' },
+            { label: 'طلبات التوصيل', value: fmtNum(totalDel.toLocaleString('en-US')), icon: 'bi-truck', color: 'text-warning' },
+            { label: 'إيراد التوصيل (MRU)', value: reportMoney(delFare), icon: 'bi-cash', color: 'text-warning' },
+            { label: 'الشحن المقبول (MRU)', value: reportMoney(totalRecharge), icon: 'bi-credit-card', color: 'text-success' },
+            { label: 'زبائن فريدون', value: fmtNum(uniqCustomers.size.toLocaleString('en-US')), icon: 'bi-people', color: 'text-info' }
+        ];
+        body.innerHTML = cards.map(c => `
+            <div class="col-6 col-md-3">
+                <div class="card border-0 shadow-sm text-center py-2">
+                    <div class="fs-2 ${c.color}"><i class="bi ${c.icon}"></i></div>
+                    <div class="fs-5 fw-bold">${c.value}</div>
+                    <small class="text-muted">${c.label}</small>
+                </div>
+            </div>`).join('');
+
+        const days = Object.keys(dayMap).sort((a, b) =>
+            a.split('/').reverse().join('-').localeCompare(b.split('/').reverse().join('-')));
+        renderDailyChart(days, days.map(d => dayMap[d].rides), days.map(d => Math.round(dayMap[d].fare)), days.map(d => Math.round(dayMap[d].comm)));
+        renderStatusChart(statusCount);
+
+        const topDrivers = Object.values(driverAgg).sort((a, b) => b.fare - a.fare).slice(0, 10);
+        const driversEl = document.getElementById('reportTopDrivers');
+        if (driversEl) {
+            driversEl.innerHTML = topDrivers.map((dr, i) => {
+                const info = driversMap[dr.id] || {};
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td>${escapeHtmlStr(info.name || driverNames[dr.id] || 'سائق')}</td>
+                    <td class="small" dir="ltr">${escapeHtmlStr(info.phone || '-')}</td>
+                    <td>${fmtNum(dr.rides.toLocaleString('en-US'))}</td>
+                    <td><strong>${reportMoney(dr.fare)}</strong> MRU</td>
+                    <td>${info.rating != null ? info.rating : '-'}</td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">لا توجد رحلات في هذه الفترة</td></tr>';
+        }
+
+        const dailyEl = document.getElementById('reportDailyTable');
+        if (dailyEl) {
+            dailyEl.innerHTML = days.slice().reverse().map(d => {
+                const x = dayMap[d];
+                return `<tr>
+                    <td>${escapeHtmlStr(d)}</td>
+                    <td>${fmtNum(x.rides.toLocaleString('en-US'))}</td>
+                    <td>${reportMoney(x.fare)} MRU</td>
+                    <td>${reportMoney(x.comm)} MRU</td>
+                    <td>${fmtNum(x.deliveries.toLocaleString('en-US'))} (${reportMoney(x.delFare)})</td>
+                    <td>${reportMoney(x.recharge)} MRU</td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">لا توجد بيانات في هذه الفترة</td></tr>';
+        }
+    } catch (e) {
+        console.error('Report error:', e);
+        body.innerHTML = '<div class="col-12 text-center text-danger py-5">خطأ في توليد التقرير: ' + escapeHtmlStr(e.message) + '</div>';
+    }
+}
+
+function renderDailyChart(labels, ridesData, fareData, commData) {
+    const ctx = document.getElementById('reportDailyChart');
+    if (!ctx) return;
+    if (reportCharts.daily) reportCharts.daily.destroy();
+    reportCharts.daily = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'الرحلات', data: ridesData, backgroundColor: 'rgba(47,125,246,0.7)', borderRadius: 4, yAxisID: 'y' },
+                { label: 'الإيراد (MRU)', data: fareData, backgroundColor: 'rgba(22,199,154,0.7)', borderRadius: 4, yAxisID: 'y1' },
+                { label: 'العمولات (MRU)', data: commData, backgroundColor: 'rgba(240,72,62,0.7)', borderRadius: 4, yAxisID: 'y1' }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { rtl: true, position: 'top' } },
+            scales: {
+                y: { beginAtZero: true, position: 'right', grid: { color: 'rgba(0,0,0,0.05)' } },
+                y1: { beginAtZero: true, position: 'left', grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+function renderStatusChart(statusCount) {
+    const ctx = document.getElementById('reportStatusChart');
+    if (!ctx) return;
+    if (reportCharts.status) reportCharts.status.destroy();
+    const labelsMap = { pending: 'قيد الانتظار', accepted: 'مقبولة', in_progress: 'جارية', completed: 'مكتملة', cancelled: 'ملغاة', no_drivers: 'بلا سائق', unknown: 'أخرى' };
+    const colors = ['#F5A623', '#2F7DF6', '#16C79A', '#8E44AD', '#F0483E', '#9AA5B5', '#CCCCCC'];
+    const labels = Object.keys(statusCount).map(s => labelsMap[s] || s);
+    const data = Object.values(statusCount);
+    reportCharts.status = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data, backgroundColor: colors, borderWidth: 1 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { rtl: true, position: 'bottom' } }
+        }
+    });
+}
+
+document.querySelectorAll('.report-range').forEach(btn => {
+    btn.addEventListener('click', () => setReportRange(Number(btn.dataset.days)));
+});
+
+const reportRefreshBtn = document.getElementById('reportRefreshBtn');
+if (reportRefreshBtn) {
+    reportRefreshBtn.addEventListener('click', () => {
+        const fromStr = document.getElementById('reportFrom').value;
+        const toStr = document.getElementById('reportTo').value;
+        if (fromStr) {
+            reportCustomFrom = new Date(fromStr + 'T00:00:00');
+            reportCustomTo = toStr ? new Date(toStr + 'T23:59:59') : new Date();
+            document.querySelectorAll('.report-range').forEach(b => b.classList.remove('active'));
+        }
+        loadReports();
+    });
+}

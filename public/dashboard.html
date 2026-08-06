@@ -23,6 +23,9 @@
             <a href="#" class="sidebar-link active" data-page="map">
                 <i class="bi bi-geo-alt-fill"></i> الخريطة المباشرة
             </a>
+            <a href="#" class="sidebar-link" data-page="reports">
+                <i class="bi bi-graph-up-arrow"></i> التقارير والإحصائيات
+            </a>
             <a href="#" class="sidebar-link" data-page="drivers">
                 <i class="bi bi-people-fill"></i> إدارة السائقين
             </a>
@@ -96,6 +99,9 @@
                 <div class="p-3">
                     <a href="#" class="sidebar-link active" data-page="map" data-bs-dismiss="offcanvas">
                         <i class="bi bi-geo-alt-fill"></i> الخريطة المباشرة
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="reports" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-graph-up-arrow"></i> التقارير والإحصائيات
                     </a>
                     <a href="#" class="sidebar-link" data-page="drivers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-people-fill"></i> إدارة السائقين
@@ -232,6 +238,72 @@
                         <button id="mapSearchBtn" title="بحث"><i class="bi bi-search"></i></button>
                     </div>
                     <div id="mapSearchResults"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REPORTS PAGE -->
+        <div class="page-content d-none" id="page-reports">
+            <div class="container-fluid py-3">
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <label class="fw-bold mb-0">الفترة:</label>
+                            <button class="btn btn-sm btn-outline-primary report-range active" data-days="7">آخر 7 أيام</button>
+                            <button class="btn btn-sm btn-outline-primary report-range" data-days="30">آخر 30 يوم</button>
+                            <button class="btn btn-sm btn-outline-primary report-range" data-days="90">آخر 90 يوم</button>
+                            <button class="btn btn-sm btn-outline-primary report-range" data-days="0">كل الفترة</button>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <label class="fw-bold mb-0">من:</label>
+                            <input type="date" id="reportFrom" class="form-control form-control-sm" style="width:145px">
+                            <label class="fw-bold mb-0">إلى:</label>
+                            <input type="date" id="reportTo" class="form-control form-control-sm" style="width:145px">
+                            <button class="btn btn-sm btn-gold text-white fw-bold" id="reportRefreshBtn"><i class="bi bi-arrow-repeat me-1"></i>توليد التقرير</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3" id="reportSummaryCards"></div>
+
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-bar-chart-fill me-1"></i>الرحلات والإيرادات اليومية</div>
+                            <div class="card-body"><canvas id="reportDailyChart" height="110"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-pie-chart-fill me-1"></i>توزيع حالات الرحلات</div>
+                            <div class="card-body"><canvas id="reportStatusChart" height="110"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-trophy-fill me-1"></i>أفضل السائقين</div>
+                            <div class="table-responsive" style="max-height:380px">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead><tr><th>#</th><th>السائق</th><th>الهاتف</th><th>الرحلات</th><th>الإيرادات</th><th>التقييم</th></tr></thead>
+                                    <tbody id="reportTopDrivers"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold"><i class="bi bi-table me-1"></i>ملخص يومي</div>
+                            <div class="table-responsive" style="max-height:380px">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead><tr><th>التاريخ</th><th>الرحلات</th><th>إيراد الرحلات</th><th>العمولات</th><th>التوصيل</th><th>الشحن المقبول</th></tr></thead>
+                                    <tbody id="reportDailyTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1694,6 +1766,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index:1100;">
@@ -1800,6 +1873,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260806"></script>
+    <script src="js/app.js?v=20260807"></script>
 </body>
 </html>
