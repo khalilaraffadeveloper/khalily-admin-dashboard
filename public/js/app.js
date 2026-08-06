@@ -1164,31 +1164,47 @@ function renderDriversList(drivers) {
     }).join('');
 }
 
+let pendingServiceAction = null;
+
+function buildServiceNotification(id, on) {
+    return {
+        userId: id,
+        read: false,
+        type: 'generic',
+        title: on ? 'الخدمة مفعّلة' : 'الخدمة متوقفة',
+        body: on ? 'تم تشغيل خدمتك من لوحة التحكم. أنت الآن متاح لاستقبال الرحلات.' : 'تم إيقاف خدمتك من لوحة التحكم.',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+}
+
+function openServiceConfirm(title, text, hint, on, action) {
+    const header = document.getElementById('serviceConfirmHeader');
+    const icon = document.getElementById('serviceConfirmIcon');
+    const btn = document.getElementById('confirmServiceBtn');
+    document.getElementById('serviceConfirmTitle').textContent = title;
+    document.getElementById('serviceConfirmText').innerHTML = text;
+    document.getElementById('serviceConfirmHint').textContent = hint || '';
+    header.className = 'modal-header text-white border-bottom ' + (on ? 'bg-success' : 'bg-danger');
+    icon.className = 'bi bi-power fs-1 mb-2 ' + (on ? 'text-success' : 'text-danger');
+    btn.className = 'btn fw-bold ' + (on ? 'btn-success' : 'btn-danger');
+    btn.textContent = on ? 'نعم، شغّل' : 'نعم، أوقف';
+    pendingServiceAction = action;
+    serviceConfirmModal.show();
+}
+
 async function setServiceForAll(on) {
     if (!requireDb()) return;
-    const notify = document.getElementById('serviceNotifyDrivers').checked;
     const statusEl = document.getElementById('serviceStatus');
+    const notify = document.getElementById('serviceNotifyDrivers').checked;
     statusEl.className = 'text-primary fw-semibold mt-2';
-    statusEl.textContent = on ? 'جاري تشغيل الخدمة للجميع...' : 'جاري إيقاف الخدمة للجميع...';
+    statusEl.textContent = on ? 'جاري احتساب السائقين...' : 'جاري احتساب السائقين...';
     try {
         const snap = await db.collection('drivers').get();
-        const batch = db.batch();
         let changed = 0;
         snap.forEach(doc => {
             const d = doc.data();
             if (d.disabled) return;
             if (!!d.isOnline === on) return;
-            batch.update(doc.ref, { isOnline: on });
-            if (notify) {
-                batch.set(db.collection('notifications').doc(), {
-                    userId: doc.id,
-                    read: false,
-                    type: 'generic',
-                    title: on ? 'الخدمة مفعّلة' : 'الخدمة متوقفة',
-                    body: on ? 'تم تشغيل خدمتك من لوحة التحكم. أنت الآن متاح لاستقبال الرحلات.' : 'تم إيقاف خدمتك من لوحة التحكم.',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
             changed++;
         });
         if (changed === 0) {
@@ -1196,10 +1212,11 @@ async function setServiceForAll(on) {
             statusEl.textContent = on ? 'جميع السائقين الخدمة مفعّلة بالفعل.' : 'جميع السائقين الخدمة متوقفة بالفعل.';
             return;
         }
-        await batch.commit();
-        statusEl.className = 'text-success fw-semibold mt-2';
-        statusEl.textContent = `تم ${on ? 'تشغيل' : 'إيقاف'} الخدمة لـ ${changed} سائق${notify ? ' مع إرسال إشعار صوتي' : ''}.`;
-        loadDriversList();
+        const label = on ? 'تشغيل الخدمة للجميع' : 'إيقاف الخدمة للجميع';
+        const text = `سيتم <strong>${on ? 'تشغيل' : 'إيقاف'}</strong> الخدمة لـ <strong>${changed} سائق</strong> من لوحة التحكم. هل أنت متأكد؟`;
+        const hint = notify ? 'سيُرسل إشعار صوتي للسائقين المتأثرين.' : 'لن يُرسل أي إشعار للسائقين.';
+        statusEl.textContent = '';
+        openServiceConfirm(label, text, hint, on, { kind: 'all', on });
     } catch (err) {
         console.error('Set service error:', err);
         statusEl.className = 'text-danger fw-semibold mt-2';
@@ -1210,27 +1227,55 @@ async function setServiceForAll(on) {
 async function toggleDriverService(id, name, on) {
     if (!requireDb()) return;
     const notify = document.getElementById('serviceNotifyDrivers').checked;
-    const ok = confirm(`${on ? 'تشغيل' : 'إيقاف'} الخدمة للسائق «${name}»؟${notify ? ' (سيُرسل إشعار صوتي للسائق)' : ''}`);
-    if (!ok) return;
-    try {
-        const batch = db.batch();
-        batch.update(db.collection('drivers').doc(id), { isOnline: on });
-        if (notify) {
-            batch.set(db.collection('notifications').doc(), {
-                userId: id,
-                read: false,
-                type: 'generic',
-                title: on ? 'الخدمة مفعّلة' : 'الخدمة متوقفة',
-                body: on ? 'تم تشغيل خدمتك من لوحة التحكم. أنت الآن متاح لاستقبال الرحلات.' : 'تم إيقاف خدمتك من لوحة التحكم.',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-        await batch.commit();
-        loadDriversList();
-    } catch (err) {
-        alert('خطأ: ' + err.message);
-    }
+    const label = on ? 'تشغيل الخدمة' : 'إيقاف الخدمة';
+    const text = `هل أنت متأكد من <strong>${on ? 'تشغيل' : 'إيقاف'}</strong> الخدمة للسائق <strong>«${name}»</strong>؟`;
+    const hint = notify ? 'سيُرسل إشعار صوتي للسائق.' : 'لن يُرسل أي إشعار للسائق.';
+    openServiceConfirm(label, text, hint, on, { kind: 'single', id, name, on });
 }
+
+document.getElementById('confirmServiceBtn').addEventListener('click', async () => {
+    if (!requireDb() || !pendingServiceAction) return;
+    const action = pendingServiceAction;
+    const notify = document.getElementById('serviceNotifyDrivers').checked;
+    const statusEl = document.getElementById('serviceStatus');
+    try {
+        if (action.kind === 'single') {
+            const batch = db.batch();
+            batch.update(db.collection('drivers').doc(action.id), { isOnline: action.on });
+            if (notify) batch.set(db.collection('notifications').doc(), buildServiceNotification(action.id, action.on));
+            await batch.commit();
+            serviceConfirmModal.hide();
+            pendingServiceAction = null;
+            loadDriversList();
+        } else {
+            serviceConfirmModal.hide();
+            pendingServiceAction = null;
+            statusEl.className = 'text-primary fw-semibold mt-2';
+            statusEl.textContent = action.on ? 'جاري تشغيل الخدمة للجميع...' : 'جاري إيقاف الخدمة للجميع...';
+            const snap = await db.collection('drivers').get();
+            const batch = db.batch();
+            let changed = 0;
+            snap.forEach(doc => {
+                const d = doc.data();
+                if (d.disabled) return;
+                if (!!d.isOnline === action.on) return;
+                batch.update(doc.ref, { isOnline: action.on });
+                if (notify) batch.set(db.collection('notifications').doc(), buildServiceNotification(doc.id, action.on));
+                changed++;
+            });
+            await batch.commit();
+            statusEl.className = 'text-success fw-semibold mt-2';
+            statusEl.textContent = `تم ${action.on ? 'تشغيل' : 'إيقاف'} الخدمة لـ ${changed} سائق${notify ? ' مع إرسال إشعار صوتي' : ''}.`;
+            loadDriversList();
+        }
+    } catch (err) {
+        console.error('Service action error:', err);
+        serviceConfirmModal.hide();
+        pendingServiceAction = null;
+        statusEl.className = 'text-danger fw-semibold mt-2';
+        statusEl.textContent = 'خطأ: ' + err.message;
+    }
+});
 
 document.getElementById('searchDrivers').addEventListener('input', filterDrivers);
 document.getElementById('filterDriverStatus').addEventListener('change', filterDrivers);
@@ -1444,6 +1489,7 @@ const creditModal = new bootstrap.Modal(document.getElementById('creditModal'));
 const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
 const editCreditModal = new bootstrap.Modal(document.getElementById('editCreditModal'));
+const serviceConfirmModal = new bootstrap.Modal(document.getElementById('serviceConfirmModal'));
 
 // Customer modals
 const editCustomerModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));

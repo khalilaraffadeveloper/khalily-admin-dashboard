@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260807" />
+    <link rel="stylesheet" href="css/style.css?v=20260808" />
 </head>
 <body class="bg-light">
 
@@ -1485,6 +1485,27 @@
         </div>
     </div>
 
+    <!-- SERVICE CONFIRM MODAL -->
+    <div class="modal fade" id="serviceConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header text-white border-bottom bg-success" id="serviceConfirmHeader">
+                    <h6 class="fw-bold" id="serviceConfirmTitle">تشغيل الخدمة</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="bi bi-power fs-1 mb-2 text-success" id="serviceConfirmIcon"></i>
+                    <p id="serviceConfirmText"></p>
+                    <small class="text-muted" id="serviceConfirmHint"></small>
+                </div>
+                <div class="modal-footer border-top justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-success fw-bold" id="confirmServiceBtn">نعم، شغّل</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- EDIT CUSTOMER MODAL -->
     <div class="modal fade" id="editCustomerModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -1898,6 +1919,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260807"></script>
+    <script src="js/app.js?v=20260808"></script>
 </body>
 </html>
