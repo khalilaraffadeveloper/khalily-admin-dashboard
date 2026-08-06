@@ -159,6 +159,8 @@
 .badge-cancelled { background: #FFEBEE; color: #C62828; }
 
 /* ============ ACTION BUTTONS ============ */
+.recharge-thumb { height: 44px; width: auto; border-radius: 6px; cursor: pointer; border: 1px solid #dee2e6; transition: transform .15s ease; }
+.recharge-thumb:hover { transform: scale(1.6); transform-origin: center; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
 .btn-action { padding: 4px 10px; font-size: 12px; border-radius: 8px; font-weight: 600; }
 .btn-action-edit { background: #E3F2FD; color: #1565C0; border: none; }
 .btn-action-edit:hover { background: #BBDEFB; color: #0D47A1; }
