@@ -2473,7 +2473,7 @@ window.reLaunchRide = async function (rideId) {
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, rideId, r.passengerName || '', r.fare || 0, lat, lng, r.pickupAddress || '', r.dropoffAddress || '', radius, { notes: r.notes || '', voiceNote: r.voiceNote || '' }, r.dropoffLat || lat, r.dropoffLng || lng);
+                sendFCMNotifications(tokens, rideId, r.passengerName || '', r.fare || 0, lat, lng, r.pickupAddress || '', r.dropoffAddress || '', radius, { notes: r.notes || '', hasVoiceNote: r.voiceNote ? 'true' : '' }, r.dropoffLat || lat, r.dropoffLng || lng);
             }
             addNotifLog('dispatch', `إعادة إطلاق رحلة ${r.passengerName || ''}: ${r.pickupAddress || ''} → ${r.dropoffAddress || ''} | ${r.realDistanceKm || 0} كم | ${r.fare || 0} MRU | تنبيه ${nearby.length} سائق`);
             ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
@@ -2842,7 +2842,7 @@ window.dispatchDeliveryToDrivers = async function (id) {
                     pickupAddress: d.pickupAddress || d.senderDistrict || '',
                     dropoffAddress: d.dropoffAddress || d.receiverDistrict || '',
                     notes: d.notes || '',
-                    voiceNote: d.voiceNote || '',
+                    hasVoiceNote: d.voiceNote ? 'true' : '',
                     deliveryId: id,
                     deliveryPhase: 'at_sender'
                 }, dropLat, dropLng);
