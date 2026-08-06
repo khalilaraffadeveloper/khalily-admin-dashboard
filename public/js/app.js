@@ -972,6 +972,12 @@ window.quickAddCredit = async function (driverId) {
             credit: firebase.firestore.FieldValue.increment(amount)
         });
         ARAalert(`تم شحن ${amount} MRU بنجاح`, 'success');
+        notifyUser('drivers', driverId, {
+            type: 'credit_update',
+            title: 'تم شحن رصيدك',
+            body: `تمت إضافة ${amount} MRU إلى رصيدك`,
+            amount: String(amount)
+        });
         refreshDriverSearchResult();
         if (currentPage === 'drivers') loadDriversList();
     } catch (e) {
@@ -2452,25 +2458,41 @@ async function notifyUser(collectionName, docId, payload) {
     try {
         const snap = await db.collection(collectionName).doc(docId).get();
         if (!snap.exists) return;
-        const token = (snap.data() && snap.data().fcmToken) || '';
+        const docData = snap.data() || {};
+        const { title, body, ...data } = payload;
+        await db.collection('notifications').add({
+            userId: docId,
+            read: false,
+            type: data.type || 'generic',
+            title,
+            body,
+            amount: data.amount || '',
+            balance: data.balance || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        addNotifLog('system', `تمت كتابة إشعار لـ ${collectionName}: ${title}`);
+        const token = docData.fcmToken || '';
         if (!token) {
             addNotifLog('system', `لا يوجد رمز إشعارات لـ ${collectionName} (${docId})`);
             return;
         }
-        const { title, body, ...data } = payload;
-        const res = await fetch('/api/send-fcm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokens: [token], title, body, data })
-        });
-        const json = await res.json();
-        if (json.success) {
-            addNotifLog('system', `تم إرسال إشعار لـ ${collectionName}: ${title}`);
-        } else {
-            addNotifLog('system', `فشل إرسال إشعار (${json.error || 'unknown'})`);
+        try {
+            const res = await fetch('/api/send-fcm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokens: [token], title, body, data })
+            });
+            const json = await res.json();
+            if (json.success) {
+                addNotifLog('system', `تم إرسال إشعار لـ ${collectionName}: ${title}`);
+            } else {
+                addNotifLog('system', `فشل إرسال إشعار (${json.error || 'unknown'})`);
+            }
+        } catch (e) {
+            addNotifLog('system', `تعذر إرسال إشعار (${e.message})`);
         }
     } catch (e) {
-        addNotifLog('system', `تعذر إرسال إشعار (${e.message})`);
+        addNotifLog('system', `تعذر كتابة إشعار (${e.message})`);
     }
 }
 
