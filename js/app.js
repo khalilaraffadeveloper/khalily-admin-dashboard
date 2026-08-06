@@ -2582,7 +2582,7 @@ function renderDeliveriesList(deliveries) {
         const safeRecv = (d.receiverPhone || '').replace(/'/g, '');
         let actions = '';
         if (d.status === 'new') {
-            actions += `<button class="btn-action btn-action-credit" onclick="openDeliveryPriceModal('${d.id}','${safeName}','${safeRecv}')">إرسال السعر</button> `;
+            actions += `<button class="btn-action btn-action-credit" onclick="openDeliveryPriceModal('${d.id}')">إرسال السعر</button> `;
         }
         if (d.status === 'new' || d.status === 'price_sent') {
             actions += `<button class="btn-action btn-action-edit" onclick="setDeliveryStatus('${d.id}','accepted')">قبول (نشط)</button> `;
@@ -2602,7 +2602,7 @@ function renderDeliveriesList(deliveries) {
             <td><strong>${fmtNum(d.receiverPhone || '-')}</strong></td>
             <td class="d-none d-md-table-cell">${d.senderDistrict || fmtNum(d.senderPhone || '-')}</td>
             <td class="d-none d-md-table-cell">${d.receiverDistrict || '-'}</td>
-            <td class="d-none d-lg-table-cell" style="max-width:220px;">${escapeHtmlStr(d.notes) || '<span class="text-muted">-</span>'}</td>
+            <td class="d-none d-lg-table-cell" style="max-width:220px;">${d.voiceNote ? '<span class="badge bg-info text-dark me-1" title="يوجد تسجيل صوتي"><i class="bi bi-mic-fill"></i></span>' : ''}${escapeHtmlStr(d.notes) || '<span class="text-muted">-</span>'}</td>
             <td><strong class="text-gold">${price} MRU</strong></td>
             <td><span class="badge bg-${deliveryStatusColors[d.status] || 'secondary'}">${deliveryStatusLabels[d.status] || d.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
@@ -2611,13 +2611,61 @@ function renderDeliveriesList(deliveries) {
     }).join('');
 }
 
-window.openDeliveryPriceModal = function (id, customer, receiver) {
+window.openDeliveryPriceModal = function (id) {
+    const d = allDeliveries.find(x => x.id === id);
+    if (!d) return;
     document.getElementById('deliveryPriceId').value = id;
-    document.getElementById('deliveryPriceCustomer').textContent = customer;
-    document.getElementById('deliveryPriceReceiver').textContent = receiver;
+    document.getElementById('deliveryPriceCustomer').textContent = d.customerName || '-';
+    document.getElementById('deliveryPriceReceiver').textContent = d.receiverPhone || '-';
+    document.getElementById('deliveryPriceSender').textContent = d.senderDistrict || '-';
+    document.getElementById('deliveryPriceReceiverDistrict').textContent = d.receiverDistrict || '-';
+    document.getElementById('deliveryPricePickup').textContent = d.pickupAddress || d.senderDistrict || '-';
+    document.getElementById('deliveryPriceDropoff').textContent = d.dropoffAddress || d.receiverDistrict || '-';
+    document.getElementById('deliveryPriceNotes').textContent = d.notes || '-';
     document.getElementById('deliveryPriceValue').value = '';
+    const voice = d.voiceNote || '';
+    const voiceEl = document.getElementById('deliveryPriceVoice');
+    const voiceGroup = document.getElementById('deliveryPriceVoiceGroup');
+    const voiceBtn = document.getElementById('deliveryPriceVoiceBtn');
+    if (voiceEl && voiceGroup && voiceBtn) {
+        voiceEl.pause();
+        voiceEl.currentTime = 0;
+        voiceEl.src = voice;
+        voiceBtn.innerHTML = '<i class="bi bi-play-fill"></i> تشغيل';
+        voiceGroup.classList.toggle('d-none', !voice);
+    }
+    const sLat = parseFloat(d.senderLat), sLng = parseFloat(d.senderLng);
+    const dLat = parseFloat(d.dropoffLat ?? d.receiverLat), dLng = parseFloat(d.dropoffLng ?? d.receiverLng);
+    const mapLink = document.getElementById('deliveryPriceMapLink');
+    if (mapLink) {
+        if (isNaN(sLat) || isNaN(sLng) || isNaN(dLat) || isNaN(dLng)) {
+            mapLink.classList.add('d-none');
+        } else {
+            mapLink.classList.remove('d-none');
+            mapLink.href = `https://www.google.com/maps/dir/${sLat},${sLng}/${dLat},${dLng}`;
+        }
+    }
     bootstrap.Modal.getOrCreateInstance(document.getElementById('deliveryPriceModal')).show();
 };
+
+window.toggleDeliveryPriceVoice = function () {
+    const voiceEl = document.getElementById('deliveryPriceVoice');
+    const voiceBtn = document.getElementById('deliveryPriceVoiceBtn');
+    if (!voiceEl || !voiceBtn) return;
+    if (voiceEl.paused) {
+        voiceEl.play().then(() => {
+            voiceBtn.innerHTML = '<i class="bi bi-pause-fill"></i> إيقاف';
+        }).catch(() => {});
+    } else {
+        voiceEl.pause();
+        voiceBtn.innerHTML = '<i class="bi bi-play-fill"></i> تشغيل';
+    }
+};
+
+document.getElementById('deliveryPriceVoice')?.addEventListener('ended', () => {
+    const voiceBtn = document.getElementById('deliveryPriceVoiceBtn');
+    if (voiceBtn) voiceBtn.innerHTML = '<i class="bi bi-play-fill"></i> تشغيل';
+});
 
 document.getElementById('confirmDeliveryPriceBtn')?.addEventListener('click', async () => {
     const id = document.getElementById('deliveryPriceId').value;
