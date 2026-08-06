@@ -63,19 +63,19 @@ async function doLogin() {
                     const adminDoc = await db.collection('admins').where('authUid', '==', firebaseUser.uid).limit(1).get();
                     if (!adminDoc.empty) {
                         const data = adminDoc.docs[0].data();
-                        matched = { name: data.name || user, isFirebase: true, role: data.role || 'supervisor' };
+                        matched = { name: data.name || user, isFirebase: true, role: data.role || 'supervisor', permissions: data.permissions || [] };
                     } else {
                         // Check by username
                         const byUser = await db.collection('admins').where('username', '==', user).limit(1).get();
                         if (!byUser.empty) {
                             const data = byUser.docs[0].data();
-                            matched = { name: data.name || user, isFirebase: true, role: data.role || 'supervisor' };
+                            matched = { name: data.name || user, isFirebase: true, role: data.role || 'supervisor', permissions: data.permissions || [] };
                         } else {
-                            matched = { name: user, isFirebase: true, role: 'supervisor' };
+                            matched = { name: user, isFirebase: true, role: 'supervisor', permissions: [] };
                         }
                     }
                 } catch (e) {
-                    matched = { name: user, isFirebase: true, role: 'supervisor' };
+                    matched = { name: user, isFirebase: true, role: 'supervisor', permissions: [] };
                 }
             }
         } catch (authErr) {
@@ -94,7 +94,7 @@ async function doLogin() {
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 const data = doc.data();
-                matched = { username: user, name: data.name || user, role: data.role || 'supervisor' };
+                matched = { username: user, name: data.name || user, role: data.role || 'supervisor', permissions: data.permissions || [] };
                 // Migrate to Firebase Auth
                 if (auth) {
                     try {
@@ -126,6 +126,8 @@ async function doLogin() {
         sessionStorage.setItem('ARAVA_admin_logged_in', 'true');
         sessionStorage.setItem('ARAVA_admin_name', matched.name || matched.username || user);
         sessionStorage.setItem('ARAVA_admin_role', matched.role || 'supervisor');
+        sessionStorage.setItem('ARAVA_admin_perms', JSON.stringify(matched.permissions || []));
+        sessionStorage.setItem('ARAVA_admin_username', matched.username || matched.name || user);
         window.location.href = 'dashboard.html';
     } else {
         if (auth) {

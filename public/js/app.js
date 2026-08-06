@@ -34,6 +34,8 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     sessionStorage.removeItem('ARAVA_admin_logged_in');
     sessionStorage.removeItem('ARAVA_admin_name');
     sessionStorage.removeItem('ARAVA_admin_role');
+    sessionStorage.removeItem('ARAVA_admin_perms');
+    sessionStorage.removeItem('ARAVA_admin_username');
     try { firebase.auth().signOut(); } catch (e) {}
     window.location.href = 'index.html';
 });
@@ -65,6 +67,102 @@ function requireDb(caller) {
         return false;
     }
     return true;
+}
+
+// ============================================
+// PERMISSIONS (صلاحيات المهام للمشرفين)
+// ============================================
+const PERMISSION_KEYS = {
+    map: 'الخريطة المباشرة',
+    reports: 'التقارير والإحصائيات',
+    drivers: 'إدارة السائقين (عرض)',
+    drivers_add: 'تسجيل سائق جديد',
+    drivers_edit: 'تعديل بيانات السائقين',
+    drivers_delete: 'حذف سائق',
+    drivers_service: 'التحكم بالخدمة عن بُعد',
+    drivers_credit: 'شحن وتعديل رصيد السائق',
+    customers: 'إدارة الزبائن (عرض)',
+    customers_add: 'تسجيل زبون جديد',
+    customers_edit: 'تعديل بيانات الزبائن',
+    customers_delete: 'حذف زبون',
+    customers_credit: 'شحن وتعديل رصيد الزبون',
+    recharge_approve: 'الموافقة على طلبات الشحن',
+    deliveries: 'طلبات التوصيل',
+    rides: 'سجل الرحلات',
+    unregistered: 'الزبناء غير المسجلين',
+    devices: 'الأجهزة',
+    messages: 'الرسائل',
+    announcements: 'إعلانات السائقين',
+    customer_announcements: 'إعلانات الزبائن',
+    promotions: 'العروض والنشاطات',
+    products: 'المتجر والمنتجات',
+    stores: 'المتاجر الذكية',
+    ladies: 'متجر السيدات',
+    settings: 'الإعدادات',
+    admins: 'إدارة المشرفين'
+};
+
+const PAGE_PERM = {
+    map: 'map', reports: 'reports', drivers: 'drivers', customers: 'customers',
+    'unregistered-customers': 'unregistered', devices: 'devices', deliveries: 'deliveries',
+    rides: 'rides', settings: 'settings', messages: 'messages', announcements: 'announcements',
+    'customer-announcements': 'customer_announcements', admins: 'admins', promotions: 'promotions',
+    products: 'products', stores: 'stores', ladies: 'ladies'
+};
+
+const ALL_PERMISSIONS = Object.keys(PERMISSION_KEYS);
+
+function adminRole() {
+    return sessionStorage.getItem('ARAVA_admin_role') || 'admin';
+}
+
+function adminPermissions() {
+    if (adminRole() === 'admin') return ALL_PERMISSIONS.slice();
+    let p = [];
+    try { p = JSON.parse(sessionStorage.getItem('ARAVA_admin_perms') || '[]'); } catch (e) { p = []; }
+    if (!Array.isArray(p) || p.length === 0) return ALL_PERMISSIONS.slice();
+    return p;
+}
+
+function canPerm(perm) {
+    return adminPermissions().indexOf(perm) !== -1;
+}
+
+function guardPerm(perm, msg) {
+    if (canPerm(perm)) return true;
+    ARAalert(msg || 'ليست لديك صلاحية لتنفيذ هذا الإجراء', 'warning');
+    return false;
+}
+
+function buildPermCheckboxes(containerId, selectedArr) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = ALL_PERMISSIONS.map(k => {
+        const checked = (selectedArr || []).indexOf(k) !== -1 ? ' checked' : '';
+        return `<div class="col-md-4 col-6">
+            <div class="form-check">
+                <input class="form-check-input perm-cb" type="checkbox" value="${k}" id="${containerId}_${k}"${checked}>
+                <label class="form-check-label small" for="${containerId}_${k}">${PERMISSION_KEYS[k]}</label>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function collectPerms(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('.perm-cb:checked')).map(cb => cb.value);
+}
+
+function togglePermsPanel(role, wrapId, containerId, selectedArr) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    if (role === 'admin') {
+        wrap.style.display = 'none';
+    } else {
+        wrap.style.display = '';
+        buildPermCheckboxes(containerId, selectedArr || []);
+    }
 }
 
 // ============================================
@@ -517,6 +615,10 @@ const pageTitles = {
 };
 
 function navigateToPage(page) {
+    if (PAGE_PERM[page] && !canPerm(PAGE_PERM[page])) {
+        ARAalert('ليست لديك صلاحية للوصول إلى هذه الصفحة', 'warning');
+        return;
+    }
     document.querySelectorAll('.sidebar-link').forEach(n => n.classList.remove('active'));
     document.querySelectorAll(`.sidebar-link[data-page="${page}"]`).forEach(n => n.classList.add('active'));
     document.querySelectorAll('.page-content').forEach(p => p.classList.add('d-none'));
@@ -941,6 +1043,9 @@ function renderDriverSearchResult(id, d) {
     if (!resultEl) return;
     const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const disabled = !!d.disabled;
+    const canEdit = canPerm('drivers_edit');
+    const canCredit = canPerm('drivers_credit');
+    const canDel = canPerm('drivers_delete');
     resultEl.innerHTML = `
         <div class="bg-light rounded-3 p-3">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -951,20 +1056,21 @@ function renderDriverSearchResult(id, d) {
                 <span class="badge ${disabled ? 'bg-danger' : 'bg-success'}">${disabled ? 'معطّل' : 'مفعّل'}</span>
             </div>
             <div class="d-flex gap-1 flex-wrap mt-2">
-                <button class="btn-action btn-action-edit" onclick="openEditModal('${id}','${safeName}','${d.phone||''}','${disabled?"disabled":"active"}')">تعديل</button>
-                <button class="btn-action btn-action-credit" onclick="openCreditModal('${id}','${safeName}',${d.credit||0})">شحن</button>
-                <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
-                <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${id}',${disabled})">${disabled ? 'تفعيل' : 'تعطيل'}</button>
-                <button class="btn-action btn-action-delete" onclick="openDeleteModal('${id}','${safeName}')">حذف</button>
+                ${canEdit ? `<button class="btn-action btn-action-edit" onclick="openEditModal('${id}','${safeName}','${d.phone||''}','${disabled?"disabled":"active"}')">تعديل</button>` : ''}
+                ${canCredit ? `<button class="btn-action btn-action-credit" onclick="openCreditModal('${id}','${safeName}',${d.credit||0})">شحن</button>` : ''}
+                ${canCredit ? `<button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>` : ''}
+                ${canEdit ? `<button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${id}',${disabled})">${disabled ? 'تفعيل' : 'تعطيل'}</button>` : ''}
+                ${canDel ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('${id}','${safeName}')">حذف</button>` : ''}
             </div>
-            <div class="input-group input-group-sm mt-2" style="max-width:280px">
+            ${canCredit ? `<div class="input-group input-group-sm mt-2" style="max-width:280px">
                 <input type="text" class="form-control" id="quickCreditAmount" placeholder="المبلغ (MRU)" inputmode="numeric">
                 <button class="btn btn-success text-white fw-bold" onclick="quickAddCredit('${id}')">شحن سريع</button>
-            </div>
+            </div>` : ''}
         </div>`;
 }
 
 window.quickAddCredit = async function (driverId) {
+    if (!guardPerm('drivers_credit', 'ليست لديك صلاحية شحن الرصيد')) return;
     const amount = parseNum(document.getElementById('quickCreditAmount').value);
     if (!amount || amount <= 0) { ARAalert('أدخل مبلغ صحيح', 'warning'); return; }
     try {
@@ -1082,6 +1188,7 @@ function initRealtimeListeners() {
 document.getElementById('registerDriverBtn').addEventListener('click', async () => {
     const statusEl = 'registerDriverStatus';
     if (!requireDb(statusEl)) return;
+    if (!guardPerm('drivers_add', 'ليست لديك صلاحية تسجيل سائقين')) return;
     const name = document.getElementById('newDriverName').value.trim();
     const phone = document.getElementById('newDriverPhone').value.trim();
     const password = document.getElementById('newDriverPassword').value.trim();
@@ -1152,20 +1259,24 @@ function renderDriversList(drivers) {
         const label = d.disabled ? 'معطّل' : (d.isOnline ? 'متاح' : 'غير متاح');
         const badgeClass = `badge bg-${status === 'online' ? 'success' : status === 'disabled' ? 'danger' : 'secondary'}`;
         const safeName = (d.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const canEdit = canPerm('drivers_edit');
+        const canCredit = canPerm('drivers_credit');
+        const canDel = canPerm('drivers_delete');
+        const canService = canPerm('drivers_service');
         return `<tr>
             <td><strong>${d.name || '-'}</strong></td>
             <td><span dir="ltr">${d.phone || '-'}</span></td>
-            <td><span class="text-muted">${d.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPasswordModal('${d.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
+            <td><span class="text-muted">${d.password ? '••••' : '-'}</span> ${canEdit ? `<button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPasswordModal('${d.id}','${safeName}')"><i class="bi bi-key"></i></button>` : ''}</td>
             <td><strong>${d.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
             <td>
                 <div class="d-flex gap-1 flex-wrap">
-                    <button class="btn-action btn-action-edit" onclick="openEditModal('${d.id}','${safeName}','${d.phone||''}','${d.disabled?"disabled":"active"}')">تعديل</button>
-                    <button class="btn-action btn-action-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>
-                    <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${d.id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>
-                    <button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>
-                    ${d.disabled ? '' : `<button class="btn-action ${d.isOnline ? 'btn-action-delete' : 'btn-action-on'}" onclick="toggleDriverService('${d.id}','${safeName}',${!d.isOnline})">${d.isOnline ? 'إيقاف الخدمة' : 'تشغيل الخدمة'}</button>`}
-                    <button class="btn-action btn-action-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>
+                    ${canEdit ? `<button class="btn-action btn-action-edit" onclick="openEditModal('${d.id}','${safeName}','${d.phone||''}','${d.disabled?"disabled":"active"}')">تعديل</button>` : ''}
+                    ${canCredit ? `<button class="btn-action btn-action-credit" onclick="openCreditModal('${d.id}','${safeName}',${d.credit||0})">شحن</button>` : ''}
+                    ${canCredit ? `<button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCreditModal('${d.id}','${safeName}',${d.credit||0})">تعديل الرصيد</button>` : ''}
+                    ${canEdit ? `<button class="btn-action btn-action-toggle" onclick="toggleDriverStatus('${d.id}',${d.disabled||false})">${d.disabled ? 'تفعيل' : 'تعطيل'}</button>` : ''}
+                    ${canService && !d.disabled ? `<button class="btn-action ${d.isOnline ? 'btn-action-delete' : 'btn-action-on'}" onclick="toggleDriverService('${d.id}','${safeName}',${!d.isOnline})">${d.isOnline ? 'إيقاف الخدمة' : 'تشغيل الخدمة'}</button>` : ''}
+                    ${canDel ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('${d.id}','${safeName}')">حذف</button>` : ''}
                 </div>
             </td>
         </tr>`;
@@ -1202,6 +1313,7 @@ function openServiceConfirm(title, text, hint, on, action) {
 
 async function setServiceForAll(on) {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_service', 'ليست لديك صلاحية التحكم بالخدمة')) return;
     const statusEl = document.getElementById('serviceStatus');
     const notify = document.getElementById('serviceNotifyDrivers').checked;
     statusEl.className = 'text-primary fw-semibold mt-2';
@@ -1234,6 +1346,7 @@ async function setServiceForAll(on) {
 
 async function toggleDriverService(id, name, on) {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_service', 'ليست لديك صلاحية التحكم بالخدمة')) return;
     const notify = document.getElementById('serviceNotifyDrivers').checked;
     const label = on ? 'تشغيل الخدمة' : 'إيقاف الخدمة';
     const text = `هل أنت متأكد من <strong>${on ? 'تشغيل' : 'إيقاف'}</strong> الخدمة للسائق <strong>«${name}»</strong>؟`;
@@ -1243,6 +1356,7 @@ async function toggleDriverService(id, name, on) {
 
 document.getElementById('confirmServiceBtn').addEventListener('click', async () => {
     if (!requireDb() || !pendingServiceAction) return;
+    if (!guardPerm('drivers_service', 'ليست لديك صلاحية التحكم بالخدمة')) return;
     const action = pendingServiceAction;
     const notify = document.getElementById('serviceNotifyDrivers').checked;
     const statusEl = document.getElementById('serviceStatus');
@@ -1414,20 +1528,23 @@ function renderCustomersList(customers) {
         const label = c.isOnline ? 'متصل' : 'غير متصل';
         const badgeClass = `badge bg-${status === 'online' ? 'success' : 'secondary'}`;
         const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const canEditC = canPerm('customers_edit');
+        const canCreditC = canPerm('customers_credit');
+        const canDelC = canPerm('customers_delete');
         return `<tr>
             <td><strong>${c.name || '-'}</strong></td>
             <td><span dir="ltr">${c.phone || '-'}</span></td>
             <td><span dir="ltr">${c.whatsapp || '-'}</span></td>
-            <td><span class="text-muted">${c.password ? '••••' : '-'}</span> <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openCustomerPasswordModal('${c.id}','${safeName}')"><i class="bi bi-key"></i></button></td>
+            <td><span class="text-muted">${c.password ? '••••' : '-'}</span> ${canEditC ? `<button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openCustomerPasswordModal('${c.id}','${safeName}')"><i class="bi bi-key"></i></button>` : ''}</td>
             <td><strong>${c.credit || 0}</strong> MRU</td>
             <td><span class="${badgeClass}">${label}</span></td>
             <td>${c.totalRides || 0}</td>
             <td>
                 <div class="d-flex gap-1 flex-wrap">
-                    <button class="btn-action btn-action-edit" onclick="openEditCustomerModal('${c.id}','${safeName}','${c.phone||''}','${c.whatsapp||''}')">تعديل</button>
-                    <button class="btn-action btn-action-credit" onclick="openCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">شحن</button>
-                    <button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">تعديل الرصيد</button>
-                    <button class="btn-action btn-action-delete" onclick="openDeleteCustomerModal('${c.id}','${safeName}')">حذف</button>
+                    ${canEditC ? `<button class="btn-action btn-action-edit" onclick="openEditCustomerModal('${c.id}','${safeName}','${c.phone||''}','${c.whatsapp||''}')">تعديل</button>` : ''}
+                    ${canCreditC ? `<button class="btn-action btn-action-credit" onclick="openCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">شحن</button>` : ''}
+                    ${canCreditC ? `<button class="btn-action btn-action-edit" style="background:#fff3cd;border-color:#ffc107;color:#856404" onclick="openEditCustomerCreditModal('${c.id}','${safeName}',${c.credit||0})">تعديل الرصيد</button>` : ''}
+                    ${canDelC ? `<button class="btn-action btn-action-delete" onclick="openDeleteCustomerModal('${c.id}','${safeName}')">حذف</button>` : ''}
                 </div>
             </td>
         </tr>`;
@@ -1456,6 +1573,7 @@ function filterCustomers() {
 document.getElementById('registerCustomerBtn').addEventListener('click', async () => {
     const statusEl = 'registerCustomerStatus';
     if (!requireDb(statusEl)) return;
+    if (!guardPerm('customers_add', 'ليست لديك صلاحية تسجيل زبائن')) return;
     const name = document.getElementById('newCustomerName').value.trim();
     const phone = document.getElementById('newCustomerPhone').value.trim();
     const whatsapp = document.getElementById('newCustomerWhatsapp').value.trim();
@@ -1508,6 +1626,7 @@ const editCustomerCreditModal = new bootstrap.Modal(document.getElementById('edi
 const editAdminModal = new bootstrap.Modal(document.getElementById('editAdminModal'));
 
 window.openPasswordModal = function(id, name) {
+    if (!guardPerm('drivers_edit', 'ليست لديك صلاحية تغيير كلمة سر السائق')) return;
     document.getElementById('passwordDriverId').value = id;
     document.getElementById('passwordDriverName').textContent = name;
     document.getElementById('newPasswordValue').value = '';
@@ -1536,6 +1655,7 @@ window.openEditCreditModal = function(id, name, current) {
 
 document.getElementById('confirmEditCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_credit', 'ليست لديك صلاحية تعديل رصيد السائق')) return;
     const id = document.getElementById('editCreditDriverId').value;
     const newVal = parseNum(document.getElementById('editCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
@@ -1565,6 +1685,7 @@ window.openEditModal = function(id, name, phone, status) {
 
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_edit', 'ليست لديك صلاحية تعديل بيانات السائقين')) return;
     const id = document.getElementById('editDriverId').value;
     const name = document.getElementById('editDriverName').value.trim();
     const phone = document.getElementById('editDriverPhone').value.trim();
@@ -1595,6 +1716,7 @@ window.openCreditModal = function(id, name, current) {
 
 document.getElementById('confirmCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_credit', 'ليست لديك صلاحية شحن الرصيد')) return;
     const id = document.getElementById('creditDriverId').value;
     const amount = parseNum(document.getElementById('creditAmount').value);
     if (!amount || amount <= 0) return;
@@ -1617,6 +1739,7 @@ document.getElementById('confirmCreditBtn').addEventListener('click', async () =
 
 window.toggleDriverStatus = async function(id, currentlyDisabled) {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_edit', 'ليست لديك صلاحية تعطيل/تفعيل السائقين')) return;
     try {
         await db.collection('drivers').doc(id).update({ disabled: !currentlyDisabled, isOnline: false });
         loadDriversList();
@@ -1632,6 +1755,7 @@ window.openDeleteModal = function(id, name) {
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('drivers_delete', 'ليست لديك صلاحية حذف السائقين')) return;
     const id = document.getElementById('deleteDriverId').value;
     try {
         await db.collection('drivers').doc(id).delete();
@@ -1650,6 +1774,7 @@ window.openCustomerPasswordModal = function(id, name) {
 
 document.getElementById('saveCustomerPasswordBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('customers_edit', 'ليست لديك صلاحية تغيير كلمة سر الزبون')) return;
     const id = document.getElementById('customerPasswordId').value;
     const newPass = document.getElementById('newCustomerPasswordValue').value.trim();
     if (!newPass) { ARAalert('أدخل كلمة السر الجديدة', 'warning'); return; }
@@ -1670,6 +1795,7 @@ window.openEditCustomerCreditModal = function(id, name, current) {
 
 document.getElementById('confirmEditCustomerCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('customers_credit', 'ليست لديك صلاحية تعديل رصيد الزبون')) return;
     const id = document.getElementById('editCustomerCreditId').value;
     const newVal = parseNum(document.getElementById('editCustomerCreditNewValue').value);
     if (newVal === null || newVal === undefined || isNaN(newVal) || newVal < 0) {
@@ -1698,6 +1824,7 @@ window.openEditCustomerModal = function(id, name, phone, whatsapp) {
 
 document.getElementById('saveEditCustomerBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('customers_edit', 'ليست لديك صلاحية تعديل بيانات الزبائن')) return;
     const id = document.getElementById('editCustomerId').value;
     const name = document.getElementById('editCustomerName').value.trim();
     const phone = document.getElementById('editCustomerPhone').value.trim();
@@ -1720,6 +1847,7 @@ window.openCustomerCreditModal = function(id, name, current) {
 
 document.getElementById('confirmCustomerCreditBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('customers_credit', 'ليست لديك صلاحية شحن رصيد الزبون')) return;
     const id = document.getElementById('customerCreditId').value;
     const amount = parseFloat(document.getElementById('customerCreditAmount').value);
     if (!amount || amount <= 0) return;
@@ -1747,6 +1875,7 @@ window.openDeleteCustomerModal = function(id, name) {
 
 document.getElementById('confirmDeleteCustomerBtn').addEventListener('click', async () => {
     if (!requireDb()) return;
+    if (!guardPerm('customers_delete', 'ليست لديك صلاحية حذف الزبائن')) return;
     const id = document.getElementById('deleteCustomerId').value;
     try {
         await db.collection('customers').doc(id).delete();
@@ -1811,6 +1940,7 @@ async function loadRechargeRequests() {
 
 window.approveRechargeRequest = async function(requestId, customerId, amount) {
     if (!requireDb()) return;
+    if (!guardPerm('recharge_approve', 'ليست لديك صلاحية الموافقة على طلبات الشحن')) return;
     if (!customerId || !amount || amount <= 0) { ARAalert('بيانات الطلب ناقصة', 'warning'); return; }
     if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد الزبون. تأكيد؟`))) return;
     try {
@@ -1833,6 +1963,7 @@ window.approveRechargeRequest = async function(requestId, customerId, amount) {
 
 window.rejectRechargeRequest = async function(requestId) {
     if (!requireDb()) return;
+    if (!guardPerm('recharge_approve', 'ليست لديك صلاحية رفض طلبات الشحن')) return;
     if (!(await ARAconfirm('سيتم رفض طلب الشحن. تأكيد؟'))) return;
     try {
         await db.collection('recharge_requests').doc(requestId).update({
@@ -3147,6 +3278,15 @@ async function loadAdminsList() {
 
 let editingAdminData = null;
 
+document.getElementById('newAdminRole')?.addEventListener('change', function () {
+    togglePermsPanel(this.value, 'newAdminPermsWrap', 'newAdminPerms', []);
+});
+
+document.getElementById('editAdminRole')?.addEventListener('change', function () {
+    const selected = collectPerms('editAdminPerms');
+    togglePermsPanel(this.value, 'editAdminPermsWrap', 'editAdminPerms', selected);
+});
+
 window.openEditAdminModal = function (id, name, username, role) {
     editingAdminData = null;
     document.getElementById('editAdminId').value = id;
@@ -3155,9 +3295,16 @@ window.openEditAdminModal = function (id, name, username, role) {
     document.getElementById('editAdminRole').value = role || 'supervisor';
     document.getElementById('editAdminPassword').value = '';
     document.getElementById('editAdminStatus').textContent = '';
+    togglePermsPanel(role || 'supervisor', 'editAdminPermsWrap', 'editAdminPerms', []);
     editAdminModal.show();
     db.collection('admins').doc(id).get().then(snap => {
-        if (snap.exists) editingAdminData = { id: snap.id, ...snap.data() };
+        if (snap.exists) {
+            const data = { id: snap.id, ...snap.data() };
+            editingAdminData = data;
+            const perms = Array.isArray(data.permissions) ? data.permissions : [];
+            togglePermsPanel(data.role || 'supervisor', 'editAdminPermsWrap', 'editAdminPerms', perms);
+            document.getElementById('editAdminRole').value = data.role || 'supervisor';
+        }
     }).catch(() => {});
 };
 
@@ -3166,10 +3313,12 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
     const id = document.getElementById('editAdminId').value;
     const name = document.getElementById('editAdminName').value.trim();
     const role = document.getElementById('editAdminRole').value;
+    const permissions = role === 'admin' ? ALL_PERMISSIONS.slice() : collectPerms('editAdminPerms');
     const newPass = document.getElementById('editAdminPassword').value;
     const statusEl = document.getElementById('editAdminStatus');
     if (!name) { statusEl.textContent = 'أدخل الاسم الكامل'; statusEl.className = 'fw-semibold text-danger'; return; }
     if (newPass && newPass.length < 6) { statusEl.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'; statusEl.className = 'fw-semibold text-danger'; return; }
+    if (!guardPerm('admins', 'ليست لديك صلاحية إدارة المشرفين')) return;
 
     try {
         const target = editingAdminData || (await db.collection('admins').doc(id).get()).data();
@@ -3186,7 +3335,7 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
             }
         }
 
-        await db.collection('admins').doc(id).update({ name, role });
+        await db.collection('admins').doc(id).update({ name, role, permissions });
         let passwordMsg = '';
         if (newPass) {
             if (target.authUid) {
@@ -3207,6 +3356,13 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
                 passwordMsg = ' وتحديث كلمة المرور';
             }
         }
+        const currentUser = firebase.auth().currentUser;
+        if (target.authUid && currentUser && currentUser.uid === target.authUid) {
+            sessionStorage.setItem('ARAVA_admin_role', role);
+            sessionStorage.setItem('ARAVA_admin_perms', JSON.stringify(permissions));
+            sessionStorage.setItem('ARAVA_admin_name', name);
+            applyRoleVisibility();
+        }
         statusEl.className = 'fw-semibold text-success';
         statusEl.textContent = `تم حفظ تعديلات المشرف بنجاح${passwordMsg}`;
         setTimeout(() => { editAdminModal.hide(); }, 900);
@@ -3219,10 +3375,12 @@ document.getElementById('saveEditAdminBtn').addEventListener('click', async () =
 
 window.addAdmin = async function () {
     if (!requireDb('addAdminStatus')) return;
+    if (!guardPerm('admins', 'ليست لديك صلاحية إدارة المشرفين')) return;
     const username = document.getElementById('newAdminUsername').value.trim();
     const name = document.getElementById('newAdminName').value.trim();
     const password = document.getElementById('newAdminPassword').value.trim();
     const role = document.getElementById('newAdminRole').value;
+    const permissions = role === 'admin' ? ALL_PERMISSIONS.slice() : collectPerms('newAdminPerms');
 
     if (!username) { showStatus('addAdminStatus', 'أدخل اسم المستخدم', 'error'); return; }
     if (!name) { showStatus('addAdminStatus', 'أدخل الاسم الكامل', 'error'); return; }
@@ -3248,7 +3406,7 @@ window.addAdmin = async function () {
         }
 
         await db.collection('admins').add({
-            username, name, password, role,
+            username, name, password, role, permissions,
             authUid: authUid,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -3256,6 +3414,7 @@ window.addAdmin = async function () {
         document.getElementById('newAdminUsername').value = '';
         document.getElementById('newAdminName').value = '';
         document.getElementById('newAdminPassword').value = '';
+        if (document.getElementById('newAdminRole').value === 'supervisor') buildPermCheckboxes('newAdminPerms', []);
         loadAdminsList();
     } catch (err) {
         showStatus('addAdminStatus', 'خطأ: ' + err.message, 'error');
@@ -3263,6 +3422,7 @@ window.addAdmin = async function () {
 };
 
 window.deleteAdmin = async function (id, name) {
+    if (!guardPerm('admins', 'ليست لديك صلاحية إدارة المشرفين')) return;
     if (!(await ARAconfirm(`هل أنت متأكد من حذف المشرف "${name}"؟`))) return;
     if (!requireDb()) return;
 
@@ -3296,10 +3456,22 @@ window.deleteAdmin = async function (id, name) {
 // ROLE-BASED VISIBILITY
 // ============================================
 function applyRoleVisibility() {
-    const role = sessionStorage.getItem('ARAVA_admin_role') || 'admin';
+    const role = adminRole();
     document.querySelectorAll('.admin-only').forEach(el => {
         el.style.display = role === 'admin' ? '' : 'none';
     });
+    document.querySelectorAll('[data-perm]').forEach(el => {
+        el.style.display = canPerm(el.dataset.perm) ? '' : 'none';
+    });
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        const page = link.dataset.page;
+        const req = PAGE_PERM[page];
+        link.style.display = (req && canPerm(req)) ? '' : 'none';
+    });
+    const nameEl = document.getElementById('adminName');
+    if (nameEl) nameEl.textContent = sessionStorage.getItem('ARAVA_admin_name') || '';
+    const roleEl = document.getElementById('adminRoleLabel');
+    if (roleEl) roleEl.textContent = role === 'admin' ? 'مدير عام' : 'مشرف';
 }
 
 // ============================================
