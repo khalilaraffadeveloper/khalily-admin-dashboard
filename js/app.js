@@ -1947,18 +1947,28 @@ async function loadRechargeRequests() {
                     const time = r.createdAt && r.createdAt.toDate
                         ? r.createdAt.toDate().toLocaleString('ar-MA')
                         : '-';
-                    const name = (r.customerName || 'زبون').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const isDriver = r.role === 'driver';
+                    const name = (isDriver ? r.driverName : r.customerName) || '—';
+                    const phone = (isDriver ? r.driverPhone : r.customerPhone) || '-';
+                    const safeName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const typeBadge = isDriver
+                        ? '<span class="badge bg-info text-white">سائق</span>'
+                        : '<span class="badge bg-secondary text-white">زبون</span>';
+                    const thumb = r.screenshotBase64
+                        ? `<img src="data:image/jpeg;base64,${r.screenshotBase64}" class="recharge-thumb" onclick="openImageModal(this)" title="عرض لقطة الشاشة">`
+                        : '<span class="text-muted small">لا توجد</span>';
                     let actions = '';
                     if (r.status === 'pending') {
-                        actions = `<button class="btn-action btn-action-edit" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}',${r.amount||0})">قبول</button>
+                        actions = `<button class="btn-action btn-action-edit" onclick="approveRechargeRequest('${d.id}','${r.customerId||''}','${r.driverId||''}','${r.role||'customer'}',${r.amount||0})">قبول</button>
                                    <button class="btn-action btn-action-delete" onclick="rejectRechargeRequest('${d.id}')">رفض</button>`;
                     } else {
                         actions = '<span class="text-muted small">تمت المعالجة</span>';
                     }
                     return `<tr>
-                        <td><strong>${name}</strong></td>
-                        <td><span dir="ltr">${r.customerPhone || '-'}</span></td>
-                        <td><strong>${r.amount || 0}</strong> MRU</td>
+                        <td><strong>${safeName}</strong><br>${typeBadge}</td>
+                        <td><span dir="ltr">${phone}</span></td>
+                        <td><strong>${r.amount || 0}</strong> MRU<br><small class="text-muted">${r.walletName || '—'}</small></td>
+                        <td>${thumb}</td>
                         <td class="small text-muted">${time}</td>
                         <td><span class="${badgeCls[r.status] || 'badge bg-secondary'}">${labels[r.status] || r.status}</span></td>
                         <td><div class="d-flex gap-1 flex-wrap">${actions}</div></td>
@@ -1974,20 +1984,31 @@ async function loadRechargeRequests() {
     }
 }
 
-window.approveRechargeRequest = async function(requestId, customerId, amount) {
+window.openImageModal = function (imgEl) {
+    const modal = document.getElementById('imageViewerModal');
+    if (!modal || !imgEl) return;
+    document.getElementById('imageViewerImg').src = imgEl.src;
+    const bs = bootstrap.Modal.getOrCreateInstance(modal);
+    bs.show();
+};
+
+window.approveRechargeRequest = async function(requestId, customerId, driverId, role, amount) {
     if (!requireDb()) return;
     if (!guardPerm('recharge_approve', 'ليست لديك صلاحية الموافقة على طلبات الشحن')) return;
-    if (!customerId || !amount || amount <= 0) { ARAalert('بيانات الطلب ناقصة', 'warning'); return; }
-    if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد الزبون. تأكيد؟`))) return;
+    if (!amount || amount <= 0) { ARAalert('بيانات الطلب ناقصة', 'warning'); return; }
+    const isDriver = role === 'driver';
+    const targetId = isDriver ? driverId : customerId;
+    if (!targetId) { ARAalert('بيانات الطلب ناقصة', 'warning'); return; }
+    if (!(await ARAconfirm(`سيتم إضافة ${amount} MRU إلى رصيد ${isDriver ? 'السائق' : 'الزبون'}. تأكيد؟`))) return;
     try {
-        await db.collection('customers').doc(customerId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
+        await db.collection(isDriver ? 'drivers' : 'customers').doc(targetId).update({ credit: firebase.firestore.FieldValue.increment(amount) });
         await db.collection('recharge_requests').doc(requestId).update({
             status: 'approved',
             processedAt: firebase.firestore.FieldValue.serverTimestamp(),
             processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
         });
-        loadCustomersList();
-        notifyUser('customers', customerId, {
+        if (isDriver) loadDriversList(); else loadCustomersList();
+        notifyUser(isDriver ? 'drivers' : 'customers', targetId, {
             type: 'credit_update',
             title: 'تم شحن رصيدك',
             body: `تم قبول طلب الشحن وإضافة ${amount} MRU إلى رصيدك`,
