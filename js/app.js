@@ -2240,14 +2240,33 @@ window.approveRechargeRequest = async function(requestId, customerId, driverId, 
 window.rejectRechargeRequest = async function(requestId) {
     if (!requireDb()) return;
     if (!guardPerm('recharge_approve', 'ليست لديك صلاحية رفض طلبات الشحن')) return;
-    if (!(await ARAconfirm('سيتم رفض طلب الشحن. تأكيد؟'))) return;
+    const reason = prompt('أدخل سبب الرفض (سيصل للزبون/السائق):');
+    if (reason === null) return;
+    if (!(await ARAconfirm('سيتم رفض طلب الشحن وإرسال السبب للزبون. تأكيد؟'))) return;
     try {
+        const reqDoc = await db.collection('recharge_requests').doc(requestId).get();
+        if (!reqDoc.exists) { ARAalert('الطلب غير موجود', 'error'); return; }
+        const reqData = reqDoc.data() || {};
+        const isDriver = reqData.role === 'driver';
+        const targetId = isDriver ? reqData.driverId : reqData.customerId;
+        const amount = reqData.amount || 0;
         await db.collection('recharge_requests').doc(requestId).update({
             status: 'rejected',
+            rejectionReason: reason,
             processedAt: firebase.firestore.FieldValue.serverTimestamp(),
             processedBy: (firebase.auth().currentUser && firebase.auth().currentUser.email) || 'admin'
         });
-        ARAalert('تم رفض الطلب', 'info');
+        if (targetId) {
+            await notifyUser(isDriver ? 'drivers' : 'customers', targetId, {
+                type: 'recharge_rejected',
+                title: 'تم رفض طلب الشحن',
+                body: `تم رفض طلب شحن ${amount} MRU. السبب: ${reason}`,
+                amount: String(amount),
+                rejectionReason: reason
+            });
+        }
+        if (isDriver) loadDriversList(); else loadCustomersList();
+        ARAalert('تم رفض الطلب وإرسال السبب', 'info');
     } catch (err) { console.error('Reject recharge error:', err); ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
