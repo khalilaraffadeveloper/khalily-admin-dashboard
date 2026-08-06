@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260808" />
+    <link rel="stylesheet" href="css/style.css?v=20260809" />
 </head>
 <body class="bg-light">
 
@@ -108,6 +108,9 @@
                     </a>
                     <a href="#" class="sidebar-link" data-page="customers" data-bs-dismiss="offcanvas">
                         <i class="bi bi-person-badge-fill"></i> إدارة الزبائن
+                    </a>
+                    <a href="#" class="sidebar-link" data-page="devices" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-phone-fill"></i> الأجهزة
                     </a>
             <a href="#" class="sidebar-link" data-page="unregistered-customers" data-bs-dismiss="offcanvas">
                 <i class="bi bi-person-x-fill"></i> الزبناء غير المسجلين
@@ -551,6 +554,74 @@
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DEVICES PAGE -->
+        <div class="page-content d-none" id="page-devices">
+            <div class="container-fluid p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark-blue"><i class="bi bi-phone-fill me-2 text-gold"></i>الأجهزة المستخدمة للتطبيق</h6>
+                                <button class="btn btn-sm btn-outline-dark-blue" onclick="loadDevices()"><i class="bi bi-arrow-clockwise me-1"></i>تحديث</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-3 col-6">
+                                        <div class="card border-0 shadow-sm text-center p-3 h-100">
+                                            <div class="text-dark-blue fw-bold fs-2" id="devTotalCount">–</div>
+                                            <div class="text-muted small">إجمالي الأجهزة</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <div class="card border-0 shadow-sm text-center p-3 h-100">
+                                            <div class="text-success fw-bold fs-2" id="devDriverCount">–</div>
+                                            <div class="text-muted small">أجهزة السائقين</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <div class="card border-0 shadow-sm text-center p-3 h-100">
+                                            <div class="text-primary fw-bold fs-2" id="devCustomerCount">–</div>
+                                            <div class="text-muted small">أجهزة الزبائن</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-6">
+                                        <div class="card border-0 shadow-sm text-center p-3 h-100">
+                                            <div class="text-warning fw-bold fs-2" id="devUnknownCount">–</div>
+                                            <div class="text-muted small">حسابات بلا معرّف جهاز</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <h6 class="fw-bold text-dark-blue mb-2"><i class="bi bi-bar-chart-fill me-1 text-gold"></i>توزيع ماركات الأجهزة</h6>
+                                    <div id="devBrandChart" class="d-flex flex-wrap gap-2">–</div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-dark-blue text-white">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>معرّف الجهاز</th>
+                                                <th>الدور</th>
+                                                <th>الحساب</th>
+                                                <th>الهاتف</th>
+                                                <th>الماركة</th>
+                                                <th>النموذج</th>
+                                                <th>الحالة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="devicesTableBody">
+                                            <tr><td colspan="8" class="text-center py-4"><div class="ARAVA-spinner"></div><div class="mt-2 text-muted small">جاري تحميل الأجهزة...</div></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted">الماركة والنموذج يظهران تلقائياً بعد تسجيل السائق/الزبون دخوله من التطبيق المحدّث. المعرّف هو ANDROID_ID (لكل تثبيت تطبيق على جهاز).</small>
                             </div>
                         </div>
                     </div>
@@ -1919,6 +1990,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260808"></script>
+    <script src="js/app.js?v=20260809"></script>
 </body>
 </html>
