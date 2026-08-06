@@ -667,6 +667,8 @@ function navigateToPage(page) {
     const liveBadge = document.getElementById('liveBadge');
     if (liveBadge) liveBadge.classList.toggle('d-none', page !== 'map');
     currentPage = page;
+    if (page === 'deliveries') { unreadDeliveries = 0; updateNavBadges(); }
+    if (page === 'rides') { unreadRides = 0; updateNavBadges(); }
     if (page !== 'rides' && ridesListUnsubscribe) { ridesListUnsubscribe(); ridesListUnsubscribe = null; }
     if (page !== 'deliveries' && deliveriesUnsubscribe) { deliveriesUnsubscribe(); deliveriesUnsubscribe = null; }
     if (page !== 'customers' && rechargeRequestsUnsubscribe) { rechargeRequestsUnsubscribe(); rechargeRequestsUnsubscribe = null; }
@@ -1147,6 +1149,26 @@ window.refreshDriverSearchResult = async function () {
 // ============================================
 let activeRidesMap = {};
 let rideStatusCache = {};
+
+// ============================================
+// NAV BADGES (red mark on incoming-notification buttons)
+// ============================================
+let unreadDeliveries = 0;
+let unreadRides = 0;
+
+function setNavBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = count > 99 ? '99+' : count;
+    el.classList.toggle('show', count > 0);
+}
+
+function updateNavBadges() {
+    setNavBadge('deliveriesNavBadge', unreadDeliveries);
+    setNavBadge('deliveriesNavBadgeMobile', unreadDeliveries);
+    setNavBadge('ridesNavBadge', unreadRides);
+    setNavBadge('ridesNavBadgeMobile', unreadRides);
+}
 
 function initRealtimeListeners() {
     if (!db) return;
@@ -2066,12 +2088,16 @@ async function loadRidesList() {
                         rideStatusCache[id] = curr;
                         if (change.type === 'added' && !prev && curr !== 'pending' && curr !== 'no_drivers') {
                             playNotificationSound();
+                            unreadRides++;
+                            updateNavBadges();
                             showDesktopNotification(`🚀 رحلة جديدة: ${rd.passengerName || 'زبون'}`, `${labels[curr] || curr} — ${rd.fare || 0} MRU`);
                             flashTab('🚀');
                             addNotifLog('ride_' + curr, `${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
                         }
                         if (change.type === 'modified' && prev && prev !== curr) {
                             playNotificationSound();
+                            unreadRides++;
+                            updateNavBadges();
                             showDesktopNotification(`${statusIcons[curr] || '📌'} ${labels[curr] || curr}: ${rd.passengerName || 'زبون'}`, `${rd.fare || 0} MRU — ${rd.from || ''} → ${rd.to || ''}`);
                             flashTab('🔔');
                             if (curr === 'accepted') addNotifLog('ride_accepted', `✅ تم قبول الرحلة: ${rd.passengerName || 'زبون'} — ${rd.fare || 0} MRU`);
@@ -2137,10 +2163,11 @@ function renderRidesList(rides) {
         const driverName = driver ? driver.name : (r.assignedDriverId ? '...' : '-');
         const driverPhone = driver ? driver.phone : '-';
         const actionBtn = canCancel.includes(r.status)
-            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button>`
+            ? `<button class="btn-action btn-action-delete mt-1" onclick="cancelRide('${r.id}')">إلغاء</button> `
             : canRelaunch.includes(r.status)
-                ? `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button>`
+                ? `<button class="btn-action btn-action-edit mt-1" onclick="reLaunchRide('${r.id}')"><i class="bi bi-arrow-repeat me-1"></i>إعادة إطلاق</button> `
                 : '';
+        const deleteBtn = `<button class="btn-action btn-action-delete mt-1" onclick="deleteRide('${r.id}')" title="حذف السجل"><i class="bi bi-trash"></i></button>`;
         return `<tr>
             <td><strong>${r.passengerName || '-'}</strong></td>
             <td class="d-none d-md-table-cell"><small dir="ltr">${r.passengerPhone || '-'}</small></td>
@@ -2154,7 +2181,7 @@ function renderRidesList(rides) {
             <td class="d-none d-lg-table-cell"><small dir="ltr">${driverPhone}</small></td>
             <td><span class="badge bg-${colors[r.status] || 'secondary'}">${labels[r.status] || r.status}</span></td>
             <td class="d-none d-lg-table-cell"><small>${created}</small></td>
-            <td>${actionBtn}</td>
+            <td>${actionBtn}${deleteBtn}</td>
         </tr>`;
     }).join('');
 }
@@ -2163,7 +2190,57 @@ window.cancelRide = async function (rideId) {
     if (!(await ARAconfirm('هل أنت متأكد من إلغاء هذه الرحلة؟'))) return;
     if (!requireDb()) return;
     try {
-        await db.collection('rides').doc(rideId).update({ status: 'cancelled' });
+        const snap = await db.collection('rides').doc(rideId).get();
+        let deliveryId = null;
+        if (snap.exists) deliveryId = snap.data().deliveryId || null;
+        await db.collection('rides').doc(rideId).update({
+            status: 'cancelled',
+            cancelledBy: 'admin',
+            cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (deliveryId) {
+            const dSnap = await db.collection('delivery_requests').doc(deliveryId).get();
+            if (dSnap.exists) {
+                const dSt = dSnap.data().status || '';
+                if (!['completed', 'cancelled'].includes(dSt)) {
+                    await db.collection('delivery_requests').doc(deliveryId).update({ status: 'accepted' });
+                }
+            }
+            notifyDeliveryCustomer(deliveryId, {
+                title: 'تم إلغاء رحلتك',
+                body: 'قام المشرف بإلغاء رحلتك. يمكننا إعادة تفعيلها عند الطلب، أو يمكنك تقديم طلب جديد في أي وقت.',
+                data: { status: 'cancelled', cancelledBy: 'admin' }
+            });
+        }
+        if (currentPage === 'rides') loadRidesList();
+    } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
+};
+
+window.deleteRide = async function (rideId) {
+    if (!(await ARAconfirm('حذف هذا السجل نهائياً من سجل الرحلات؟'))) return;
+    if (!requireDb()) return;
+    try {
+        const snap = await db.collection('rides').doc(rideId).get();
+        if (!snap.exists) return;
+        const r = snap.data() || {};
+        if (['accepted', 'in_progress'].includes(r.status)) {
+            ARAalert('لا يمكن حذف رحلة نشطة — ألغها أولاً ثم احذف سجلها', 'warning');
+            return;
+        }
+        await db.collection('rides').doc(rideId).delete();
+        const deliveryId = r.deliveryId;
+        if (deliveryId) {
+            const dSnap = await db.collection('delivery_requests').doc(deliveryId).get();
+            if (dSnap.exists && dSnap.data().rideId === rideId) {
+                const curSt = dSnap.data().status || '';
+                let newSt = curSt;
+                if (curSt === 'launched' || curSt === 'in_progress') newSt = 'accepted';
+                const upd = { rideId: firebase.firestore.FieldValue.delete() };
+                if (newSt !== curSt) upd.status = newSt;
+                await db.collection('delivery_requests').doc(deliveryId).update(upd);
+            }
+        }
+        addNotifLog('system', `🗑️ تم حذف سجل الرحلة ${rideId}`);
         if (currentPage === 'rides') loadRidesList();
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
@@ -2176,48 +2253,54 @@ window.reLaunchRide = async function (rideId) {
         if (!snap.exists) { ARAalert('الرحلة غير موجودة', 'error'); return; }
         const r = snap.data();
         if (r.status !== 'cancelled' && r.status !== 'no_drivers') {
-            ARAalert('يمكن إعادة إطلاق الرحلات الملغاة فقط', 'warning');
+            ARAalert('يمكن إعادة إطلاق الرحلات الملغاة أو بلا سائق فقط', 'warning');
             return;
         }
         const radius = r.searchRadiusKm || 3;
         const lat = r.pickupLat || 0;
         const lng = r.pickupLng || 0;
-        const rideData = {
-            passengerName: r.passengerName || '',
-            passengerPhone: r.passengerPhone || '',
-            pickupLat: lat,
-            pickupLng: lng,
-            dropoffLat: r.dropoffLat || 0,
-            dropoffLng: r.dropoffLng || 0,
-            pickupAddress: r.pickupAddress || '',
-            dropoffAddress: r.dropoffAddress || '',
-            realDistanceKm: r.realDistanceKm || 0,
-            searchRadiusKm: radius,
-            fare: r.fare || BASE_FARE,
-            commissionPercent: r.commissionPercent || commissionPercent,
-            notes: r.notes || '',
+        const del = firebase.firestore.FieldValue.delete();
+        const rideRef = db.collection('rides').doc(rideId);
+        await rideRef.update({
             status: 'pending',
-            reLaunchedFrom: rideId,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        const docRef = await db.collection('rides').add(rideData);
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            notifiedDrivers: [],
+            assignedDriverId: del,
+            assignedDriverName: del,
+            acceptedAt: del,
+            acceptedBy: del,
+            cancelledBy: del,
+            cancelledAt: del,
+            cancelledReason: del,
+            completedAt: del,
+            completionCode: del,
+            driverRating: del
+        });
         const nearby = await findNearbyDrivers(lat, lng, radius);
         if (nearby.length === 0) {
-            await db.collection('rides').doc(docRef.id).update({ status: 'no_drivers' });
+            await rideRef.update({ status: 'no_drivers' });
             addNotifLog('dispatch', `فشل إعادة الإطلاق: لا يوجد سائقون في نطاق ${radius} كم`);
-            ARAalert('لا يوجد سائقون متاحون في النطاق. الرحلة جديدة الآن كرحلة بلا سائق.', 'error');
+            ARAalert('لا يوجد سائقون متاحون في النطاق. الرحلة الآن بلا سائق.', 'error');
         } else {
             const nearbyIds = nearby.map(d => d.id);
             const tokens = nearby.filter(d => d.fcmToken).map(d => d.fcmToken);
-            await db.collection('rides').doc(docRef.id).update({
+            await rideRef.update({
                 notifiedDrivers: nearbyIds,
                 notificationSentAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             if (tokens.length > 0) {
-                sendFCMNotifications(tokens, docRef.id, rideData.passengerName, rideData.fare, lat, lng, rideData.pickupAddress, rideData.dropoffAddress, radius, { notes: rideData.notes || '' });
+                sendFCMNotifications(tokens, rideId, r.passengerName || '', r.fare || 0, lat, lng, r.pickupAddress || '', r.dropoffAddress || '', radius, { notes: r.notes || '' }, r.dropoffLat || lat, r.dropoffLng || lng);
             }
-            addNotifLog('dispatch', `إعادة إطلاق رحلة ${rideData.passengerName}: ${rideData.pickupAddress} → ${rideData.dropoffAddress} | ${rideData.realDistanceKm} كم | ${rideData.fare} MRU | تنبيه ${nearby.length} سائق`);
+            addNotifLog('dispatch', `إعادة إطلاق رحلة ${r.passengerName || ''}: ${r.pickupAddress || ''} → ${r.dropoffAddress || ''} | ${r.realDistanceKm || 0} كم | ${r.fare || 0} MRU | تنبيه ${nearby.length} سائق`);
             ARAalert(`تمت إعادة الإطلاق! تم تنبيه ${nearby.length} سائق`, 'success');
+        }
+        if (r.deliveryId) {
+            await db.collection('delivery_requests').doc(r.deliveryId).update({ status: 'launched', rideId });
+            notifyDeliveryCustomer(r.deliveryId, {
+                title: 'تم إعادة تفعيل رحلتك',
+                body: 'تم إعادة إرسال رحلتك، جارٍ إيجاد سائق لك من جديد.',
+                data: { status: 'reactivated', cancelledBy: '' }
+            });
         }
         if (currentPage === 'rides') loadRidesList();
     } catch (err) {
@@ -2291,6 +2374,8 @@ function initDeliveriesListener() {
                 if (!deliveriesFirstSnapshot && newRequests.length > 0) {
                     newRequests.forEach(r => {
                         playNotificationSound();
+                        unreadDeliveries++;
+                        updateNavBadges();
                         const notifBody = `من: ${r.customerName || r.customerPhone || 'زبون'} — المستلم: ${r.receiverDistrict || r.receiverPhone || '-'} — الحي: ${r.senderDistrict || '-'}`;
                         showDesktopNotification('🚚 طلب توصيل جديد', notifBody);
                         flashTab('🔴');
@@ -2394,7 +2479,30 @@ window.setDeliveryStatus = async function (id, status) {
         await db.collection('delivery_requests').doc(id).update({ status });
         if (status === 'accepted') addNotifLog('delivery_accepted', '✅ توصيل نشط (مقبول): ' + id);
         else if (status === 'completed') addNotifLog('delivery_completed', '🏁 اكتمل التوصيل: ' + id);
-        else if (status === 'cancelled') addNotifLog('delivery_cancelled', '❌ أُلغيت التوصيلة: ' + id);
+        else if (status === 'cancelled') {
+            addNotifLog('delivery_cancelled', '❌ أُلغيت التوصيلة: ' + id);
+            // إلغاء الرحلة المرتبطة إن وُجدت ليُعلم السائق والزبون معاً
+            const dSnap = await db.collection('delivery_requests').doc(id).get();
+            const rideId = dSnap.exists ? dSnap.data().rideId : null;
+            if (rideId) {
+                const rSnap = await db.collection('rides').doc(rideId).get();
+                if (rSnap.exists) {
+                    const rSt = rSnap.data().status || '';
+                    if (['pending', 'accepted', 'in_progress', 'launched'].includes(rSt)) {
+                        await db.collection('rides').doc(rideId).update({
+                            status: 'cancelled',
+                            cancelledBy: 'admin',
+                            cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                }
+            }
+            notifyDeliveryCustomer(id, {
+                title: 'تم إلغاء التوصيل',
+                body: 'قام المشرف بإلغاء توصيلتك. يمكنك تقديم طلب جديد في أي وقت.',
+                data: { status: 'cancelled', cancelledBy: 'admin' }
+            });
+        }
     } catch (err) { ARAalert('خطأ: ' + err.message, 'error'); }
 };
 
@@ -2528,6 +2636,13 @@ window.dispatchDeliveryToDrivers = async function (id) {
                 }, dropLat, dropLng);
             }
             await db.collection('delivery_requests').doc(id).update({ status: 'launched', rideId });
+            if (rideExists) {
+                notifyDeliveryCustomer(id, {
+                    title: 'تم إعادة تفعيل رحلتك',
+                    body: 'تم إعادة إرسال رحلتك، جارٍ إيجاد سائق لك من جديد.',
+                    data: { status: 'reactivated', cancelledBy: '' }
+                });
+            }
             addNotifLog('delivery_dispatch', `تم إرسال التوصيلة ${id} إلى ${nearby.length} سائق | ${price} MRU`);
             ARAalert(`تم الإرسال! ${nearby.length} سائق تم تنبيههم`, 'success');
         }
@@ -2685,6 +2800,43 @@ async function sendFCMNotifications(tokens, rideId, passengerName, fare, lat, ln
         }
     } catch (e) {
         addNotifLog('system', `FCM: تعذر الوصول للخادم — الطلب سيصل للسائقين المفتوحين فقط (${e.message})`);
+    }
+}
+
+// ============================================
+// DELIVERY CUSTOMER PUSH (popup + sound on ride actions)
+// ============================================
+async function notifyDeliveryCustomer(deliveryId, payload) {
+    try {
+        const snap = await db.collection('delivery_requests').doc(deliveryId).get();
+        if (!snap.exists) return;
+        const d = snap.data() || {};
+        let customerId = d.customerId;
+        if (!customerId && d.customerPhone) {
+            const cq = await db.collection('customers').where('phone', '==', d.customerPhone).limit(1).get();
+            if (!cq.empty) customerId = cq.docs[0].id;
+        }
+        if (!customerId) return;
+        const cSnap = await db.collection('customers').doc(customerId).get();
+        if (!cSnap.exists) return;
+        const token = cSnap.data().fcmToken || '';
+        if (!token) return;
+        const title = payload.title || 'حالة التوصيل';
+        const body = payload.body || 'هناك تحديث في طلبك';
+        const data = Object.assign({ type: 'delivery_update', deliveryId, status: '', cancelledBy: '' }, payload.data || {}, { title, body });
+        const res = await fetch('/api/send-fcm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokens: [token], title, body, data })
+        });
+        const json = await res.json();
+        if (json.success) {
+            addNotifLog('system', `إشعار زبون (${deliveryId}): ${title}`);
+        } else {
+            addNotifLog('system', `فشل إشعار زبون (${json.error || 'unknown'})`);
+        }
+    } catch (e) {
+        addNotifLog('system', `فشل إشعار زبون (${e.message})`);
     }
 }
 
