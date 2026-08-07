@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<!-- ARAVA Dashboard v20260818 -->
+<!-- ARAVA Dashboard v20260810 -->
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260809" />
+    <link rel="stylesheet" href="css/style.css?v=20260810" />
 </head>
 <body class="bg-light">
 
@@ -211,9 +211,16 @@
         <!-- MAP PAGE -->
         <div class="page-content" id="page-map">
             <!-- STATS BAR -->
-            <div class="bg-white border-bottom px-2 px-md-3 py-2">
+            <div class="bg-white border-bottom" id="statsBar">
                 <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-stretch gap-0 gap-md-1" style="flex-wrap:wrap;">
+                    <div class="d-flex justify-content-between align-items-center stats-toggle-row">
+                        <small class="text-muted fw-bold"><i class="bi bi-speedometer2 me-1"></i> مؤشرات اللوحة</small>
+                        <button class="btn btn-sm btn-outline-secondary border-0 stats-toggle-btn" id="statsToggleBtn" title="طي مؤشرات اللوحة">
+                            <i class="bi bi-chevron-up"></i> <span id="statsToggleLabel">طي المؤشرات</span>
+                        </button>
+                    </div>
+                    <div id="statsBody">
+                    <div class="d-flex justify-content-between align-items-stretch gap-0 gap-md-1 pb-2" style="flex-wrap:wrap;">
                         <div class="stat-item flex-fill px-1 py-1 text-center">
                             <small class="stat-label text-muted d-block">سائقون متاحون</small>
                             <strong class="stat-value text-gold" id="statOnlineDrivers">0</strong>
@@ -243,10 +250,11 @@
                             <strong class="stat-value" style="color:#E91E63;" id="statTotalCustomers">0</strong>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="map-wrapper position-relative">
+            <div class="map-wrapper position-relative" id="mapWrapper">
                 <div id="map" class="w-100 h-100"></div>
                 <div class="map-search">
                     <div class="map-search-bar">
@@ -2041,7 +2049,7 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260809"></script>
+    <script src="js/app.js?v=20260810"></script>
 </body>
 </html>
 

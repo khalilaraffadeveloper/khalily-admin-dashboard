@@ -490,6 +490,45 @@ document.getElementById('darkModeBtn').addEventListener('click', () => {
     if (icon) icon.className = document.body.classList.contains('map-dark') ? 'bi bi-brightness-high' : 'bi bi-moon-stars';
 });
 
+// ============================================
+// STATS BAR COLLAPSE (طي مؤشرات اللوحة)
+// ============================================
+let statsCollapsed = localStorage.getItem('araStatsCollapsed') === '1';
+
+function applyStatsCollapsed() {
+    const body = document.getElementById('statsBody');
+    const btn = document.getElementById('statsToggleBtn');
+    const label = document.getElementById('statsToggleLabel');
+    const icon = btn ? btn.querySelector('i') : null;
+    document.body.classList.toggle('stats-collapsed', statsCollapsed);
+    if (body) body.style.display = statsCollapsed ? 'none' : '';
+    if (label) label.textContent = statsCollapsed ? 'إظهار المؤشرات' : 'طي المؤشرات';
+    if (icon) icon.className = statsCollapsed ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+    if (btn) btn.title = statsCollapsed ? 'إظهار مؤشرات اللوحة' : 'طي مؤشرات اللوحة';
+    resizeMapForStats();
+}
+
+function resizeMapForStats() {
+    const mapWrap = document.getElementById('mapWrapper');
+    if (!mapWrap) return;
+    const header = document.querySelector('.top-bar');
+    const statsBar = document.getElementById('statsBar');
+    let h = header ? header.offsetHeight : 0;
+    if (statsBar) h += statsBar.offsetHeight;
+    mapWrap.style.height = Math.max(window.innerHeight - h, 200) + 'px';
+    if (typeof map !== 'undefined' && map) {
+        setTimeout(() => map.invalidateSize(), 60);
+    }
+}
+
+document.getElementById('statsToggleBtn')?.addEventListener('click', () => {
+    statsCollapsed = !statsCollapsed;
+    localStorage.setItem('araStatsCollapsed', statsCollapsed ? '1' : '0');
+    applyStatsCollapsed();
+});
+applyStatsCollapsed();
+window.addEventListener('resize', resizeMapForStats);
+
 function setPickupPoint(lat, lng) {
     pickupCoords = { lat, lng };
     if (pickupMarker) map.removeLayer(pickupMarker);
