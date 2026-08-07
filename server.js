@@ -85,10 +85,6 @@ app.post('/api/dispatch-ride', async (req, res) => {
         }
 
         const message = {
-            notification: {
-                title: 'طلب رحلة جديد!',
-                body: `سعر: ${fare} MRU`
-            },
             data: {
                 type: 'ride_request',
                 rideId: rideId,
@@ -101,6 +97,10 @@ app.post('/api/dispatch-ride', async (req, res) => {
                 distanceKm: searchRadiusKm.toFixed(1),
                 fare: fare.toFixed(0),
                 estimatedFare: fare.toFixed(0)
+            },
+            android: {
+                priority: 'high',
+                ttl: '30s'
             },
             tokens: tokens
         };
@@ -141,11 +141,22 @@ app.post('/api/send-fcm', async (req, res) => {
             if (v !== undefined && v !== null) cleanData[k] = String(v);
         });
 
+        const isRideRequest = cleanData.type === 'ride_request';
         const message = {
-            notification: { title: title || 'ARAVA', body: body || 'إشعار جديد' },
-            data: cleanData,
+            ...(isRideRequest
+                ? { data: cleanData }
+                : { notification: { title: title || 'ARAVA', body: body || 'إشعار جديد' }, data: cleanData }),
             tokens
         };
+
+        if (isRideRequest) {
+            // رسالة data فقط عالية الأولوية حتى يُستدعى onMessageReceived
+            // ويشتغل الرنين المخصص ومفتاح «التنبيه عند الإغلاق» حتى مع إغلاق التطبيق.
+            message.android = {
+                priority: 'high',
+                ttl: '30s'
+            };
+        }
 
         const response = await admin.messaging().sendEachForMulticast(message);
 
