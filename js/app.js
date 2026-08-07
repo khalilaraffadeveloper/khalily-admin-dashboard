@@ -5263,6 +5263,15 @@ if (reportRefreshBtn) {
 // ============================================
 // DEVICES REPORT
 // ============================================
+function fmtDevDate(t) {
+    if (!t) return '—';
+    let d = t;
+    if (d && typeof d.toDate === 'function') d = d.toDate();
+    else if (typeof t === 'string') d = new Date(t);
+    if (!(d instanceof Date) || isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 async function loadDevices() {
     if (!requireDb()) return;
     const tbody = document.getElementById('devicesTableBody');
@@ -5277,19 +5286,24 @@ async function loadDevices() {
         ]);
 
         const devices = new Map();
-        let driverUnknown = 0, customerUnknown = 0;
+        const unknownAccounts = [];
         const brandCount = {};
+        const canDelDriver = canPerm('drivers_delete');
+        const canDelCustomer = canPerm('customers_delete');
 
         const handle = (doc, role, isDriver) => {
             const d = doc.data();
             const name = d.name || '-';
             const phone = d.phone || '-';
+            const credit = (d.credit === undefined || d.credit === null) ? 0 : d.credit;
+            const createdAt = d.createdAt || null;
+            const disabled = isDriver ? !!d.disabled : null;
             const did = (d.deviceId || '').trim();
             const brand = d.deviceBrand || '';
             const model = d.deviceModel || '';
             if (brand) brandCount[brand] = (brandCount[brand] || 0) + 1;
             if (!did) {
-                if (isDriver) driverUnknown++; else customerUnknown++;
+                unknownAccounts.push({ id: doc.id, role, isDriver, name, phone, credit, createdAt, disabled });
                 return;
             }
             if (!devices.has(did)) devices.set(did, { deviceId: did, brand, model, roles: new Set(), accounts: [] });
@@ -5297,7 +5311,7 @@ async function loadDevices() {
             dev.roles.add(role);
             if (brand && !dev.brand) dev.brand = brand;
             if (model && !dev.model) dev.model = model;
-            dev.accounts.push({ name, phone, isDriver, isOnline: isDriver ? !!d.isOnline : null });
+            dev.accounts.push({ name, phone, credit, createdAt, isDriver, isOnline: isDriver ? !!d.isOnline : null, disabled });
         };
 
         sd.forEach(doc => handle(doc, 'سائق', true));
@@ -5312,7 +5326,7 @@ async function loadDevices() {
         setCount('devTotalCount', devices.size);
         setCount('devDriverCount', driverDev);
         setCount('devCustomerCount', customerDev);
-        setCount('devUnknownCount', driverUnknown + customerUnknown);
+        setCount('devUnknownCount', unknownAccounts.length);
 
         const brandChart = document.getElementById('devBrandChart');
         if (brandChart) {
@@ -5332,17 +5346,24 @@ async function loadDevices() {
                 ? '<span class="badge bg-success">سائق</span>'
                 : '<span class="badge bg-primary">زبون</span>').join(' ');
             const statuses = dev.accounts.map(a => {
-                if (!a.isDriver) return `${a.name} (${a.phone})`;
-                return `${a.name} (${a.phone}) ${a.isOnline ? '<span class="badge bg-success">متاح</span>' : '<span class="badge bg-secondary">غير متاح</span>'}`;
-            }).join('<br>');
+                const badges = [];
+                if (a.isDriver) {
+                    badges.push(a.isOnline
+                        ? '<span class="badge bg-success">متاح</span>'
+                        : '<span class="badge bg-secondary">غير متاح</span>');
+                    if (a.disabled) badges.push('<span class="badge bg-danger">معطّل</span>');
+                }
+                return `<div class="mb-1"><strong>${escapeHtmlStr(a.name)}</strong> <span dir="ltr">${escapeHtmlStr(a.phone)}</span> ${badges.join(' ')}</div>` +
+                    `<div class="small text-muted">الرصيد: <strong class="text-gold">${a.credit} MRU</strong> · سُجّل: ${fmtDevDate(a.createdAt)}</div>`;
+            }).join('<div class="my-1 border-top"></div>');
             rows.push(`<tr>
                 <td>${rows.length + 1}</td>
                 <td><code dir="ltr">${dev.deviceId}</code></td>
                 <td>${roleBadge}</td>
                 <td>${statuses}</td>
-                <td><span dir="ltr">${dev.accounts.map(a => a.phone).join(', ')}</span></td>
-                <td>${dev.brand ? `<span class="badge bg-info text-dark">${dev.brand}</span>` : '<span class="text-muted">—</span>'}</td>
-                <td>${dev.model ? `<span class="badge bg-light text-dark border">${dev.model}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td><span dir="ltr">${dev.accounts.map(a => escapeHtmlStr(a.phone)).join(', ')}</span></td>
+                <td>${dev.brand ? `<span class="badge bg-info text-dark">${escapeHtmlStr(dev.brand)}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td>${dev.model ? `<span class="badge bg-light text-dark border">${escapeHtmlStr(dev.model)}</span>` : '<span class="text-muted">—</span>'}</td>
                 <td>${dev.roles.has('سائق') ? (dev.accounts.find(a => a.isDriver)?.isOnline ? '<span class="badge bg-success">متاح</span>' : '<span class="badge bg-secondary">غير متاح</span>') : '<span class="text-muted">—</span>'}</td>
             </tr>`);
         });
@@ -5350,8 +5371,81 @@ async function loadDevices() {
         tbody.innerHTML = rows.length
             ? rows.join('')
             : '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد أجهزة مسجلة بعد</td></tr>';
+
+        renderUnknownDevices(unknownAccounts, canDelDriver, canDelCustomer);
     } catch (err) {
         console.error('Load devices error:', err);
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">خطأ في تحميل البيانات</td></tr>';
     }
 }
+
+function renderUnknownDevices(accounts, canDelDriver, canDelCustomer) {
+    const tbody = document.getElementById('devUnknownTableBody');
+    const countEl = document.getElementById('devUnknownListCount');
+    if (countEl) countEl.textContent = accounts.length;
+    if (!tbody) return;
+    if (accounts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">لا توجد حسابات بلا معرّف جهاز</td></tr>';
+        return;
+    }
+    tbody.innerHTML = accounts.map((a, i) => {
+        const roleBadge = a.isDriver ? '<span class="badge bg-success">سائق</span>' : '<span class="badge bg-primary">زبون</span>';
+        const canDel = a.isDriver ? canDelDriver : canDelCustomer;
+        const safeName = (a.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const delBtn = canDel
+            ? `<button class="btn-action btn-action-delete" onclick="deleteDeviceUnknownAccount('${a.id}','${a.isDriver ? 'drivers' : 'customers'}','${safeName}')" title="حذف نهائي"><i class="bi bi-trash"></i></button>`
+            : '<span class="text-muted small">بلا صلاحية</span>';
+        return `<tr>
+            <td>${i + 1}</td>
+            <td>${roleBadge}</td>
+            <td><strong>${escapeHtmlStr(a.name)}</strong></td>
+            <td><span dir="ltr">${escapeHtmlStr(a.phone)}</span></td>
+            <td><strong class="text-gold">${a.credit} MRU</strong></td>
+            <td>${fmtDevDate(a.createdAt)}</td>
+            <td>${delBtn}</td>
+        </tr>`;
+    }).join('');
+}
+
+window.deleteDeviceUnknownAccount = async function (id, collection, name) {
+    if (!requireDb()) return;
+    if (collection === 'drivers') {
+        if (!guardPerm('drivers_delete', 'ليست لديك صلاحية حذف السائقين')) return;
+    } else {
+        if (!guardPerm('customers_delete', 'ليست لديك صلاحية حذف الزبائن')) return;
+    }
+    if (!(await ARAconfirm(`سيتم حذف الحساب "${name || ''}" نهائياً من قاعدة البيانات. هل أنت متأكد؟`))) return;
+    try {
+        await db.collection(collection).doc(id).delete();
+        ARAalert('تم حذف الحساب بنجاح', 'success');
+        loadDevices();
+    } catch (err) { ARAalert('خطأ: ' + (err.message || ''), 'error'); }
+};
+
+window.deleteAllUnknownAccounts = async function () {
+    if (!requireDb()) return;
+    const canDelDriver = canPerm('drivers_delete');
+    const canDelCustomer = canPerm('customers_delete');
+    if (!canDelDriver && !canDelCustomer) {
+        ARAalert('ليست لديك صلاحية حذف الحسابات', 'warning');
+        return;
+    }
+    try {
+        const [sd, sc] = await Promise.all([
+            db.collection('drivers').get(),
+            db.collection('customers').get()
+        ]);
+        const targets = [];
+        sd.forEach(doc => {
+            if (canDelDriver && !(doc.data().deviceId || '').trim()) targets.push(doc.ref);
+        });
+        sc.forEach(doc => {
+            if (canDelCustomer && !(doc.data().deviceId || '').trim()) targets.push(doc.ref);
+        });
+        if (targets.length === 0) { ARAalert('لا توجد حسابات بلا معرّف جهاز', 'info'); return; }
+        if (!(await ARAconfirm(`⚠️ تحذير! سيتم حذف ${targets.length} حساباً بلا معرّف جهاز نهائياً. هل أنت متأكد؟`))) return;
+        await Promise.all(targets.map(ref => ref.delete()));
+        ARAalert(`تم حذف ${targets.length} حساباً بنجاح`, 'success');
+        loadDevices();
+    } catch (err) { ARAalert('خطأ: ' + (err.message || ''), 'error'); }
+};
