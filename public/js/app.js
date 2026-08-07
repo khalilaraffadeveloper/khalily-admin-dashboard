@@ -228,7 +228,7 @@ function ARAalert(message, type) {
 function ARAconfirm(message) {
     return new Promise(function (resolve) {
         var overlay = document.getElementById('araModalOverlay');
-        if (!overlay) { resolve(confirm(message)); return; }
+        if (!overlay) { console.error('ARAconfirm: لم يتم العثور على النافذة المخصصة'); resolve(false); return; }
         var icon = document.getElementById('araModalIcon');
         var title = document.getElementById('araModalTitle');
         var msg = document.getElementById('araModalMessage');
@@ -242,6 +242,39 @@ function ARAconfirm(message) {
         document.getElementById('araModalConfirm').onclick = function () { overlay.classList.remove('show'); resolve(true); };
         document.getElementById('araModalCancel').onclick = function () { overlay.classList.remove('show'); resolve(false); };
         overlay.onclick = function (e) { if (e.target === overlay) { overlay.classList.remove('show'); resolve(false); } };
+    });
+}
+
+function ARAprompt(title, placeholder, initial) {
+    return new Promise(function (resolve) {
+        var overlay = document.getElementById('araModalOverlay');
+        var inputWrap = document.getElementById('araModalInputWrap');
+        var input = document.getElementById('araModalInput');
+        var icon = document.getElementById('araModalIcon');
+        var titleEl = document.getElementById('araModalTitle');
+        var msgEl = document.getElementById('araModalMessage');
+        var btns = document.getElementById('araModalButtons');
+        if (!overlay || !inputWrap || !input) { console.error('ARAprompt: لم يتم العثور على النافذة المخصصة'); resolve(null); return; }
+        icon.className = 'ara-modal-icon warning';
+        icon.innerHTML = '<i class="bi bi-chat-left-text"></i>';
+        titleEl.textContent = title;
+        msgEl.textContent = '';
+        inputWrap.classList.remove('d-none');
+        input.value = (initial !== undefined && initial !== null) ? String(initial) : '';
+        input.placeholder = placeholder || '';
+        btns.innerHTML = '<button class="btn btn-cancel" id="araModalPromptCancel">إلغاء</button><button class="btn btn-ok" id="araModalPromptOk">موافق</button>';
+        overlay.classList.add('show');
+        input.focus();
+        function done(val) {
+            overlay.classList.remove('show');
+            inputWrap.classList.add('d-none');
+            input.value = '';
+            resolve(val);
+        }
+        document.getElementById('araModalPromptOk').onclick = function () { done(input.value); };
+        document.getElementById('araModalPromptCancel').onclick = function () { done(null); };
+        overlay.onclick = function (e) { if (e.target === overlay) { done(null); } };
+        input.onkeydown = function (e) { if (e.key === 'Enter') { done(input.value); } };
     });
 }
 
@@ -2240,8 +2273,8 @@ window.approveRechargeRequest = async function(requestId, customerId, driverId, 
 window.rejectRechargeRequest = async function(requestId) {
     if (!requireDb()) return;
     if (!guardPerm('recharge_approve', 'ليست لديك صلاحية رفض طلبات الشحن')) return;
-    const reason = prompt('أدخل سبب الرفض (سيصل للزبون/السائق):');
-    if (reason === null) return;
+    const reason = await ARAprompt('سبب الرفض', 'أدخل سبب الرفض (سيصل للزبون/السائق)');
+    if (reason === null || reason.trim() === '') { ARAalert('تم إلغاء الرفض: لم يُدخل سبب', 'warning'); return; }
     if (!(await ARAconfirm('سيتم رفض طلب الشحن وإرسال السبب للزبون. تأكيد؟'))) return;
     try {
         const reqDoc = await db.collection('recharge_requests').doc(requestId).get();
