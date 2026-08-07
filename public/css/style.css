@@ -232,10 +232,11 @@ body.stats-collapsed .map-wrapper { height: calc(100vh - 84px); }
 .card.shadow-sm:hover { box-shadow: 0 4px 20px rgba(11,24,73,0.12) !important; }
 
 /* ============ SCROLLBAR ============ */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CCC; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #999; }
+::-webkit-scrollbar { width: 14px; height: 14px; }
+::-webkit-scrollbar-track { background: #F1F1F1; border-radius: 7px; }
+::-webkit-scrollbar-thumb { background: #B0B6C8; border-radius: 7px; border: 2px solid #F1F1F1; }
+::-webkit-scrollbar-thumb:hover { background: #8E96AC; }
+::-webkit-scrollbar-thumb:active { background: #6E7690; }
 
 /* ============ LOADING SPINNERS ============ */
 .ARAVA-spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #eee; border-top-color: var(--k-gold); border-radius: 50%; animation: ARAVA-spin 0.7s linear infinite; }
