@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260807" />
+    <link rel="stylesheet" href="css/style.css?v=20260808" />
 </head>
 <body class="bg-light">
 
@@ -885,8 +885,9 @@
                                         </select>
                                         <select class="form-select" id="msgRecipients" multiple size="3" style="min-height:80px;"></select>
                                         <div class="form-check mt-2">
-                                            <input class="form-check-input" type="checkbox" id="msgSelectAll">
+                                            <input class="form-check-input" type="checkbox" id="msgSelectAll" onchange="handleMsgSelectAll(this)">
                                             <label class="form-check-label fw-semibold" for="msgSelectAll"><i class="bi bi-people-fill me-1 text-dark-blue"></i>تحديد الجميع دفعة واحدة</label>
+                                            <div class="mt-1"><small class="text-muted" id="msgSelectAllCount">المحدد: 0</small></div>
                                         </div>
                                         <small class="text-muted">اضغط Ctrl لاختيار أكثر من مستلم</small>
                                     </div>
@@ -2037,7 +2038,7 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260807"></script>
+    <script src="js/app.js?v=20260808"></script>
 </body>
 </html>
 

@@ -3267,6 +3267,26 @@ initMsgTypeSwitch();
 
 let msgSelectAllChecked = false;
 
+function updateMsgRecipientsCount() {
+    const sel = document.getElementById('msgRecipients');
+    const counter = document.getElementById('msgSelectAllCount');
+    if (!sel || !counter) return;
+    const total = sel.options.length;
+    const selected = Array.from(sel.options).filter(o => o.selected).length;
+    counter.textContent = `المحدد: ${selected} من ${total}`;
+}
+
+function handleMsgSelectAll(cb) {
+    if (!cb) return;
+    const checked = cb.checked;
+    msgSelectAllChecked = checked;
+    const sel = document.getElementById('msgRecipients');
+    if (sel) {
+        Array.from(sel.options).forEach(o => { o.selected = checked; });
+    }
+    updateMsgRecipientsCount();
+}
+
 function syncMsgSelectAllCheckbox() {
     const sel = document.getElementById('msgRecipients');
     const cb = document.getElementById('msgSelectAll');
@@ -3274,13 +3294,8 @@ function syncMsgSelectAllCheckbox() {
     const all = sel.options.length > 0 && Array.from(sel.options).every(o => o.selected);
     cb.checked = all;
     msgSelectAllChecked = all;
+    updateMsgRecipientsCount();
 }
-
-document.getElementById('msgSelectAll')?.addEventListener('change', (e) => {
-    msgSelectAllChecked = e.target.checked;
-    const sel = document.getElementById('msgRecipients');
-    Array.from(sel.options).forEach(o => { o.selected = msgSelectAllChecked; });
-});
 
 document.getElementById('msgRecipients')?.addEventListener('change', () => {
     syncMsgSelectAllCheckbox();
@@ -3315,6 +3330,7 @@ async function loadMsgRecipients() {
     if (msgSelectAllChecked) {
         Array.from(sel.options).forEach(o => { o.selected = true; });
     }
+    updateMsgRecipientsCount();
 }
 
 document.getElementById('msgRecipientType')?.addEventListener('change', loadMsgRecipients);
